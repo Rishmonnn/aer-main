@@ -161,3 +161,70 @@ body {
 .calendar-card td { font-size: 0.95rem; padding: 10px 0; font-weight: 500; color: #333; }
 .today { background: #333; color: white !important; border-radius: 12px; }
 .calendar-btn { font-size: 1.5rem; cursor: pointer; color: #888; }
+
+/* --- Top Banner / Header Styling --- */
+.top-banner {
+    display: flex;
+    justify-content: space-between; /* Pushes left logo and right text apart */
+    align-items: center;
+    background: linear-gradient(90deg, #590d16 0%, #7a131f 100%); /* Dark Maroon Gradient */
+    padding: 15px 40px;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    min-height: 90px;
+}
+
+/* Left Section (CEA Logo) */
+.banner-left {
+    display: flex;
+    align-items: center;
+}
+
+/* Right Section (Text + University Logo) */
+.banner-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    text-align: right;
+}
+
+/* Typography for Header */
+.banner-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Aligns text to the right */
+}
+
+.banner-text h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    color: #fff;
+}
+
+.banner-text p {
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 4px 0 0 0;
+    opacity: 0.9;
+    letter-spacing: 1px;
+    color: #f0f0f0;
+}
+
+/* Logo Image Sizing */
+.header-logo {
+    height: 65px; /* Adjust size as needed */
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+/* Responsive Design for smaller screens */
+@media (max-width: 1024px) {
+    .top-banner { padding: 15px 20px; }
+    .banner-text h1 { font-size: 1.1rem; }
+    .banner-text p { font-size: 0.7rem; }
+    .header-logo { height: 50px; }
+}

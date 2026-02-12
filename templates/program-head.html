@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
+{# --- 1. DISABLE THE DEFAULT HEADER FROM BASE.HTML --- #}
+{# This prevents the double-header issue that disrupts the layout #}
+{% block header %}{% endblock %}
 
-
-{# 1. ADDED classrecords.css #}
+{# --- Existing Styles and Scripts --- #}
 {% set pageStyles = ['program-head.css', 'enrollment.css', 'enlistment.css', 'student_journey.css', 'retention.css', 'classrecords.css', 'schedules.css', 'instructors.css'] %}
-
-{# 2. ADDED classrecords.js #}
 {% set pageScripts = ['program-head.js', 'enrollment.js', 'enlistment.js', 'student_journey.js', 'retention.js', 'classrecords.js', 'schedules.js', 'instructors.js'] %}
 
 {% block content %}
@@ -24,13 +24,8 @@
             <a href="#" class="nav-item" onclick="switchTab(event, 'enlistment')"><i class='bx bx-file-blank'></i> <span>ENLISTMENT</span></a>
             <a href="#" class="nav-item" onclick="switchTab(event, 'journey')"><i class='bx bx-paper-plane'></i> <span>STUDENT JOURNEY</span></a>
             <a href="#" class="nav-item" onclick="switchTab(event, 'retention')"><i class='bx bx-pulse'></i> <span>RETENTION & ADVISING</span></a>
-            
-            {# 3. FIXED: Changed 'records' to 'classrecords' to match the ID #}
             <a href="#" class="nav-item" onclick="switchTab(event, 'classrecords')"><i class='bx bx-folder'></i> <span>CLASS RECORDS</span></a>
-            
-            {# 4. FIXED: Changed 'schedule' to 'schedules' to match the ID #}
             <a href="#" class="nav-item" onclick="switchTab(event, 'schedules')"><i class='bx bx-calendar-event'></i> <span>SCHEDULE</span></a>
-            
             <a href="#" class="nav-item" onclick="switchTab(event, 'instructors')"><i class='bx bx-group'></i> <span>INSTRUCTORS</span></a>
         </nav>
 
@@ -40,16 +35,10 @@
     </aside>
 
     <div class="main-wrapper">
-        <header class="top-banner">
-            <div class="banner-text">
-                <h3>COLLEGE OF ENGINEERING AND ARCHITECTURE</h3>
-                <h3>ACADEMIC EVALUATION, RECORDS & INFORMATION SYSTEMS</h3>
-            </div>
-            <img src="{{ url_for('static', filename='assets/logo.png') }}" alt="Logo" style="height: 50px;">
-        </header>
+        {# --- 2. INCLUDE THE SHARED HEADER HERE INSTEAD --- #}
+        {% include 'includes/header.html' %}
 
         <main class="content-body" id="main-content">
-            
             <div id="home-view" class="dashboard-grid">
                 <div class="stats-col">
                     <div class="stat-card card-students">

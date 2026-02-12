@@ -231,4 +231,4 @@ def get_schedules():
 def not_found(error): return redirect(url_for('index')), 404
 
 if __name__ == '__main__':
-    app.run(debug=app.config['DEBUG'], host='127.0.0.1', port=5000)
+    app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5000)
