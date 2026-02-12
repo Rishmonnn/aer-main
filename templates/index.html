@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AERIS Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+<div class="bg">
+    <div class="overlay"></div>
+
+    <div class="content">
+
+    <!-- LEFT -->
+    <div class="left">
+        <div class="brand">
+            <img src="{{ url_for('static', filename='assets/logo.png') }}" class="logo">
+
+            <h1>A E R I S</h1>
+
+            <p>
+                COLLEGE OF ENGINEERING AND ARCHITECTURE<br>
+                ACADEMIC EVALUATION, RECORDS &<br>
+                INFORMATION SYSTEMS
+            </p>
+        </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right">
+        <div class="login-card">
+            <h2>Welcome Back!</h2>
+            <span>Please enter your details to log in</span>
+
+            {% if error %}
+            <div style="color: #d32f2f; margin: 15px 0; padding: 10px; background: #ffebee; border-radius: 8px;">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form action="/login" method="POST" onsubmit="return validateForm()">
+                <label>Email Address</label>
+                <input type="email" name="email" placeholder="Enter your email" required>
+
+                <label>Password</label>
+                <input type="password" name="password" placeholder="Enter your password" required>
+
+                <input type="hidden" name="role" id="role">
+
+                <button type="submit" id="signin-btn">Sign In</button>
+            </form>
+
+            <div class="roles">
+                <span class="role-option" onclick="setRole(event, 'head')">AS HEAD</span>
+                <span class="role-option" onclick="setRole(event, 'faculty')">AS FACULTY</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+</div>
+<script>
+function setRole(event, role) {
+    document.getElementById('role').value = role;
+    const roleOptions = document.querySelectorAll('.role-option');
+    roleOptions.forEach(option => {
+        option.style.background = 'transparent';
+        option.style.borderColor = 'transparent';
+    });
+    event.target.style.background = '#f0f0f0';
+    event.target.style.borderColor = '#7a001e';
+}
+
+function validateForm() {
+    const role = document.getElementById('role').value;
+    if (!role) {
+        alert('Please select a role (AS HEAD or AS FACULTY)');
+        return false;
+    }
+    return true;
+}
+</script>
+</body>
+
+</html>

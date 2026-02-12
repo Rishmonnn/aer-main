@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+
+
+{# 1. ADDED classrecords.css #}
+{% set pageStyles = ['program-head.css', 'enrollment.css', 'enlistment.css', 'student_journey.css', 'retention.css', 'classrecords.css', 'schedules.css', 'instructors.css'] %}
+
+{# 2. ADDED classrecords.js #}
+{% set pageScripts = ['program-head.js', 'enrollment.js', 'enlistment.js', 'student_journey.js', 'retention.js', 'classrecords.js', 'schedules.js', 'instructors.js'] %}
+
+{% block content %}
+    <aside class="sidebar" id="sidebar">
+        <div class="user-profile">
+            <i class='bx bx-menu' id="sidebarToggle" style="font-size: 28px; cursor: pointer;"></i>
+            <div>
+                <p style="font-size: 0.8rem; opacity: 0.7;">Welcome,</p>
+                <p style="font-weight: 600; font-size: 1rem;">Engr. Program Head</p>
+            </div>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="#" class="nav-item active" onclick="switchTab(event, 'home')"><i class='bx bx-home-alt-2'></i> <span>HOME</span></a>
+            <a href="#" class="nav-item" onclick="switchTab(event, 'enrollment')"><i class='bx bx-user-plus'></i> <span>ENROLLMENT</span></a>
+            <a href="#" class="nav-item" onclick="switchTab(event, 'enlistment')"><i class='bx bx-file-blank'></i> <span>ENLISTMENT</span></a>
+            <a href="#" class="nav-item" onclick="switchTab(event, 'journey')"><i class='bx bx-paper-plane'></i> <span>STUDENT JOURNEY</span></a>
+            <a href="#" class="nav-item" onclick="switchTab(event, 'retention')"><i class='bx bx-pulse'></i> <span>RETENTION & ADVISING</span></a>
+            
+            {# 3. FIXED: Changed 'records' to 'classrecords' to match the ID #}
+            <a href="#" class="nav-item" onclick="switchTab(event, 'classrecords')"><i class='bx bx-folder'></i> <span>CLASS RECORDS</span></a>
+            
+            {# 4. FIXED: Changed 'schedule' to 'schedules' to match the ID #}
+            <a href="#" class="nav-item" onclick="switchTab(event, 'schedules')"><i class='bx bx-calendar-event'></i> <span>SCHEDULE</span></a>
+            
+            <a href="#" class="nav-item" onclick="switchTab(event, 'instructors')"><i class='bx bx-group'></i> <span>INSTRUCTORS</span></a>
+        </nav>
+
+        <div class="logout-section">
+            <a href="{{ url_for('logout') }}" class="nav-item"><i class='bx bx-log-out'></i> <span>LOG OUT</span></a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="top-banner">
+            <div class="banner-text">
+                <h3>COLLEGE OF ENGINEERING AND ARCHITECTURE</h3>
+                <h3>ACADEMIC EVALUATION, RECORDS & INFORMATION SYSTEMS</h3>
+            </div>
+            <img src="{{ url_for('static', filename='assets/logo.png') }}" alt="Logo" style="height: 50px;">
+        </header>
+
+        <main class="content-body" id="main-content">
+            
+            <div id="home-view" class="dashboard-grid">
+                <div class="stats-col">
+                    <div class="stat-card card-students">
+                        <div>
+                            <h3 class="stat-label">Students</h3>
+                            <div class="stat-card-content">
+                                <span class="val" id="student-count">326</span>
+                                <span class="year-selector" onclick="cycleYear()">
+                                    <span id="year-label">1st Year</span>
+                                    <i class='bx bx-chevron-right'></i>
+                                </span>
+                            </div>
+                        </div>
+                        <i class='bx bx-user card-icon'></i>
+                    </div>
+                    <div class="stat-card card-teachers">
+                        <div>
+                            <h3 class="stat-label">Teachers</h3>
+                            <div class="stat-card-content"><span class="val">4</span></div>
+                        </div>
+                        <i class='bx bx-user-circle card-icon'></i>
+                    </div>
+                    <div class="stat-card card-year">
+                        <div>
+                            <h3 class="stat-label">Academic Year</h3>
+                            <div class="stat-card-content"><span class="val">2025-2026</span></div>
+                        </div>
+                        <i class='bx bx-book card-icon'></i>
+                    </div>
+                </div>
+
+                <div class="center-col">
+                    <div class="info-box">
+                        <h3 class="box-label">Recent Activities</h3>
+                        <div class="activity-list">
+                            <div class="activity-item">
+                                <span><span class="enrolled">Enrolled:</span> Jupiter Mami</span>
+                                <span class="timestamp">Jan 30, 2026, 7:37 AM</span>
+                            </div>
+                            <div class="activity-item">
+                                <span><span class="enrolled">Enrolled:</span> Recmar M. Anak</span>
+                                <span class="timestamp">Jan 30, 2026, 7:45 AM</span>
+                            </div>
+                            <div class="activity-item">
+                                <span><span class="approved">Approved Grade:</span> CPE 035 - Logic & Design</span>
+                                <span class="timestamp">Feb 14, 2026, 7:43 AM</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="info-box">
+                        <h3 class="box-label">Suggested Actions</h3>
+                        <div class="actions-list">
+                            <div class="action-row">
+                                <span class="action-text"><span class="enrolled">Enlist</span> Pending Enlistment</span>
+                                <button class="btn-action">Proceed to Enlistment</button>
+                            </div>
+                            <div class="action-row">
+                                <span class="action-text"><span class="approved">Approve</span> Grade for Subject: CPE 036</span>
+                                <button class="btn-action">Review Grades</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calendar-card">
+                    <div class="calendar-header">
+                        <div class="calendar-selects">
+                            <select id="monthSelect" onchange="updateCalendarFromSelect()">
+                                <option value="0">Jan</option><option value="1">Feb</option>
+                                <option value="2">Mar</option><option value="3">Apr</option>
+                                <option value="4">May</option><option value="5">Jun</option>
+                                <option value="6">Jul</option><option value="7">Aug</option>
+                                <option value="8">Sep</option><option value="9">Oct</option>
+                                <option value="10">Nov</option><option value="11">Dec</option>
+                            </select>
+                            <select id="yearSelect" onchange="updateCalendarFromSelect()">
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026" selected>2026</option>
+                                <option value="2027">2027</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <span class="calendar-btn" onclick="changeMonth(-1)">‹</span>
+                            <span class="calendar-btn" onclick="changeMonth(1)">›</span>
+                        </div>
+                    </div>
+                    <table>
+                        <thead><tr><th>Su</th><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th></tr></thead>
+                        <tbody id="calendar-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="enrollment-view" style="display:none;">{% include 'includes/program-head/enrollment.html' %}</div>
+            <div id="enlistment-view" style="display:none;">{% include 'includes/program-head/enlistment.html' %}</div>
+            <div id="journey-view" style="display:none;">{% include 'includes/program-head/student_journey.html' %}</div>
+            
+            <div id="retention-view" style="display:none;">
+                {% include 'includes/program-head/retention.html' %}
+            </div>
+
+            <div id="advising-view" style="display:none;">{% include 'includes/program-head/advising.html' %}</div>
+            <div id="classrecords-view" style="display:none;">{% include 'includes/program-head/classrecords.html' %}</div>
+            <div id="schedules-view" style="display:none;">{% include 'includes/program-head/schedules.html' %}</div>
+            <div id="instructors-view" style="display:none;">{% include 'includes/program-head/instructors.html' %}</div>
+        </main>
+    </div>
+{% endblock %}

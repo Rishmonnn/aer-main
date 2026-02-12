@@ -1,0 +1,172 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+/* Background image */
+.bg {
+    position: relative;
+    height: 100vh;
+    background: url("../assets/bg.jpg") center/cover no-repeat;
+}
+
+/* RED OVERLAY — FULL SCREEN */
+.overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(120, 0, 30, 0.486);
+    z-index: 1;
+}
+
+/* CONTENT ABOVE OVERLAY */
+.content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    height: 100vh;
+}
+
+/* LEFT CONTENT */
+.left {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 180px;
+    color: white;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Centers children horizontally */
+  text-align: center;   /* Centers text lines */
+}
+
+.brand .logo {
+  width: 250px;       /* Adjusted for a larger presence */
+  height: auto;
+  margin-bottom: 20px; /* Space between logo and 'AERIS' */
+}
+
+.brand h1 {
+  font-size: 80px;      /* Large, impactful size */
+  font-weight: 700;     /* Bold weight */
+  letter-spacing: 5px; /* Wide spacing as seen in the image */
+  text-transform: uppercase;
+  margin: 0 0 40px 0;   /* Space below the title */
+  line-height: 1;
+  padding-left: 25px;   /* Offsets the letter-spacing on the last character to keep it centered */
+}
+
+.brand p {
+  font-size: 18px;
+  font-weight: 300;
+  letter-spacing: 2px;
+  line-height: 1.5;
+  text-transform: uppercase;
+  max-width: 600px;    /* Limits width to force text onto multiple lines */
+  margin: 0 auto;      /* Centers the paragraph block itself */
+}
+
+/* RIGHT CONTENT */
+.right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* LOGIN CARD */
+.login-card {
+    width: 420px;
+    background: white;
+    padding: 40px;
+    border-radius: 18px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+
+.login-card h2 {
+    margin-bottom: 5px;
+}
+
+.login-card span {
+    font-size: 14px;
+    color: #666;
+}
+
+label {
+    display: block;
+    margin-top: 20px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #f5f5f5;
+    font-size: 14px;
+    transition: background 0.3s ease;
+}
+
+input:focus {
+    outline: none;
+    background: white;
+    border-color: #7a001e;
+}
+
+input::placeholder {
+    color: #999;
+}
+
+button {
+    width: 100%;
+    margin-top: 25px;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #7a001e;
+    color: white;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+button:hover {
+    background: #5d0016;
+}
+
+button:active {
+    background: #4a000f;
+}
+
+.roles {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    gap: 20px;
+}
+
+.role-option {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    color: #7a001e;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.role-option:hover {
+    background: #f0f0f0;
+    border-color: #7a001e;
+}

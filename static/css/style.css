@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600;700&display=swap');
+
+:root {
+    --primary-red: #8B0000;
+    --primary-red-hover: #a50000;
+    --primary-red-light: #fff0f0;
+    --text-dark: #2d3748;
+    --text-muted: #718096;
+    --bg-body: #f7fafc;
+    --white: #ffffff;
+    
+    /* UPDATED: Changed from 260px to 280px to match Program Head */
+    --sidebar-width: 280px; 
+    
+    --header-height: 80px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background-color: var(--bg-body);
+    font-family: 'Inter', sans-serif;
+    color: var(--text-dark);
+}
+
+h1, h2, h3 { font-family: 'Poppins', sans-serif; }
+.hidden { display: none !important; }
+
+/* =========================================
+   SHARED HEADER STYLES
+   ========================================= */
+.head-header {
+    background-color: #781b26;
+    height: var(--header-height);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 40px;
+    width: 100%;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.head-text {
+    text-align: right;
+    margin-right: 20px;
+    font-family: 'Arial', sans-serif;
+    color: white;
+    line-height: 1.2;
+}
+
+.head-text h1 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.head-text p {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 3px 0 0 0;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.head-logo {
+    height: 55px;
+    width: auto;
+    filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.2));
+}

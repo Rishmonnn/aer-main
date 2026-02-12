@@ -1,0 +1,150 @@
+<div class="retention-container">
+    <div class="module-header">RETENTION</div>
+
+    <div class="retention-dashboard-grid">
+        
+        <div class="col-counts">
+            <div class="card-metric maroon small-card">
+                <h3>Total Students</h3>
+                <span class="value">5,909</span>
+            </div>
+            <div class="card-metric green small-card">
+                <h3>Regular</h3>
+                <span class="value">60</span>
+            </div>
+            <div class="card-metric maroon small-card">
+                <h3>Irregular</h3>
+                <span class="value">100</span>
+            </div>
+        </div>
+
+        <div class="col-rates">
+            <div class="card-metric white rate-card">
+                <div class="metric-header">
+                    <h3>Retention Rate</h3>
+                    <i class='bx bxs-graduation'></i>
+                </div>
+                <span class="value">87.2%</span>
+                <span class="trend positive"><i class='bx bx-trending-up'></i> +2.8% vs last year</span>
+            </div>
+            <div class="card-metric white rate-card">
+                <div class="metric-header">
+                    <h3>Dropout Rate</h3>
+                    <i class='bx bxs-user-x'></i>
+                </div>
+                <span class="value">4.2%</span>
+                <span class="trend negative"><i class='bx bx-trending-down'></i> -1.1% vs last year</span>
+            </div>
+        </div>
+
+        <div class="col-chart">
+            <div class="chart-card">
+                <h3>Dropout Reasons</h3>
+                <p class="subtitle">Why students leave</p>
+                <div class="chart-wrapper">
+                    <div class="legend-box">
+                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#ef5350"></span>Financial Issues</div><span class="legend-val">28%</span></div>
+                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#263238"></span>Academic Struggles</div><span class="legend-val">24%</span></div>
+                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#78909c"></span>Personal/Family</div><span class="legend-val">18%</span></div>
+                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#d81b60"></span>Wrong Program Fit</div><span class="legend-val">15%</span></div>
+                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#ab47bc"></span>Mental Health</div><span class="legend-val">10%</span></div>
+                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#eeeeee"></span>Other</div><span class="legend-val">5%</span></div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="css-doughnut"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="risk-analysis-grid">
+        <div class="risk-card critical">
+            <div class="risk-header">
+                <h3>Critical Risk</h3>
+                <i class='bx bx-error-circle'></i>
+            </div>
+            <div class="risk-body">
+                <span class="risk-count">2</span>
+                <p>Student with multiple failed subject, multiple absences</p>
+            </div>
+        </div>
+
+        <div class="risk-card high">
+            <div class="risk-header">
+                <h3>High Risk</h3>
+                <i class='bx bx-error'></i>
+            </div>
+            <div class="risk-body">
+                <span class="risk-count">4</span>
+                <p>Student who is barely passing, frequent absences</p>
+            </div>
+        </div>
+
+        <div class="population-card">
+            <h3>Department Population</h3>
+            <p class="subtitle">Number of students per year level</p>
+            <div class="pop-bars">
+                <div class="pop-row">
+                    <span class="label">1st year</span>
+                    <div class="progress-track"><div class="progress-fill red" style="width: 70%"></div></div>
+                    <span class="count">70</span>
+                </div>
+                <div class="pop-row">
+                    <span class="label">2nd year</span>
+                    <div class="progress-track"><div class="progress-fill blue" style="width: 85%"></div></div>
+                    <span class="count">85</span>
+                </div>
+                <div class="pop-row">
+                    <span class="label">3rd year</span>
+                    <div class="progress-track"><div class="progress-fill brown" style="width: 35%"></div></div>
+                    <span class="count">35</span>
+                </div>
+                <div class="pop-row">
+                    <span class="label">4th year</span>
+                    <div class="progress-track"><div class="progress-fill green" style="width: 15%"></div></div>
+                    <span class="count">11</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="retention-table-container">
+        <div class="table-search">
+            <i class='bx bx-search'></i>
+            <input type="text" id="retentionSearch" placeholder="Search by name or by student number" onkeyup="filterRetentionTable()">
+        </div>
+        
+        <table class="retention-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>NAME</th>
+                    <th>PROGRAM</th>
+                    <th>YEAR LEVEL</th>
+                    <th>STATUS</th>
+                    <th>ACTION</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>2324-00001</td>
+                    <td class="std-name">Jupiter Mami</td>
+                    <td>BS in Computer Engineering</td>
+                    <td>2nd Year</td>
+                    <td><span class="risk-pill high">High Risk</span></td>
+                    <td><button class="btn-advise">ADVISE</button></td>
+                </tr>
+                <tr>
+                    <td>2324-00002</td>
+                    <td class="std-name">Juan Dela Cruz</td>
+                    <td>BS in Computer Engineering</td>
+                    <td>2nd Year</td>
+                    <td><span class="risk-pill high">High Risk</span></td>
+                    <td><button class="btn-advise">ADVISE</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

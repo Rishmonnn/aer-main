@@ -1,0 +1,177 @@
+/* Base Font Enforcement */
+.retention-container, 
+.retention-container * { 
+    font-family: 'Inter', sans-serif; 
+}
+
+.retention-container { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 20px; 
+    animation: fadeIn 0.4s ease; 
+    padding-bottom: 50px; 
+}
+
+.module-header { 
+    background-color: #800020; 
+    color: white; 
+    text-align: center; 
+    padding: 15px; 
+    border-radius: 8px; 
+    font-weight: 700; 
+    font-size: 1.2rem; 
+    letter-spacing: 1px; 
+}
+
+/* --- New 3-Column Dashboard Grid --- */
+.retention-dashboard-grid { 
+    display: grid; 
+    grid-template-columns: 190px 240px 1fr; /* Exact fixed widths for stacks + flex for chart */
+    gap: 20px; 
+    align-items: stretch; /* Make all columns same height */
+}
+
+/* Column 1: Counts Stack */
+.col-counts {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.small-card {
+    flex: 1; /* Distribute height evenly */
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.small-card h3 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 5px;
+    opacity: 0.9;
+    color: inherit;
+}
+
+.small-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Column 2: Rates Stack */
+.col-rates {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.rate-card {
+    flex: 1; /* Half height each */
+    padding: 25px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* Column 3: Chart */
+.col-chart {
+    height: 100%;
+}
+
+/* Card Colors */
+.card-metric.maroon { background: #90242d; color: white; }
+.card-metric.green { background: #27ae60; color: white; }
+.card-metric.white { background: white; border: 1px solid #e0e0e0; color: #333; }
+
+/* Metric Header & Trend */
+.metric-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+.metric-header h3 { margin: 0; font-size: 0.95rem; font-weight: 600; color: #333; }
+.metric-header i { font-size: 1.4rem; color: #666; background: #f0f0f0; padding: 6px; border-radius: 50%; }
+
+.rate-card .value { font-size: 2.2rem; font-weight: 800; line-height: 1.1; margin-bottom: 5px; color: #111; }
+
+.trend { font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.trend.positive { color: #27ae60; }
+.trend.negative { color: #c0392b; }
+
+/* Chart Styling */
+.chart-card { background: white; border-radius: 12px; padding: 25px 30px; border: 1px solid #e0e0e0; height: 100%; display: flex; flex-direction: column; }
+.chart-card h3 { margin: 0; font-size: 1.1rem; color: #333; font-weight: 600; }
+.subtitle { font-size: 0.85rem; color: #666; margin: 4px 0 20px; }
+
+.chart-wrapper { display: flex; align-items: center; justify-content: space-between; flex-grow: 1; }
+.legend-box { display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; color: #444; width: 45%; }
+.legend-item { display: flex; justify-content: space-between; gap: 10px; width: 100%; align-items: center; }
+.legend-label { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.legend-val { font-weight: 600; text-align: right; color: #111; }
+.dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+.chart-container { width: 220px; height: 220px; display: flex; justify-content: center; align-items: center; }
+.css-doughnut {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: conic-gradient(
+        #ef5350 0% 28%,    
+        #263238 28% 52%,   
+        #78909c 52% 70%,   
+        #d81b60 70% 85%,   
+        #ab47bc 85% 95%,   
+        #eeeeee 95% 100%   
+    );
+    position: relative;
+}
+.css-doughnut::after {
+    content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 130px; height: 130px; background: white; border-radius: 50%;
+}
+
+/* Risk Grid */
+.risk-analysis-grid { display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 20px; }
+.risk-card { padding: 25px; border-radius: 12px; border: 1px solid transparent; }
+.risk-card.critical { background: #ffebeb; border-color: #ffb8b8; }
+.risk-card.high { background: #fff8e1; border-color: #ffe082; }
+
+.risk-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.risk-header h3 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+.risk-header i { font-size: 1.8rem; }
+.risk-card.critical .risk-header i { color: #e53e3e; }
+.risk-card.high .risk-header i { color: #f6ad55; }
+
+.risk-body { display: flex; gap: 20px; align-items: center; }
+.risk-count { font-size: 3.5rem; font-weight: 700; line-height: 1; }
+.risk-card.critical .risk-count { color: #c53030; }
+.risk-card.high .risk-count { color: #d69e2e; }
+.risk-body p { font-size: 0.85rem; color: #444; margin: 0; line-height: 1.4; font-weight: 500; }
+
+/* Population */
+.population-card { background: white; padding: 20px 25px; border-radius: 12px; border: 1px solid #e0e0e0; }
+.population-card h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.pop-bars { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; }
+.pop-row { display: grid; grid-template-columns: 60px 1fr 30px; align-items: center; gap: 10px; font-size: 0.8rem; font-weight: 600; color: #444; }
+.progress-track { background: #eee; height: 10px; border-radius: 5px; overflow: hidden; border: 1px solid #ddd; }
+.progress-fill { height: 100%; border-radius: 5px; }
+.progress-fill.red { background: #ff0000; }
+.progress-fill.blue { background: #0055ff; }
+.progress-fill.brown { background: #8d6e63; }
+.progress-fill.green { background: #00cc00; }
+
+/* Table */
+.retention-table-container { background: #e0e0e0; padding: 20px; border-radius: 12px; }
+.table-search { background: #dcdcdc; border-radius: 8px; padding: 12px 15px; display: flex; align-items: center; gap: 10px; margin-bottom: 15px; border: 1px solid #ccc; }
+.table-search input { background: transparent; border: none; outline: none; width: 100%; font-size: 0.95rem; }
+.retention-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+.retention-table th { background: #e0e0e0; color: #555; font-size: 0.8rem; font-weight: 700; text-align: left; padding: 15px 25px; text-transform: uppercase; }
+.retention-table td { padding: 15px 25px; border-bottom: 1px solid #eee; font-size: 0.9rem; color: #333; font-weight: 500; }
+.retention-table tbody tr:hover { background: #f9f9f9; }
+.risk-pill { padding: 5px 15px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
+.risk-pill.high { background: #f6ad55; color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.2); }
+.btn-advise { border: 1px solid #90242d; color: #90242d; background: #fff0f0; padding: 6px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.btn-advise:hover { background: #90242d; color: white; }

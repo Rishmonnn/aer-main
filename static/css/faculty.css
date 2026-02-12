@@ -1,0 +1,242 @@
+/* =========================================
+   1. Base Layout & Sidebar (Fixed 100vh)
+   ========================================= */
+
+html, body {
+    height: 100%;
+    overflow: hidden; 
+}
+
+/* Main Container */
+.dashboard-container {
+    display: flex;
+    width: 100%;
+    height: 100vh; 
+    background-color: #f8f9fa;
+    overflow: hidden;
+}
+
+/* Sidebar Styling */
+.sidebar {
+    width: 280px;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background: white;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    padding: 30px 0 0 0;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+}
+
+.sidebar.collapsed {
+    width: 80px;
+}
+
+/* Sidebar Header & Profile */
+.sidebar-header {
+    padding: 0 25px 40px; /* Default Padding */
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: padding 0.3s ease;
+}
+
+/* Adjust padding when collapsed so the icon stays centered/visible */
+.sidebar.collapsed .sidebar-header {
+    padding: 0 0 40px 0; 
+    justify-content: center;
+}
+
+.user-profile {
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    padding-left: 10px; /* Moved from inline style */
+    width: 100%;
+}
+
+.sidebar.collapsed .user-profile {
+    padding-left: 0;
+    justify-content: center;
+}
+
+#sidebarToggle {
+    font-size: 24px; 
+    cursor: pointer; 
+    color: #333;
+    flex-shrink: 0; /* Prevent icon from shrinking */
+}
+
+/* Text inside profile */
+.profile-text p { font-size: 0.85rem; color: #666; margin: 0; }
+.profile-text h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+
+.sidebar.collapsed .profile-text { display: none; }
+
+
+/* Navigation Menu */
+.nav-menu {
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.nav-menu::-webkit-scrollbar { width: 4px; }
+.nav-menu::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    height: 50px;
+    padding: 0;
+    color: #333;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    border-left: 4px solid transparent;
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.nav-item i {
+    font-size: 1.3rem;
+    min-width: 80px;
+    display: flex;
+    justify-content: center;
+    color: #800020;
+}
+
+.sidebar.collapsed .nav-item span { display: none; }
+
+.nav-item:hover, .nav-item.active {
+    background-color: #fff0f0;
+    border-left-color: #800020;
+    color: #800020;
+}
+
+.logout-section {
+    width: 100%;
+    padding: 20px 0;
+    border-top: 1px solid #eee;
+    margin-top: auto;
+    background: white;
+    flex-shrink: 0;
+}
+
+/* Main Content Area */
+.main-content {
+    margin-left: 280px;
+    flex: 1;
+    background-color: #f8f9fa;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: margin-left 0.3s ease;
+}
+
+/* JS Toggles this class */
+.main-content.collapsed-margin {
+    margin-left: 80px;
+}
+
+/* --- VIEW WRAPPERS --- */
+#content-wrapper {
+    padding: 30px 50px;
+    flex: 1;
+    overflow-y: auto; 
+}
+
+#classrecords-wrapper {
+    padding: 30px 50px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    height: 100%;     
+    box-sizing: border-box;
+}
+
+#classrecords {
+    min-height: 100%;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* =========================================
+   2. Dashboard Grid System
+   ========================================= */
+.dashboard-grid { 
+    display: grid; 
+    grid-template-columns: 290px 1fr 360px; 
+    gap: 28px; 
+    align-items: stretch; 
+    min-height: 620px; 
+}
+.stats-col, .center-col { display: flex; flex-direction: column; gap: 24px; height: 100%; }
+
+/* Cards & Info Boxes */
+.stat-card { 
+    flex: 1; padding: 28px; border-radius: 24px; position: relative; 
+    transition: transform 0.2s; color: #333; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    display: flex; flex-direction: column; justify-content: center; overflow: hidden;
+}
+.stat-card:hover { transform: translateY(-3px); }
+.card-students { background: linear-gradient(135deg, #fbc69d 0%, #ffcaa6 100%); }
+.card-teachers { background: linear-gradient(135deg, #ffb2bd 0%, #ffc1c9 100%); }
+.card-year { background: linear-gradient(135deg, #ff8e91 0%, #ff9fa2 100%); }
+.stat-label { font-size: 1.1rem; font-weight: 600; color: #4a4a4a; margin-bottom: 8px; text-transform: uppercase; }
+.stat-card .val { font-size: 2.8rem; font-weight: 700; color: #222; line-height: 1; }
+.card-icon { position: absolute; top: 25px; right: 25px; font-size: 2rem; opacity: 0.25; color: black; }
+
+.info-box { 
+    flex: 1; background: #eaeff5; border-radius: 24px; padding: 32px; 
+    border: 1px solid rgba(255,255,255,0.5); display: flex; flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.box-label { font-size: 1.1rem; font-weight: 700; margin-bottom: 24px; color: #333; }
+
+.activity-list { display: flex; flex-direction: column; gap: 16px; flex-grow: 1; }
+.activity-item { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 0.9rem; }
+.timestamp { color: #777; font-size: 0.75rem; }
+.approved { color: #2e7d32; font-weight: 700; }
+.enrolled { color: #c62828; font-weight: 700; }
+
+.actions-list { display: flex; flex-direction: column; justify-content: space-evenly; flex-grow: 1; }
+.action-row { 
+    display: grid; grid-template-columns: 1fr 140px; gap: 20px; align-items: center; 
+    background: rgba(255,255,255,0.6); padding: 12px 16px; border-radius: 16px; transition: background 0.2s;
+}
+.action-row:hover { background: rgba(255,255,255,0.9); }
+.action-text { font-size: 0.9rem; font-weight: 600; color: #444; display: flex; align-items: center; gap: 10px; }
+.action-text i { font-size: 1.2rem; color: #800020; }
+.btn-action { 
+    background: #b9f2c7; color: #1b5e20; border: none; padding: 10px 12px; border-radius: 10px; 
+    font-size: 0.8rem; font-weight: 700; cursor: pointer; width: 100%; text-align: center; transition: transform 0.1s;
+}
+.btn-action:hover { background: #a3e8b5; transform: translateY(-2px); }
+
+/* Calendar */
+.calendar-card { 
+    background: white; border-radius: 24px; padding: 30px; border: 1px solid #eee; 
+    display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.05); height: 100%; 
+}
+.calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+.calendar-selects select { border: 1px solid #e0e0e0; padding: 6px 12px; border-radius: 8px; font-size: 0.9rem; background: #f9f9f9; cursor: pointer; margin-right: 5px;}
+.calendar-card table { width: 100%; border-collapse: collapse; flex-grow: 1; text-align: center; }
+.calendar-card th { font-size: 0.75rem; color: #999; text-transform: uppercase; padding-bottom: 15px; }
+.calendar-card td { font-size: 0.95rem; padding: 10px 0; font-weight: 500; color: #333; border-radius: 8px;}
+.calendar-card td.today { background: #333; color: white !important; }
+.calendar-btn { font-size: 1.5rem; cursor: pointer; color: #888; padding: 0 5px; user-select: none;}
+.calendar-btn:hover { color: #333; }

@@ -1,0 +1,166 @@
+<div class="journey-container">
+    
+    <div id="journey-list-section">
+        <div class="module-header">STUDENT JOURNEY</div>
+
+        <div class="search-container">
+            <i class='bx bx-search'></i>
+            <input type="text" id="journeySearch" placeholder="Search by Name or Student ID..." onkeyup="filterJourney()">
+        </div>
+
+        <div class="year-accordion">
+            <div class="accordion-header header-pink" onclick="toggleJourneyAccordion(this)">
+                <i class='bx bx-chevron-down'></i> <span>1st Year</span>
+            </div>
+            <div class="accordion-body">
+                <table class="journey-table">
+                    <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Action</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>2024-00001</td><td class="student-name">Maria Cruz</td><td>BS in Computer Engineering</td>
+                            <td><button class="btn-view-journey" onclick="viewStudentJourney('2024-00001', 'Maria Cruz')">View Journey</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="year-accordion">
+            <div class="accordion-header header-blue" onclick="toggleJourneyAccordion(this)">
+                <i class='bx bx-chevron-down'></i> <span>2nd Year</span>
+            </div>
+            <div class="accordion-body">
+                <table class="journey-table">
+                    <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Action</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>2024-00002</td><td class="student-name">Juan Dela Cruz</td><td>BS in Computer Engineering</td>
+                            <td><button class="btn-view-journey" onclick="viewStudentJourney('2024-00002', 'Juan Dela Cruz')">View Journey</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="year-accordion collapsed">
+            <div class="accordion-header header-green" onclick="toggleJourneyAccordion(this)"><i class='bx bx-chevron-right'></i> <span>3rd Year</span></div>
+            <div class="accordion-body"><div class="empty-state">No records found.</div></div>
+        </div>
+        <div class="year-accordion collapsed">
+            <div class="accordion-header header-teal" onclick="toggleJourneyAccordion(this)"><i class='bx bx-chevron-right'></i> <span>4th Year</span></div>
+            <div class="accordion-body"><div class="empty-state">No records found.</div></div>
+        </div>
+    </div>
+
+    <div id="journey-detail-section" style="display: none;">
+        
+        <div class="detail-header-nav">
+            <button class="btn-back" onclick="closeJourneyDetail()"><i class='bx bx-arrow-back'></i> Back</button>
+            <div class="detail-title">STUDENT JOURNEY</div>
+        </div>
+
+        <div class="info-card">
+            <div class="info-row">
+                <div class="info-group">
+                    <span class="label">STUDENT ID:</span>
+                    <span class="value" id="detail-id">2224-00001</span>
+                </div>
+                <div class="info-group">
+                    <span class="label">STUDENT NAME:</span>
+                    <span class="value" id="detail-name">JUAN DELA CRUZ</span>
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-group">
+                    <span class="label">COURSE:</span>
+                    <span class="value">BACHELOR OF SCIENCE IN COMPUTER ENGINEERING</span>
+                </div>
+                <div class="info-group">
+                    <span class="label">CURRICULUM:</span>
+                    <span class="value">CEA-BACHELOR OF SCIENCE IN COMPUTER ENGINEERING 23-24</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <div class="section-header">SUMMARY</div>
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <span class="stat-num">68</span>
+                    <span class="stat-label">EARNED UNITS</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-num">92</span>
+                    <span class="stat-label">REGISTERED UNITS</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-num">104</span>
+                    <span class="stat-label">REMAINING UNITS</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-num">172</span>
+                    <span class="stat-label">TOTAL UNITS</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <div class="section-header">SEMESTER</div>
+            <div class="semester-table-wrapper">
+                <table class="semester-table">
+                    <thead>
+                        <tr>
+                            <th class="text-left"></th> 
+                            <th>Registered Units</th>
+                            <th>Earned Units</th>
+                            <th>GWA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="sem-row" onclick="viewSemesterGrades(this, 'SY 24-25 SEM I')">
+                            <td class="sem-name">SY 24-25 SEM I</td>
+                            <td>22.00</td>
+                            <td>22.00</td>
+                            <td>1.80</td>
+                        </tr>
+                        <tr class="sem-row" onclick="viewSemesterGrades(this, 'SY 24-25 SEM II')">
+                            <td class="sem-name">SY 24-25 SEM II</td>
+                            <td>22.00</td>
+                            <td>22.00</td>
+                            <td>1.80</td>
+                        </tr>
+                        <tr class="sem-row" onclick="viewSemesterGrades(this, 'SY 25-26 SEM I')">
+                            <td class="sem-name">SY 25-26 SEM I</td>
+                            <td>22.00</td>
+                            <td>22.00</td>
+                            <td>1.80</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="semester-grades-section" style="display: none;">
+                <div class="grades-wrapper">
+                    <table class="grades-table">
+                        <thead>
+                            <tr>
+                                <th>SUBJECT CODE</th>
+                                <th>SUBJECT DESCRIPTION</th>
+                                <th>SUBJECT TYPE</th>
+                                <th>UNITS</th>
+                                <th>FINAL GRADE</th>
+                                <th>REMARKS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="grades-table-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

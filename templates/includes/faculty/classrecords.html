@@ -1,0 +1,218 @@
+<div id="classrecords" class="content-section" style="display: none;">
+    
+    <div class="cr-module-header">
+        <h3>CLASS RECORDS</h3>
+    </div>
+
+    <div class="cr-body-container">
+        
+        <div class="cr-top-nav">
+            <button class="cr-nav-pill active">Class Record</button>
+        </div>
+
+        <div id="cr-main-view">
+            <div class="cr-selection-panel">
+                <div class="cr-panel-label">
+                    <i class='bx bx-book-open'></i> Select Subject & Section
+                    <span class="badge-draft">Draft</span>
+                </div>
+                <div class="cr-dropdown-row">
+                    <div class="cr-select-wrapper">
+                        <select><option>CPE 038 - Web Development</option></select>
+                    </div>
+                    <div class="cr-select-wrapper short">
+                        <select><option>CPE 3A</option></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cr-info-banner">
+                <div class="info-col">
+                    <span class="label">College/Program</span>
+                    <span class="val">CEA - Computer Engineering</span>
+                </div>
+                <div class="info-col">
+                    <span class="label">A.Y. & Semester</span>
+                    <span class="val">2025-2026 / 1st Semester</span>
+                </div>
+                <div class="info-col">
+                    <span class="label">Subject Code & Title</span>
+                    <span class="val">CPE 038 - Web Development</span>
+                </div>
+                <div class="info-col">
+                    <span class="label">Section</span>
+                    <span class="val">CPE 3A</span>
+                </div>
+                <div class="info-col">
+                    <span class="label">Prepared By</span>
+                    <span class="val">Engr. Faculty</span>
+                </div>
+            </div>
+
+            <div class="cr-toolbar">
+                <div class="search-wrap">
+                    <i class='bx bx-search'></i>
+                    <input type="text" placeholder="Search by name or student number...">
+                </div>
+                <div class="actions-wrap">
+                    <button class="btn-tool"><i class='bx bx-filter'></i> Filter</button>
+                    <button class="btn-tool dark"><i class='bx bx-import'></i> Import</button>
+                    <button class="btn-tool"><i class='bx bx-export'></i> Export</button>
+                    <button class="btn-tool red"><i class='bx bx-send'></i> Send for Approval</button>
+                </div>
+            </div>
+
+            <div class="cr-sub-tabs">
+                <button class="tab-item active" onclick="ClassRecords.switchSubTab('info', this)">Student Info</button>
+                <button class="tab-item" onclick="ClassRecords.switchSubTab('attendance', this)">Attendance</button>
+                <button class="tab-item" onclick="ClassRecords.switchSubTab('grades', this)">Grades</button>
+            </div>
+
+            <div class="cr-table-wrapper">
+                
+                <div id="cr-view-info" style="display: block; overflow-x: auto;">
+                    <table class="cr-main-table">
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Name</th>
+                                <th>Course</th>
+                                <th>Year</th>
+                                <th class="text-center">Printed Modules</th>
+                                <th>FB Account</th>
+                                <th class="text-center">FB Group</th>
+                                <th class="text-center">Messenger</th>
+                                <th>Contact #</th>
+                                <th>Gmail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cr-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="cr-view-attendance" style="display: none; overflow-x: auto;">
+                    <table class="cr-main-table attendance-table">
+                        <thead>
+                            <tr>
+                                <th class="sticky-col first-col">Student ID</th>
+                                <th class="sticky-col second-col">Name</th>
+                                <th>Course</th>
+                                <th>Year</th>
+                                <th class="text-center">Days Absent</th>
+                                <th class="text-center"><div class="date-header"><span>S1</span><small>3-Dec</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S2</span><small>10-Dec</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S3</span><small>17-Dec</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S4</span><small>24-Dec</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S5</span><small>31-Dec</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S6</span><small>7-Jan</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S7</span><small>14-Jan</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S8</span><small>21-Jan</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S9</span><small>28-Jan</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S10</span><small>4-Feb</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S11</span><small>11-Feb</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S12</span><small>18-Feb</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S13</span><small>25-Feb</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S14</span><small>4-Mar</small></div></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cr-attendance-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="cr-view-grades" style="display: none;">
+                    
+                    <div class="grades-control-bar">
+                        <div class="left-controls">
+                            <span class="control-label">Grade Input System</span>
+                            <span class="badge-subject">CPE 038</span>
+                        </div>
+                        <div class="right-controls">
+                            <button class="btn-grade-action" onclick="ClassRecords.openConfigModal()"><i class='bx bx-cog'></i> Configure Grading</button>
+                            <button class="btn-grade-action" onclick="ClassRecords.resetGrades()"><i class='bx bx-refresh'></i> Reset</button>
+                            <button class="btn-grade-action save"><i class='bx bx-save'></i> Save Grades</button>
+                        </div>
+                    </div>
+
+                    <div class="period-tabs-row">
+                        <button class="period-tab active" data-period="p1" onclick="ClassRecords.switchPeriod('p1')">Period 1 (33%)</button>
+                        <button class="period-tab" data-period="p2" onclick="ClassRecords.switchPeriod('p2')">Period 2 (33%)</button>
+                        <button class="period-tab" data-period="p3" onclick="ClassRecords.switchPeriod('p3')">Period 3 (34%)</button>
+                        <button class="period-tab" data-period="final" onclick="ClassRecords.switchPeriod('final')" style="border-bottom:none; background:#d9a527; color:white;">Final Summary</button>
+                    </div>
+
+                    <div class="grading-info-bar" id="grade-formula-bar">
+                        </div>
+
+                    <div style="overflow-x: auto;">
+                        <table class="cr-main-table grades-table">
+                            <thead id="grades-table-head">
+                                </thead>
+                            <tbody id="cr-grades-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div> 
+        
+        </div>
+</div>
+
+<div id="gradeConfigModal" class="modal-overlay">
+    <div class="modal-content config-modal">
+        <div class="modal-header">
+            <h3><i class='bx bx-cog'></i> Grade Configuration</h3>
+            <span class="close-modal" onclick="ClassRecords.closeConfigModal()">&times;</span>
+        </div>
+        
+        <div class="config-body">
+            
+            <div class="config-row">
+                <label>Passing Grade:</label>
+                <div class="input-suffix-group">
+                    <input type="number" id="conf-passing" value="75">
+                    <span>%</span>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h4>Period Weights (must total 100%)</h4>
+                <div class="period-inputs">
+                    <div class="p-input">
+                        <label>Period 1:</label>
+                        <input type="number" id="conf-p1" value="33"> %
+                    </div>
+                    <div class="p-input">
+                        <label>Period 2:</label>
+                        <input type="number" id="conf-p2" value="33"> %
+                    </div>
+                    <div class="p-input">
+                        <label>Period 3:</label>
+                        <input type="number" id="conf-p3" value="34"> %
+                    </div>
+                </div>
+            </div>
+
+            <hr style="border:0; border-top:1px solid #eee; margin: 15px 0;">
+
+            <div class="config-tabs">
+                <button class="conf-tab active" data-period="p1" onclick="ClassRecords.switchConfigMode('p1')">Period 1</button>
+                <button class="conf-tab" data-period="p2" onclick="ClassRecords.switchConfigMode('p2')">Period 2</button>
+                <button class="conf-tab" data-period="p3" onclick="ClassRecords.switchConfigMode('p3')">Period 3</button>
+            </div>
+
+            <p style="font-size:0.8rem; color:#666; margin-bottom:15px;">
+                Configure categories and items for the selected period above. Weights must total 100%.
+            </p>
+
+            <div id="config-categories-container">
+                </div>
+
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="ClassRecords.closeConfigModal()">Cancel</button>
+            <button class="btn-enroll" onclick="ClassRecords.saveConfiguration()">Save Configuration</button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,110 @@
+<div class="enlistment-container">
+    <div class="module-header">ENLISTMENT</div>
+
+    <div class="search-container">
+        <i class='bx bx-search'></i>
+        <input type="text" id="enlistmentSearch" placeholder="Search by Name or Student ID Number" onkeyup="filterEnlistment()">
+    </div>
+
+    <div class="year-accordion">
+        <div class="accordion-header header-pink" onclick="toggleAccordion(this)">
+            <i class='bx bx-chevron-down'></i> <span>1st Year</span>
+        </div>
+        <div class="accordion-body">
+            <table class="enlistment-table">
+                <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>
+                    <tr onclick="openEnlistmentModal({id:'2024-00001', name:'Maria Cruz', status:'Regular', units: 0, maxUnits: 21, retained: false})">
+                        <td>2024-00001</td><td class="student-name">Maria Cruz</td><td>BS in Computer Engineering</td>
+                        <td><span class="status-pill regular">Regular</span></td>
+                        <td><button class="btn-view-action">Review</button></td>
+                    </tr>
+                    <tr onclick="openEnlistmentModal({id:'2024-00002', name:'Pemela Wan', status:'Regular', units: 0, maxUnits: 21, retained: false})">
+                        <td>2024-00002</td><td class="student-name">Pemela Wan</td><td>BS in Computer Engineering</td>
+                        <td><span class="status-pill regular">Regular</span></td>
+                        <td><button class="btn-view-action">Review</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="year-accordion">
+        <div class="accordion-header header-blue" onclick="toggleAccordion(this)">
+            <i class='bx bx-chevron-down'></i> <span>2nd Year</span>
+        </div>
+        <div class="accordion-body">
+            <table class="enlistment-table">
+                <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>
+                    <tr onclick="openEnlistmentModal({id:'2024-00002', name:'Juan Dela Cruz', status:'Irregular', units: 0, maxUnits: 6, retained: true})">
+                        <td>2024-00002</td><td class="student-name">Juan Dela Cruz</td><td>BS in Computer Engineering</td>
+                        <td><span class="status-pill irregular">Irregular</span></td>
+                        <td><button class="btn-view-action">Review</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="year-accordion collapsed">
+        <div class="accordion-header header-green" onclick="toggleAccordion(this)"><i class='bx bx-chevron-right'></i> 3rd Year</div>
+        <div class="accordion-body"><div class="empty-state">No pending students</div></div>
+    </div>
+    <div class="year-accordion collapsed">
+        <div class="accordion-header header-teal" onclick="toggleAccordion(this)"><i class='bx bx-chevron-right'></i> 4th Year</div>
+        <div class="accordion-body"><div class="empty-state">No pending students</div></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="enlistmentModal">
+    <div class="modal-content modal-large">
+        <div class="modal-header-simple">
+            <h3>Enlistment - Subject Selection</h3>
+        </div>
+
+        <div class="student-info-box">
+            <div class="info-group">
+                <i class='bx bx-user'></i>
+                <div>
+                    <h4 id="modalName">Student Name</h4>
+                    <p>ID: <span id="modalID">0000</span> | Program: BSCpE</p>
+                </div>
+            </div>
+            <div class="info-group right">
+                <span class="status-pill" id="modalStatus">Regular</span>
+                <p class="standing-text">Official Standing: <span id="modalStanding">2nd Year</span></p>
+                <p class="units-text">Units: <span id="unitCounter">0</span>/<span id="maxUnits">21</span></p>
+            </div>
+        </div>
+
+        <div id="enlistmentAlerts">
+            </div>
+
+        <div class="legend-bar">
+            <span class="tag critical"><i class='bx bxs-star'></i> Critical Path</span>
+            <span class="tag major"><i class='bx bxs-star'></i> Major - Current Year</span>
+            <span class="tag minor"><i class='bx bxs-star'></i> Minor Subject</span>
+        </div>
+
+        <div class="subject-list-container">
+            <div class="subject-list-header">
+                <span><i class='bx bx-book'></i> Subjects (Sorted by Priority)</span>
+            </div>
+            <div id="subjectListBody">
+                </div>
+        </div>
+
+        <div class="modal-footer-bar">
+            <div class="summary-text">
+                <p><strong>Enlistment Summary</strong></p>
+                <p>Selected Subjects: <span id="summaryCount">0</span></p>
+                <p id="summaryUnitsText">Total Units: 0/6</p>
+            </div>
+            <div class="footer-buttons">
+                <button class="btn-cancel" onclick="closeEnlistmentModal()">Cancel</button>
+                <button class="btn-enroll" id="btnEnlist" onclick="submitEnlistment()">Enlist Student</button>
+            </div>
+        </div>
+    </div>
+</div>

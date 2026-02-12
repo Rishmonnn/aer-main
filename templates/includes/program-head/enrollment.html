@@ -1,0 +1,186 @@
+<div class="enrollment-container">
+    <div class="module-header">ENROLLMENT</div>
+
+    <div class="upload-banner">
+        <div class="upload-content">
+            <i class='bx bx-upload'></i>
+            <div class="upload-text">
+                <h3>Upload Freshmen Files</h3>
+                <p>Excel file containing files of the 1st year newly enrolled students</p>
+            </div>
+        </div>
+        <button class="btn-upload-main" onclick="handleUpload()">UPLOAD</button>
+    </div>
+
+    <div class="search-container">
+        <i class='bx bx-search'></i>
+        <input type="text" id="enrollmentSearch" placeholder="Search by Name or by Student ID Number" onkeyup="filterEnrollment()">
+    </div>
+
+    <div class="year-accordion">
+        <div class="accordion-header header-pink" onclick="toggleAccordion(this)">
+            <i class='bx bx-chevron-down'></i>
+            <span>1st Year</span>
+        </div>
+        <div class="accordion-body">
+            <table class="year-table">
+                <thead>
+                    <tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Promote to</th></tr>
+                </thead>
+                <tbody>
+                    <tr class="student-row" onclick="openEnrollmentModal(event, {id: '2024-00001', name: 'Maria Cruz', program: 'BS in Computer Engineering', type: 'Regular', year: '1st Year', standing: '1st Year', decision: 'Proceed', hasWarnings: false})">
+                        <td>2024-00001</td><td class="student-name">Maria Cruz</td><td>BS in Computer Engineering</td>
+                        <td><span class="status-pill regular">Regular</span></td><td class="promote-text">2nd Year</td>
+                    </tr>
+                    <tr class="student-row" onclick="openEnrollmentModal(event, {id: '2024-00002', name: 'Pemela Wan', program: 'BS in Computer Engineering', type: 'Regular', year: '1st Year', standing: '1st Year', decision: 'Proceed', hasWarnings: false})">
+                        <td>2024-00002</td><td class="student-name">Pemela Wan</td><td>BS in Computer Engineering</td>
+                        <td><span class="status-pill regular">Regular</span></td><td class="promote-text">2nd Year</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="year-accordion">
+        <div class="accordion-header header-blue" onclick="toggleAccordion(this)">
+            <i class='bx bx-chevron-down'></i>
+            <span>2nd Year</span>
+        </div>
+        <div class="accordion-body">
+            <table class="year-table">
+                <thead>
+                    <tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Promote to</th></tr>
+                </thead>
+                <tbody>
+                    <tr class="student-row" onclick="openEnrollmentModal(event, {id: '02-2223-12345', name: 'Dela Cruz, Juan', program: 'BS in Computer Engineering', type: 'Irregular', year: '2nd Year', standing: '2nd Year', decision: 'Retained', hasWarnings: true})">
+                        <td>2024-00002</td><td class="student-name">Juan Dela Cruz</td><td>BS in Computer Engineering</td>
+                        <td>
+                            <span class="status-pill irregular">Irregular</span>
+                            <i class='bx bxs-error-circle warning-icon'></i>
+                        </td>
+                        <td class="promote-text retained">RETAINED</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="year-accordion collapsed">
+        <div class="accordion-header header-green" onclick="toggleAccordion(this)"><i class='bx bx-chevron-right'></i> 3rd Year</div>
+        <div class="accordion-body"><div class="empty-state">No records found.</div></div>
+    </div>
+    <div class="year-accordion collapsed">
+        <div class="accordion-header header-teal" onclick="toggleAccordion(this)"><i class='bx bx-chevron-right'></i> 4th Year</div>
+        <div class="accordion-body"><div class="empty-state">No records found.</div></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="enrollmentModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Confirm Enrollment</h2>
+            <p>Review student standing and enrollment details</p>
+        </div>
+        <div id="modalWarnings" style="display: none;">
+            <div class="alert-box danger">
+                <i class='bx bx-error-circle'></i>
+                <div><h4>Student Retained</h4><p>Failed curriculum due to critical subject: CPE 038</p></div>
+            </div>
+            <div class="alert-box info">
+                <i class='bx bx-info-circle'></i>
+                <div><h4>Failed Subjects Impact</h4><p><strong>CPE 038</strong> - Software Design <span class="text-danger">(Blocks curriculum path)</span></p></div>
+            </div>
+        </div>
+        <div class="student-details-grid">
+            <div class="detail-row"><span class="label">Student ID:</span><span class="value" id="modalStudentId">-</span></div>
+            <div class="detail-row"><span class="label">Name:</span><span class="value" id="modalStudentName">-</span></div>
+            <div class="detail-row"><span class="label">Program:</span><span class="value" id="modalStudentProgram">-</span></div>
+            <div class="detail-row"><span class="label">Student Type:</span><span class="value"><span class="status-pill" id="modalStudentType">-</span></span></div>
+            <div class="detail-row"><span class="label">Current Year Level:</span><span class="value" id="modalStudentYear">-</span></div>
+            <div class="detail-row"><span class="label">Official Standing:</span><span class="value standing-value" id="modalStudentStanding">-</span></div>
+            <div class="detail-row"><span class="label">Status:</span><span class="value status-value" id="modalStudentDecision">-</span></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeEnrollmentModal()">Cancel</button>
+            <button class="btn-enroll" onclick="closeEnrollmentModal()">Enroll Student</button>
+        </div>
+    </div>
+</div>
+
+<div class="upload-modal-overlay" id="uploadModal">
+    <div class="upload-modal-content">
+        <div class="upload-modal-header">
+            <i class='bx bx-file' style="color: #90242d; font-size: 1.5rem;"></i>
+            <div><h2>Upload Freshmen Files</h2><p>Upload files containing freshmen student data.</p></div>
+        </div>
+
+        <div class="stepper-wrapper">
+            <div class="step-indicator active" id="step-icon-1">1</div><i class='bx bx-right-arrow-alt step-arrow'></i>
+            <div class="step-indicator" id="step-icon-2">2</div><i class='bx bx-right-arrow-alt step-arrow'></i>
+            <div class="step-indicator" id="step-icon-3">3</div><i class='bx bx-right-arrow-alt step-arrow'></i>
+            <div class="step-indicator" id="step-icon-4">4</div>
+        </div>
+
+        <div class="modal-body-wrapper">
+            <div id="step-1" class="step-content">
+                <div class="drag-drop-zone" onclick="document.getElementById('modalFileInput').click()" ondrop="dropHandler(event)" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)">
+                    <input type="file" id="modalFileInput" hidden onchange="handleFileSelect(event)" accept=".xlsx, .xls">
+                    <i class='bx bx-upload upload-icon-large'></i>
+                    <h3>Drag and drop file here, or click to browse</h3>
+                    <p>Accepted formats: XLSX, XLS</p>
+                </div>
+                <div class="expected-columns-box">
+                    <h4>Expected Columns:</h4>
+                    <ul class="cols-grid">
+                        <li>Last Name</li><li>First Name</li><li>Middle Name</li><li>Program</li><li>Email</li><li>Contact Number</li><li>Address</li><li>Birthdate</li><li>Gender</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="step-2" class="step-content" style="display: none;">
+                <div class="mapping-info-box">
+                    <strong>Detected Column from File:</strong>
+                    <p id="detected-columns-text">None</p>
+                </div>
+                <div class="mapping-grid">
+                    <div class="map-item"><div class="map-label"><i class='bx bx-check-circle'></i> Student ID</div><select class="map-select" data-key="student_id"></select></div>
+                    <div class="map-item"><div class="map-label"><i class='bx bx-check-circle'></i> First Name</div><select class="map-select" data-key="firstname"></select></div>
+                    <div class="map-item"><div class="map-label"><i class='bx bx-check-circle'></i> Last Name</div><select class="map-select" data-key="lastname"></select></div>
+                    <div class="map-item"><div class="map-label"><i class='bx bx-check-circle'></i> Middle Name (optional)</div><select class="map-select" data-key="middlename"></select></div>
+                    <div class="map-item"><div class="map-label"><i class='bx bx-check-circle'></i> Program</div><select class="map-select" data-key="program"></select></div>
+                    <div class="map-item"><div class="map-label"><i class='bx bx-check-circle'></i> Email</div><select class="map-select" data-key="email"></select></div>
+                    <div class="map-item"><div class="map-label"><i class='bx bx-check-circle'></i> Contact Number</div><select class="map-select" data-key="contact"></select></div>
+                    <div class="map-item"><div class="map-label"><i class='bx bx-check-circle'></i> Address</div><select class="map-select" data-key="address"></select></div>
+                    <div class="map-item"><div class="map-label"><i class='bx bx-check-circle'></i> Birthdate</div><select class="map-select" data-key="birthdate"></select></div>
+                    <div class="map-item"><div class="map-label"><i class='bx bx-check-circle'></i> Gender</div><select class="map-select" data-key="gender"></select></div>
+                </div>
+            </div>
+
+            <div id="step-3" class="step-content" style="display: none;">
+                <div class="preview-controls">
+                    <h4 id="preview-count">0 Records Found</h4>
+                    <div class="filter-badges"><span class="badge active">All</span><span class="badge valid-badge">Valid</span><span class="badge error-badge">Error</span></div>
+                </div>
+                <div class="preview-table-container">
+                    <table class="preview-table">
+                        <thead><tr><th>Row</th><th>Status</th><th>Last Name</th><th>First Name</th><th>Middle Name</th><th>Program</th><th>Email</th><th>Contact</th><th>Address</th><th>Birthdate</th><th>Gender</th></tr></thead>
+                        <tbody id="preview-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="step-4" class="step-content" style="display: none;">
+                <div class="success-wrapper">
+                    <div class="success-icon-circle"><i class='bx bx-check'></i></div>
+                    <h2>Import Successful!</h2>
+                    <p id="success-message">0 freshmen records have been imported successfully</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer-custom" id="modal-footer">
+            <button class="btn-cancel-custom" onclick="closeUploadModal()">Cancel</button>
+            <button class="btn-primary-custom" id="btn-next" onclick="nextStep()">Continue</button>
+        </div>
+    </div>
+</div>

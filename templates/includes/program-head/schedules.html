@@ -1,0 +1,182 @@
+<div id="schedules" class="content-section">
+    <div class="sched-container">
+        <div class="sched-top-bar">
+            <div class="title-group">
+                <div class="icon-box">
+                    <i class='bx bx-calendar-event'></i>
+                </div>
+                <div class="text-info">
+                    <h2>Class Schedule</h2>
+                    <p id="sched-subtitle">1st Year • Section 1 • 1st Sem</p>
+                </div>
+            </div>
+            <div class="top-actions">
+                <button class="btn-secondary"><i class='bx bx-import'></i> Import</button>
+                <button class="btn-secondary"><i class='bx bx-export'></i> Export</button>
+                <button class="btn-primary" onclick="Schedules.addEvent()"><i class='bx bx-plus'></i> Add Class</button>
+            </div>
+        </div>
+
+        <div class="filter-row">
+            <div class="kpi-group">
+                <div class="kpi-mini-card">
+                    <div class="kpi-icon bg-light-maroon"><i class='bx bx-printer'></i></div>
+                    <div class="kpi-vals">
+                        <span class="kpi-num" id="kpi-total">0</span>
+                        <span class="kpi-label">Classes</span>
+                    </div>
+                </div>
+                <div class="kpi-mini-card">
+                    <div class="kpi-icon bg-light-green"><i class='bx bx-book-open'></i></div>
+                    <div class="kpi-vals">
+                        <span class="kpi-num" id="kpi-lecture">0</span>
+                        <span class="kpi-label">Lectures</span>
+                    </div>
+                </div>
+                <div class="kpi-mini-card">
+                    <div class="kpi-icon bg-light-orange"><i class='bx bx-test-tube'></i></div>
+                    <div class="kpi-vals">
+                        <span class="kpi-num" id="kpi-lab">0</span>
+                        <span class="kpi-label">Labs</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-group">
+                <div class="year-toggle">
+                    <button class="toggle-btn active" data-year="1">1st</button>
+                    <button class="toggle-btn" data-year="2">2nd</button>
+                    <button class="toggle-btn" data-year="3">3rd</button>
+                    <button class="toggle-btn" data-year="4">4th</button>
+                </div>
+                <div class="divider"></div>
+                <select class="sched-select"><option>1st Sem...</option></select>
+                <select class="sched-select"><option>Section 1</option></select>
+                <div class="legend">
+                    <span>YEAR:</span>
+                    <i class='bx bxs-circle year-1'></i>
+                    <i class='bx bxs-circle year-2'></i>
+                    <i class='bx bxs-circle year-3'></i>
+                    <i class='bx bxs-circle year-4'></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="calendar-card">
+            <div id="calendar"></div>
+            <div class="calendar-footer">
+                <span>↕ Drag to move</span>
+                <span>↕ Drag edge to resize</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="addClassModal" class="modal-overlay">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <div class="header-text">
+                <h3>Add New Class</h3>
+                <p>Enter class details based on Curriculum</p>
+            </div>
+            <span class="close-modal" onclick="Schedules.closeModal()">&times;</span>
+        </div>
+        
+        <div class="modal-body">
+            <div id="modalError" class="error-banner" style="display: none;"></div>
+
+            <div class="form-row three-col">
+                <div class="form-group">
+                    <label>Year Level</label>
+                    <select id="modalYear" class="form-control" onchange="Schedules.filterSubjects()">
+                        <option value="1">1st Year</option>
+                        <option value="2">2nd Year</option>
+                        <option value="3">3rd Year</option>
+                        <option value="4">4th Year</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Semester</label>
+                    <select id="modalSem" class="form-control" onchange="Schedules.filterSubjects()">
+                        <option value="1">1st Semester</option>
+                        <option value="2">2nd Semester</option>
+                        <option value="Summer">Summer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Section</label>
+                    <select id="modalSection" class="form-control">
+                        <option value="1">Section 1</option>
+                        <option value="2">Section 2</option>
+                        <option value="3">Section 3</option>
+                        <option value="4">Section 4</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label>Subject (Description)</label>
+                    <select id="subjectSelect" class="form-control" onchange="Schedules.onSubjectChange()">
+                        <option value="">-- Select Year & Sem First --</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Course (Code)</label>
+                    <input type="text" id="courseCode" class="form-control" readonly style="background-color: #f9f9f9;">
+                </div>
+            </div>
+
+            <div class="form-row three-col">
+                <div class="form-group">
+                    <label>Section Code</label>
+                    <input type="text" id="sectionCode" class="form-control" placeholder="e.g. 50123">
+                </div>
+                <div class="form-group">
+                    <label>Faculty</label>
+                    <select id="facultySelect" class="form-control">
+                        <option value="">-- Select Instructor --</option>
+                        </select>
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="typeSelect" class="form-control">
+                        <option value="lecture">Lecture</option>
+                        <option value="lab">Laboratory</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row four-col">
+                <div class="form-group">
+                    <label>Day</label>
+                    <select id="daySelect" class="form-control">
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4">Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Room</label>
+                    <input type="text" id="roomInput" class="form-control" placeholder="e.g. 305">
+                </div>
+                <div class="form-group">
+                    <label>Start Time</label>
+                    <input type="time" id="startTime" class="form-control" value="07:30">
+                </div>
+                <div class="form-group">
+                    <label>End Time</label>
+                    <input type="time" id="endTime" class="form-control" value="09:00">
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="Schedules.closeModal()">Cancel</button>
+            <button class="btn-primary" onclick="Schedules.saveClass()">Save Class</button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,93 @@
+<div class="instructors-module">
+    <header class="dashboard-header">
+        <div class="header-text">
+            <h1>Faculty Members</h1>
+            <p>Computer Engineering Department</p>
+        </div>
+        <button class="btn-add" id="btnAddTeacher">
+            <i class='bx bx-user-plus'></i> Add Teacher
+        </button>
+    </header>
+
+    <section class="fac-stat-container">
+        <div class="fac-stat-card">
+            <div class="icon-box icon-red"><i class='bx bx-group'></i></div>
+            <div class="stat-info"><h2 id="total-faculty">0</h2><p>Total Faculty</p></div>
+        </div>
+        <div class="fac-stat-card">
+            <div class="icon-box icon-green"><i class='bx bx-book-open'></i></div>
+            <div class="stat-info"><h2 id="total-classes">0</h2><p>Total Classes</p></div>
+        </div>
+        <div class="fac-stat-card">
+            <div class="icon-box icon-orange"><i class='bx bx-time-five'></i></div>
+            <div class="stat-info">
+                <div id="total-hours"></div>
+                <p>Total Load</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="toolbar-section">
+        <div class="search-bar">
+            <i class='bx bx-search'></i>
+            <input type="text" id="searchInput" placeholder="Search by name...">
+        </div>
+    </section>
+
+    <section class="faculty-grid" id="facultyGrid">
+        </section>
+
+    <div id="scheduleModal" class="modal-overlay">
+        <div class="modal-content modal-xl">
+            <div class="modal-header profile-header">
+                <div class="header-left">
+                    <div class="header-avatar"><i class='bx bx-user'></i></div>
+                    <div class="header-details">
+                        <h2 id="modalTeacherName">Teacher Name</h2>
+                        <div class="header-dept"><i class='bx bx-bookmark'></i><span id="modalTeacherDept">Department</span></div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="header-stat"><span class="h-label">Classes</span><span class="h-value" id="modalHeaderClasses">0</span></div>
+                    <div class="header-divider"></div>
+                    <div class="header-stat"><span class="h-label">Total Load</span><span class="h-value" id="modalHeaderHours">0.0</span></div>
+                    <button class="close-btn" id="closeModalBtn">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body split-view-body">
+                <div class="view-section calendar-section">
+                    <h3>Weekly Calendar View</h3>
+                    <div class="week-calendar"><div class="calendar-grid" id="calendarGrid"></div></div>
+                </div>
+                <div class="view-section list-section">
+                    <h3>Class List View</h3>
+                    <div class="table-wrapper">
+                        <table class="class-list-table">
+                            <thead><tr><th>Subject</th><th>Description</th><th>Schedule</th><th>Room</th></tr></thead>
+                            <tbody id="modalClassListBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="addTeacherModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px; height: auto; max-height: 80vh;">
+            <div class="modal-header" style="background: var(--maroon); color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div class="modal-title-box">
+                    <h2 style="font-size: 1.2rem; margin: 0; color: white;">Select Faculty</h2>
+                    <p style="margin: 0; font-size: 0.85rem; opacity: 0.8;">Add existing teachers to your department</p>
+                </div>
+                <button class="close-btn" id="closeAddModalBtn" style="font-size: 1.5rem;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div class="search-bar" style="width: 100%; margin-bottom: 1rem;">
+                    <i class='bx bx-search'></i>
+                    <input type="text" id="searchRegistered" placeholder="Search registered teachers...">
+                </div>
+                <div id="registeredTeachersList" class="registered-list"></div>
+            </div>
+        </div>
+    </div>
+</div>

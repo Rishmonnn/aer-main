@@ -1,0 +1,3 @@
+/* Advising styles */
+.advising-table td, .advising-table th{ padding:8px; border-bottom:1px solid #eee }
+.btn-advise.btn{ background:#6f42c1; color:#fff; padding:6px 10px; border-radius:4px }

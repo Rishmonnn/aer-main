@@ -1,0 +1,342 @@
+/* --- Import Inter Font (Ensures consistency with Program Head) --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Container Reset */
+#classrecords {
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    background: #f4f4f4;
+    min-height: 100%;
+    /* Ensure it fills the container in Faculty View */
+    width: 100%;
+    border-radius: 8px; /* Optional: adds subtle rounding if standalone */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* Red Header Strip */
+.cr-module-header {
+    background-color: #90242d;
+    color: white;
+    padding: 15px 30px;
+    border-radius: 8px 8px 0 0;
+}
+.cr-module-header h3 { margin: 0; font-size: 1.1rem; font-weight: 700; text-transform: uppercase; }
+
+/* Body Container */
+.cr-body-container { padding: 25px 30px; }
+
+/* Nav Pills */
+.cr-top-nav { display: flex; gap: 10px; margin-bottom: 20px; }
+.cr-nav-pill {
+    padding: 8px 20px; border-radius: 6px; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+}
+.cr-nav-pill.active { background-color: #90242d; color: white; }
+.cr-nav-pill.inactive { background-color: #e5e7eb; color: #4b5563; }
+
+/* Selection Panel */
+.cr-selection-panel {
+    background-color: #fdfbf7; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.cr-panel-label { display: flex; align-items: center; gap: 10px; font-weight: 600; color: #374151; margin-bottom: 15px; }
+.badge-draft { background: #e5e7eb; color: #374151; font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; }
+.cr-dropdown-row { display: flex; gap: 15px; }
+.cr-select-wrapper { background: white; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; width: 300px; }
+.cr-select-wrapper.short { width: 150px; }
+.cr-select-wrapper select { width: 100%; border: none; outline: none; font-size: 0.9rem; color: #333; }
+
+/* Info Banner */
+.cr-info-banner {
+    background: white; padding: 20px; border-radius: 8px; display: grid; grid-template-columns: 1.5fr 1.2fr 1.5fr 0.8fr 1.5fr; gap: 20px; margin-bottom: 25px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.info-col { display: flex; flex-direction: column; gap: 5px; }
+.info-col .label { font-size: 0.75rem; color: #9ca3af; }
+.info-col .val { font-size: 0.9rem; font-weight: 600; color: #1f2937; }
+
+/* Toolbar */
+.cr-toolbar { display: flex; justify-content: space-between; margin-bottom: 20px; }
+.search-wrap { position: relative; width: 400px; }
+.search-wrap i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
+.search-wrap input { width: 100%; padding: 10px 10px 10px 35px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb; outline: none; }
+.actions-wrap { display: flex; gap: 10px; }
+.btn-tool {
+    display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 6px; border: 1px solid #e5e7eb; background: white; color: #374151; font-weight: 600; cursor: pointer; font-size: 0.85rem;
+}
+.btn-tool.dark { background: #90242d; color: white; border-color: #90242d; }
+.btn-tool.red { background: #90242d; color: white; border-color: #90242d; }
+
+/* Sub Tabs */
+.cr-sub-tabs { display: flex; gap: 5px; margin-bottom: 0; }
+.tab-item {
+    padding: 10px 20px; background: transparent; border: none; color: #6b7280; font-weight: 500; cursor: pointer; border-radius: 6px 6px 0 0;
+}
+.tab-item.active { background: #90242d; color: white; }
+
+/* Table General */
+.cr-table-wrapper {
+    background: white; 
+    border-radius: 0 8px 8px 8px; 
+    /* removed overflow: hidden to prevent clipping scrollbars on zoom */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+    width: 100%;
+    display: flex;       /* Ensures it behaves like a container */
+    flex-direction: column;
+}
+.cr-main-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+.cr-main-table th {
+    text-align: left; background: #f3f4f6; color: #6b7280; font-size: 0.8rem; font-weight: 600; padding: 15px 20px; border-bottom: 1px solid #e5e7eb;
+}
+.cr-main-table td {
+    padding: 15px 20px; border-bottom: 1px solid #f3f4f6; color: #374151; font-size: 0.9rem; vertical-align: middle;
+}
+.cr-main-table tbody tr:hover { background-color: #f9fafb; }
+.text-center { text-align: center !important; }
+
+/* --- ATTENDANCE SPECIFIC STYLES --- */
+.attendance-table th, .attendance-table td {
+    padding: 10px 8px; /* Tighter padding for many columns */
+}
+.date-header { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+.date-header span { font-weight: 700; color: #4b5563; }
+.date-header small { font-size: 0.7rem; font-weight: 400; color: #9ca3af; }
+
+.att-pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%;
+    font-size: 0.85rem; font-weight: 700;
+}
+.att-pill.present { background-color: #d1fae5; color: #047857; } /* Green */
+.att-pill.absent { background-color: #fee2e2; color: #b91c1c; } /* Red */
+.att-pill.late { background-color: #fef3c7; color: #d97706; } /* Yellow/Orange */
+
+.absent-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background-color: #d97706; color: white; /* Dark Gold/Orange */
+    font-weight: 700; font-size: 0.85rem;
+}
+.absent-badge.zero { background-color: #10b981; } /* Green if 0 absences */
+.absent-badge.high { background-color: #dc2626; } /* Red if many absences */
+
+/* Sticky Columns for Attendance Table */
+.sticky-col {
+    position: sticky; background-color: #f3f4f6; z-index: 2;
+    border-right: 1px solid #e5e7eb;
+}
+.cr-main-table tbody tr td.sticky-col {
+    background-color: white; /* Body rows need white bg */
+}
+.cr-main-table tbody tr:hover td.sticky-col {
+    background-color: #f9fafb; /* Hover match */
+}
+.first-col { left: 0; width: 100px; }
+.second-col { left: 100px; width: 180px; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
+
+/* Icons & Badges */
+.course-badge { background: #d97706; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
+.icon-check { font-size: 1.2rem; color: #10b981; }
+.icon-cross { font-size: 1.2rem; color: #ef4444; }
+.link-text { color: #6b7280; text-decoration: none; font-size: 0.85rem; }
+
+.grades-control-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 15px 20px; background: white; border-bottom: 1px solid #eee;
+}
+.control-label { font-weight: 700; font-size: 1rem; color: #333; margin-right: 10px; }
+.badge-subject { background: #f3f4f6; color: #4b5563; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #e5e7eb; }
+.btn-grade-action {
+    background: white; border: 1px solid #d1d5db; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; color: #374151; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; margin-left: 5px;
+}
+.btn-grade-action.save { background: #d37d86; color: white; border: none; } /* Light Red/Pinkish per screenshot */
+.btn-grade-action.save:hover { background: #90242d; }
+
+/* Period Tabs */
+.period-tabs-row {
+    background: #e5e7eb; padding: 10px 20px 0; display: flex; gap: 5px; border-bottom: 1px solid #ccc;
+}
+.period-tab {
+    padding: 10px 25px; border: none; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 0.9rem; cursor: pointer; color: #6b7280; background: #d1d5db;
+}
+.period-tab.active {
+    background: #90242d; color: white; /* Active Red */
+}
+
+/* Grading Info Bar */
+.grading-info-bar {
+    background: #fdfbf7; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb;
+}
+.formula-text { font-size: 0.85rem; color: #4b5563; }
+.weight-badges { display: flex; gap: 8px; }
+.w-badge { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; color: #4b5563; font-weight: 600; }
+
+/* Grades Table Styling */
+.grades-table th {
+    background-color: #f0f0e6; /* Beige Header */
+    vertical-align: middle;
+    padding: 10px 5px;
+    font-size: 0.8rem;
+    color: #555;
+}
+.sub-head { font-size: 0.7rem; font-weight: 400; color: #777; }
+
+/* Column Backgrounds */
+.col-input-head { background-color: #f7f7f2 !important; }
+.col-calc-head { background-color: #eeecdb !important; } /* Darker beige for calc cols */
+.col-final-head { background-color: #e3dcd3 !important; } /* Darkest beige for final cols */
+
+/* Input Fields */
+.grade-input {
+    width: 45px; padding: 5px; border: 1px solid #d1d5db; border-radius: 4px; text-align: center; font-size: 0.9rem; outline: none; background: #f9fafb;
+}
+.grade-input:focus { border-color: #90242d; background: white; }
+
+/* Calculated Values */
+.calc-val { color: #dc2626; font-weight: 600; font-size: 0.9rem; } /* Red Text */
+.final-grade { font-weight: 700; color: #90242d; font-size: 0.95rem; }
+
+/* Status Pill */
+.status-pill {
+    padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; color: white;
+}
+.status-pill.failed { background-color: #ef4444; }
+.status-pill.passed { background-color: #10b981; }
+
+/* Sticky columns z-index adjustment */
+.grades-table .sticky-col { z-index: 5; }
+
+/* --- MODALS (CRITICAL for fixing "Everywhere" issue) --- */
+.modal-overlay {
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%;
+    background: rgba(0,0,0,0.5); 
+    z-index: 2000; /* Ensure higher than sidebar */
+    display: none; /* MUST BE HIDDEN BY DEFAULT */
+    justify-content: center; 
+    align-items: center;
+}
+
+.config-modal { width: 800px; max-width: 95%; padding: 0; display: flex; flex-direction: column; max-height: 85vh; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+.config-body { padding: 25px; overflow-y: auto; flex: 1; background: #f9f9f9; }
+
+.config-section { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.config-section h4 { margin: 0 0 15px 0; font-size: 0.95rem; color: #333; display: flex; justify-content: space-between; align-items: center; }
+
+.config-row { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+.input-suffix-group { display: flex; align-items: center; gap: 5px; background: white; border: 1px solid #ccc; padding: 5px 10px; border-radius: 6px; width: 100px; }
+.input-suffix-group input { border: none; width: 100%; outline: none; text-align: right; font-weight: 600; }
+
+.period-inputs { display: flex; gap: 30px; }
+.p-input { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
+.p-input input { width: 60px; padding: 5px; border: 1px solid #ccc; border-radius: 6px; text-align: center; }
+
+/* Category Config Items */
+.cat-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+.cat-weight-input { width: 60px; padding: 5px; border: 1px solid #ccc; border-radius: 6px; text-align: center; }
+.btn-add-item { background: transparent; border: 1px solid #ccc; font-size: 0.8rem; padding: 4px 10px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.btn-add-item:hover { background: #f3f4f6; }
+
+.config-item-row { display: grid; grid-template-columns: 30px 1fr 80px 30px; gap: 10px; align-items: center; margin-bottom: 10px; }
+.drag-handle { color: #ccc; cursor: grab; text-align: center; }
+.item-name-input { padding: 8px; border: 1px solid #ddd; border-radius: 6px; width: 100%; }
+.item-max-group { display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #666; }
+.item-max-input { width: 50px; padding: 6px; border: 1px solid #ddd; border-radius: 6px; text-align: center; }
+.btn-del-item { color: #ef4444; background: none; border: none; cursor: pointer; font-size: 1.1rem; }
+.btn-del-item:hover { color: #b91c1c; }
+
+/* Modal Header/Footer overrides */
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; border-bottom: 1px solid #eee; background: white; border-radius: 8px 8px 0 0; }
+.close-modal { font-size: 1.5rem; cursor: pointer; color: #888; }
+.modal-footer { background: white; padding: 20px 25px; border-top: 1px solid #eee; border-radius: 0 0 8px 8px; }
+
+/* Calc Logic Styling */
+.grade-input.filled { background-color: white; border-color: #9ca3af; color: #111; font-weight: 500; }
+.calc-val { transition: color 0.3s; }
+.final-grade.passed { color: #10b981; }
+.final-grade.failed { color: #ef4444; }
+
+.final-summary-table th {
+    background-color: #eedddd !important; /* Light Pinkish/Red Header */
+    color: #883333;
+    border-bottom: 2px solid #ccaaaa;
+}
+
+.final-summary-table .col-final-head {
+    background-color: #eecaca !important; /* Slightly darker for Final Grade cols */
+}
+
+/* Data Cells in Final Summary */
+.highlight-period {
+    color: #cc4444; /* Red text for period grades in summary */
+    font-weight: 500;
+}
+
+.final-grade-text {
+    font-weight: 800;
+    color: #b91c1c; /* Deep Red */
+    font-size: 1rem;
+}
+.config-tabs {
+    display: flex; gap: 5px; margin-bottom: 15px;
+}
+.conf-tab {
+    padding: 8px 20px;
+    border: 1px solid #ddd;
+    background: #f4f4f4;
+    color: #666;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.conf-tab.active {
+    background: #90242d;
+    color: white;
+    border-color: #90242d;
+}
+
+/* --- GRADE APPROVAL STYLES (Used by Faculty for Submitted State) --- */
+
+.approval-header { margin-bottom: 25px; }
+.approval-header h3 { font-size: 1.2rem; font-weight: 700; color: #333; margin-bottom: 5px; }
+.approval-header p { color: #666; font-size: 0.9rem; }
+
+/* Approval Card */
+.approval-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px 25px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    transition: box-shadow 0.2s;
+}
+.approval-card:hover { box-shadow: 0 4px 6px rgba(0,0,0,0.08); }
+
+.ac-details h4 { margin: 0 0 5px 0; font-size: 1.05rem; font-weight: 700; color: #1f2937; }
+.ac-info { font-size: 0.85rem; color: #6b7280; margin-bottom: 4px; }
+.ac-submitted { font-size: 0.8rem; color: #9ca3af; }
+
+.ac-actions { display: flex; gap: 10px; align-items: center; }
+
+/* Buttons */
+.btn-review {
+    padding: 8px 20px; border: 1px solid #d1d5db; background: white; color: #374151;
+    border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+}
+.btn-review:hover { background: #f9fafb; }
+
+.btn-approve {
+    padding: 8px 20px; border: none; background: #10b981; /* Green */
+    color: white; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+}
+.btn-approve:hover { background: #059669; }
+
+.badge-approved {
+    background: #10b981; color: white; padding: 6px 16px; border-radius: 20px;
+    font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 5px;
+}

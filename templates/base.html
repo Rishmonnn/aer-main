@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ pageTitle|default('Aeris') }}</title>
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% if pageStyles %}
+    {% for style in pageStyles %}
+      <link rel="stylesheet" href="{{ url_for('static', filename='css/' + style) }}">
+    {% endfor %}
+  {% endif %}
+  {% block extra_css %}{% endblock %}
+  
+</head>
+<body>
+  {% block header %}
+    {% include 'includes/header.html' %}
+  {% endblock %}
+
+  {% block content %}{% endblock %}
+
+  {% block footer %}
+    {% include 'includes/footer.html' %}
+  {% endblock %}
+
+  {% if pageScripts %}
+    {% for script in pageScripts %}
+      <script src="{{ url_for('static', filename='js/' + script) }}"></script>
+    {% endfor %}
+  {% endif %}
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

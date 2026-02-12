@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{# 1. Disable default header #}
+{% block header %}{% endblock %}
+
+{# 2. Force load Class Records CSS and Faculty CSS #}
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/faculty.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/classrecords.css') }}">
+{% endblock %}
+
+{% block content %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <div class="dashboard-container faculty-layout">
+        
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="user-profile">
+                    <i class='bx bx-menu' id="sidebarToggle"></i>
+                    <div class="profile-text">
+                        <p>Welcome,</p>
+                        <h3>Engr. Faculty</h3>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" onclick="showSection('home')">
+                    <i class='bx bx-home-alt-2'></i> <span>HOME</span>
+                </a>
+                
+                <a href="#" class="nav-item" onclick="showSection('classrecords')">
+                    <i class='bx bx-folder'></i> <span>CLASS RECORDS</span>
+                </a>
+                
+                <a href="#" class="nav-item" onclick="showSection('grading')">
+                    <i class='bx bx-clipboard'></i> <span>GRADING</span>
+                </a>
+            </nav>
+
+            <div class="logout-section">
+                <a href="{{ url_for('logout') }}" class="nav-item">
+                    <i class='bx bx-log-out'></i> <span>LOG OUT</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="main-content" id="mainContent" style="padding: 0;">
+            
+            {% include 'includes/header.html' %}
+
+            <div id="content-wrapper" style="padding: 30px 50px;">
+                {% include 'includes/faculty/home.html' %}
+                
+                {% include 'includes/faculty/grading.html' %}
+                
+                {% include 'includes/faculty/inc.html' %}
+            </div>
+
+            <div id="classrecords-wrapper" style="display: none; padding: 30px 50px;">
+                 {% include 'includes/faculty/classrecords.html' %}
+            </div>
+
+        </main>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{{ url_for('static', filename='js/faculty.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/faculty-grading.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/faculty-classes.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/faculty-inc.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/classrecords.js') }}"></script>
+    
+    <script>
+        // Updated View Switcher for Faculty Dashboard
+        function showSection(sectionId) {
+            const views = ['home', 'grading', 'inc']; 
+            
+            const contentWrapper = document.getElementById('content-wrapper');
+            const classRecordsWrapper = document.getElementById('classrecords-wrapper');
+            
+            if (sectionId === 'classrecords') {
+                contentWrapper.style.display = 'none';
+                classRecordsWrapper.style.display = 'block';
+                
+                const crModule = document.getElementById('classrecords');
+                if(crModule) crModule.style.display = 'block';
+
+            } else {
+                classRecordsWrapper.style.display = 'none';
+                contentWrapper.style.display = 'block';
+                
+                views.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+
+                const target = document.getElementById(sectionId);
+                if (target) target.style.display = 'block';
+            }
+            
+            // Update Sidebar Active State
+            const navItems = document.querySelectorAll('.nav-item');
+            if (navItems) {
+                navItems.forEach(item => item.classList.remove('active'));
+            }
+            if(event && event.currentTarget) event.currentTarget.classList.add('active');
+        }
+    </script>
+{% endblock %}

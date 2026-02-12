@@ -1,0 +1,105 @@
+<div id="home" class="content-section">
+    <div class="dashboard-grid">
+        
+        <div class="stats-col">
+            <div class="stat-card card-students">
+                <div>
+                    <h3 class="stat-label">Total Students</h3>
+                    <div class="stat-card-content">
+                        <span class="val">{{ stats.total_students }}</span>
+                    </div>
+                </div>
+                <i class='bx bx-user card-icon'></i>
+            </div>
+
+            <div class="stat-card card-teachers">
+                <div>
+                    <h3 class="stat-label">My Classes</h3>
+                    <div class="stat-card-content">
+                        <span class="val">{{ stats.classes }}</span>
+                    </div>
+                </div>
+                <i class='bx bx-book-bookmark card-icon'></i>
+            </div>
+
+            <div class="stat-card card-year">
+                <div>
+                    <h3 class="stat-label">Grading Status</h3>
+                    <div class="stat-card-content">
+                        <span class="val">{{ stats.grading_status }}</span>
+                    </div>
+                </div>
+                <i class='bx bx-bar-chart-alt-2 card-icon'></i>
+            </div>
+        </div>
+
+        <div class="center-col">
+            <div class="info-box">
+                <h3 class="box-label">Recent Activities</h3>
+                <div class="activity-list">
+                    <div class="activity-item">
+                        <span><span class="approved">Submitted:</span> Grades for CPE 101</span>
+                        <span class="timestamp">Just now</span>
+                    </div>
+                    <div class="activity-item">
+                        <span><span class="enrolled">Attendance:</span> Recorded for Section A</span>
+                        <span class="timestamp">2 hrs ago</span>
+                    </div>
+                    <div class="activity-item">
+                        <span><span class="enrolled">New INC:</span> Request from J. Dela Cruz</span>
+                        <span class="timestamp">Yesterday</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h3 class="box-label">Quick Actions</h3>
+                <div class="actions-list">
+                    <div class="action-row">
+                        <span class="action-text"><i class='bx bx-clipboard'></i> Input Grades</span>
+                        <button class="btn-action action-trigger" data-action="grading">Go to Grading</button>
+                    </div>
+                    
+                    <div class="action-row">
+                        <span class="action-text"><i class='bx bx-list-ul'></i> Class Records</span>
+                        <button class="btn-action action-trigger" data-action="classes">View Classes</button>
+                    </div>
+
+                    <div class="action-row">
+                        <span class="action-text"><i class='bx bx-badge-check'></i> INC Requests</span>
+                        <button class="btn-action action-trigger" data-action="inc">Manage INC</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="calendar-card">
+            <div class="calendar-header">
+                <div class="calendar-selects">
+                    <select id="monthSelect" onchange="updateCalendarFromSelect()">
+                        <option value="0">Jan</option><option value="1">Feb</option>
+                        <option value="2">Mar</option><option value="3">Apr</option>
+                        <option value="4">May</option><option value="5">Jun</option>
+                        <option value="6">Jul</option><option value="7">Aug</option>
+                        <option value="8">Sep</option><option value="9">Oct</option>
+                        <option value="10">Nov</option><option value="11">Dec</option>
+                    </select>
+                    <select id="yearSelect" onchange="updateCalendarFromSelect()">
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <span class="calendar-btn" onclick="changeMonth(-1)">‹</span>
+                    <span class="calendar-btn" onclick="changeMonth(1)">›</span>
+                </div>
+            </div>
+            <table>
+                <thead><tr><th>Su</th><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th></tr></thead>
+                <tbody id="calendar-body"></tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
