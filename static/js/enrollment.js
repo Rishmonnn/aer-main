@@ -41,9 +41,50 @@ function openEnrollmentModal(event, data) {
     }
     const warningContainer = document.getElementById('modalWarnings');
     warningContainer.style.display = data.hasWarnings ? 'block' : 'none';
+
+    // [FIX] Attach the Student ID to the confirm button so we know who to enroll
+    const confirmBtn = document.getElementById('btn-confirm-enroll');
+    if (confirmBtn) {
+        confirmBtn.setAttribute('data-id', data.id);
+        
+        // Optional: Change button text/state based on decision
+        if (data.decision === 'Retained') {
+            confirmBtn.innerText = "Confirm Retention";
+            confirmBtn.classList.add('btn-danger'); // Assuming you have a danger class
+        } else {
+            confirmBtn.innerText = "Enroll Student";
+            confirmBtn.classList.remove('btn-danger');
+        }
+    }
+
     document.getElementById('enrollmentModal').classList.add('active');
 }
-function closeEnrollmentModal() { document.getElementById('enrollmentModal').classList.remove('active'); }
+
+function closeEnrollmentModal() { 
+    document.getElementById('enrollmentModal').classList.remove('active'); 
+}
+
+// [FIX] New function to handle the button click
+function confirmSingleEnrollment() {
+    const btn = document.getElementById('btn-confirm-enroll');
+    const studentId = btn.getAttribute('data-id');
+    
+    if (!studentId) {
+        alert("Error: No student selected.");
+        return;
+    }
+
+    // TODO: Replace this with your actual API call to save the enrollment
+    // Example:
+    // fetch('/api/enrollment/single', { method: 'POST', body: JSON.stringify({id: studentId}) })
+    
+    console.log(`Processing enrollment for student: ${studentId}`);
+    alert(`Successfully enrolled student ${studentId}!`);
+    
+    closeEnrollmentModal();
+}
+
+
 
 // --- UPLOAD WIZARD & EXCEL LOGIC ---
 let currentStep = 1;

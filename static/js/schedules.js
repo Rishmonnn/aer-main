@@ -6,7 +6,6 @@
 
     // 2. FULL CURRICULUM DATA
     const curriculumData = [
-        // Year 1, Sem 1
         { year: "1", sem: "1", code: "GEN 002", title: "Understanding the Self", lec: 3, lab: 0 },
         { year: "1", sem: "1", code: "GEN 003", title: "Science, Technology and Society", lec: 3, lab: 0 },
         { year: "1", sem: "1", code: "MAT 152", title: "Mathematics in the Modern World", lec: 3, lab: 0 },
@@ -15,7 +14,6 @@
         { year: "1", sem: "1", code: "CPE 034", title: "Computer Engineering as a Discipline", lec: 1, lab: 0 },
         { year: "1", sem: "1", code: "CPE 035", title: "Programming Logic and Design", lec: 0, lab: 2 },
         { year: "1", sem: "1", code: "NST 021", title: "National Service Training Program 1", lec: 3, lab: 0 },
-        // ... (Include full list as before) ...
     ];
 
     // 3. MOCK DATABASE
@@ -31,15 +29,20 @@
 
     function init() {
         const calendarEl = document.getElementById('calendar');
-        if (!calendarEl) return;
-
-        // Check if FullCalendar is loaded
-        if (typeof FullCalendar === 'undefined') {
-            console.error("FullCalendar library is missing.");
+        if (!calendarEl) {
+            console.warn("Calendar element not found. Skipping init.");
             return;
         }
 
-        // Re-initialize logic
+        // Check if FullCalendar is loaded
+        if (typeof FullCalendar === 'undefined') {
+            console.error("FullCalendar library is missing. Please check base.html includes.");
+            // Try again in 1 second in case of slow CDN
+            setTimeout(init, 1000);
+            return;
+        }
+
+        // Destroy existing instance if it exists to prevent duplication
         if (calendarInstance) {
             calendarInstance.destroy();
         }
@@ -49,7 +52,7 @@
             initialDate: '2026-02-09',
             headerToolbar: false,
             dayHeaderFormat: { weekday: 'short' },
-            hiddenDays: [0],
+            hiddenDays: [0], // Hide Sunday
             slotMinTime: '07:00:00',
             slotMaxTime: '19:00:00',
             allDaySlot: false,
@@ -81,6 +84,12 @@
         });
 
         calendarInstance.render();
+        
+        // FIX: Force update size after a short delay to handle "hidden tab" rendering issues
+        setTimeout(() => {
+            calendarInstance.updateSize();
+        }, 200);
+
         loadYearData(currentActiveYear);
         filterSubjects();
         populateFaculty(); 
@@ -108,13 +117,16 @@
 
     function isOverlapping(newStart, newEnd, targetYear) {
         let eventsToCheck = [];
+        // If checking current active year, check the live calendar
         if (targetYear === currentActiveYear && calendarInstance) {
             eventsToCheck = calendarInstance.getEvents().map(e => ({
                 start: e.start,
                 end: e.end,
                 title: e.title
             }));
-        } else if (mockDatabase[targetYear]) {
+        } 
+        // If checking a background year, check the mockDatabase
+        else if (mockDatabase[targetYear]) {
             eventsToCheck = mockDatabase[targetYear].events.map(e => ({
                 start: new Date(e.start),
                 end: new Date(e.end),
@@ -123,6 +135,7 @@
         }
 
         for (let ev of eventsToCheck) {
+            // Overlap logic: (StartA < EndB) and (EndA > StartB)
             if (newStart < ev.end && newEnd > ev.start) {
                 return ev.title;
             }
@@ -209,6 +222,7 @@
         const type = document.getElementById('typeSelect').value;
         const sectionCode = document.getElementById('sectionCode').value;
 
+        // Convert day index to date
         const date = getNextDayOfWeek(day);
         const startDt = new Date(`${date}T${start}:00`);
         const endDt = new Date(`${date}T${end}:00`);
@@ -259,8 +273,9 @@
     }
 
     function getNextDayOfWeek(dayIndex) {
+        // Base date: Feb 9 2026 is a Monday
         const baseDay = 9; 
-        const offset = dayIndex - 1;
+        const offset = dayIndex - 1; // Mon=1 -> offset=0
         const targetDay = baseDay + offset;
         const dayStr = targetDay < 10 ? `0${targetDay}` : targetDay;
         return `2026-02-${dayStr}`;
@@ -326,7 +341,13 @@
         }
     }
 
+    // Expose public methods
     window.Schedules = {
         init, addEvent: openModal, closeModal, saveClass, onSubjectChange, filterSubjects
     };
+    
+    // Auto-init if the calendar div exists immediately (for safety)
+    if(document.getElementById('calendar')) {
+        init();
+    }
 })();
