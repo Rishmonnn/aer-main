@@ -39,18 +39,21 @@ function openEnrollmentModal(event, data) {
         decEl.innerText = 'Promoted to Next Year';
         decEl.style.color = '#2e7d32';
     }
+    
+    // Toggle the Validator/Warnings container
     const warningContainer = document.getElementById('modalWarnings');
-    warningContainer.style.display = data.hasWarnings ? 'block' : 'none';
+    if(warningContainer) {
+        warningContainer.style.display = data.hasWarnings ? 'block' : 'none';
+    }
 
-    // [FIX] Attach the Student ID to the confirm button so we know who to enroll
+    // Attach the Student ID to the confirm button
     const confirmBtn = document.getElementById('btn-confirm-enroll');
     if (confirmBtn) {
         confirmBtn.setAttribute('data-id', data.id);
         
-        // Optional: Change button text/state based on decision
         if (data.decision === 'Retained') {
             confirmBtn.innerText = "Confirm Retention";
-            confirmBtn.classList.add('btn-danger'); // Assuming you have a danger class
+            confirmBtn.classList.add('btn-danger'); 
         } else {
             confirmBtn.innerText = "Enroll Student";
             confirmBtn.classList.remove('btn-danger');
@@ -64,7 +67,6 @@ function closeEnrollmentModal() {
     document.getElementById('enrollmentModal').classList.remove('active'); 
 }
 
-// [FIX] New function to handle the button click
 function confirmSingleEnrollment() {
     const btn = document.getElementById('btn-confirm-enroll');
     const studentId = btn.getAttribute('data-id');
@@ -74,17 +76,12 @@ function confirmSingleEnrollment() {
         return;
     }
 
-    // TODO: Replace this with your actual API call to save the enrollment
-    // Example:
-    // fetch('/api/enrollment/single', { method: 'POST', body: JSON.stringify({id: studentId}) })
-    
+    // TODO: Replace with actual API call
     console.log(`Processing enrollment for student: ${studentId}`);
     alert(`Successfully enrolled student ${studentId}!`);
     
     closeEnrollmentModal();
 }
-
-
 
 // --- UPLOAD WIZARD & EXCEL LOGIC ---
 let currentStep = 1;
@@ -103,16 +100,14 @@ function handleUpload() {
 function closeUploadModal() {
     document.getElementById('uploadModal').classList.remove('active');
     document.getElementById('modalFileInput').value = '';
-    resetDropZone(); // Ensure UI is reset on close
+    resetDropZone(); 
 }
-
-// --- FILE HANDLING FIXES ---
 
 function handleFileSelect(e) {
     const file = e.target.files[0];
     if (file) {
         showLoadingState(); 
-        setTimeout(() => processExcelFile(file), 100); // Slight delay to allow UI to render spinner
+        setTimeout(() => processExcelFile(file), 100); 
     }
     e.target.value = ''; 
 }
@@ -151,9 +146,7 @@ function resetDropZone() {
     }
 }
 
-// --- EXCEL PARSING ---
 function processExcelFile(file) {
-    // 1. Check if Library is Loaded
     if (typeof XLSX === 'undefined') {
         alert("Error: The Excel processing library (SheetJS) failed to load.\n\nPlease check your internet connection (CDN requires internet) or verify the script tag in program-head.html.");
         resetDropZone();
@@ -177,7 +170,6 @@ function processExcelFile(file) {
                 fileHeaders = jsonData[0]; 
                 uploadedData = XLSX.utils.sheet_to_json(sheet);
                 
-                // Success
                 setTimeout(() => {
                     nextStep();
                     resetDropZone(); 
@@ -252,10 +244,8 @@ function updatePreviewTable() {
     });
 }
 
-// --- WIZARD NAVIGATION ---
 function nextStep() {
     if (currentStep === 3) {
-        // TRIGGER API CALL
         submitEnrollment();
     } else if (currentStep < 4) {
         currentStep++;
@@ -273,7 +263,6 @@ function submitEnrollment() {
     btn.innerText = "Importing...";
     btn.disabled = true;
 
-    // 1. GATHER DATA BASED ON MAPPINGS
     const mappings = {};
     document.querySelectorAll('.map-select').forEach(sel => {
         if(sel.value) mappings[sel.getAttribute('data-key')] = sel.value;
@@ -293,7 +282,6 @@ function submitEnrollment() {
         };
     });
 
-    // 2. SEND TO FLASK SERVER
     fetch('/api/enrollment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -302,11 +290,9 @@ function submitEnrollment() {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            // Update Success Message
             document.getElementById('success-message').innerText = 
                 `${data.count} students successfully enrolled!`;
             
-            // Move to Success Step
             currentStep++;
             updateStepUI();
         } else {

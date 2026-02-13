@@ -28,7 +28,7 @@
                     <tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Promote to</th></tr>
                 </thead>
                 <tbody>
-                    <tr class="student-row" onclick="openEnrollmentModal(event, {id: '2024-00001', name: 'Maria Cruz', program: 'BS in Computer Engineering', type: 'Regular', year: '1st Year', standing: '1st Year', decision: 'Proceed', hasWarnings: false})">
+                    <tr class="student-row" onclick="openEnrollmentModal(event, {id: '2024-00001', name: 'Maria Cruz', program: 'BS in Computer Engineering', type: 'Regular', year: '1st Year', standing: '1st Year', decision: 'Proceed', hasWarnings: true})">
                         <td>2024-00001</td><td class="student-name">Maria Cruz</td><td>BS in Computer Engineering</td>
                         <td><span class="status-pill regular">Regular</span></td><td class="promote-text">2nd Year</td>
                     </tr>
@@ -81,26 +81,55 @@
             <h2>Confirm Enrollment</h2>
             <p>Review student standing and enrollment details</p>
         </div>
-        <div id="modalWarnings" style="display: none;">
-            <div class="alert-box danger">
-                <i class='bx bx-error-circle'></i>
-                <div><h4>Student Retained</h4><p>Failed curriculum due to critical subject: CPE 038</p></div>
+        
+        <div class="modal-body-scroll">
+            <div id="modalWarnings" style="display: none;">
+                <div class="alert-box danger">
+                    <i class='bx bx-error-circle'></i>
+                    <div><h4>Student Retained</h4><p>Failed curriculum due to critical subject: CPE 038</p></div>
+                </div>
+                <div class="alert-box info">
+                    <i class='bx bx-info-circle'></i>
+                    <div>
+                        <h4>Failed Subjects Impact</h4>
+                        <p><strong>CPE 038</strong> - Software Design <span class="text-danger">(Blocks curriculum path)</span></p>
+                    </div>
+                </div>
             </div>
-            <div class="alert-box info">
-                <i class='bx bx-info-circle'></i>
-                <div><h4>Failed Subjects Impact</h4><p><strong>CPE 038</strong> - Software Design <span class="text-danger">(Blocks curriculum path)</span></p></div>
+
+            <div class="student-details-grid">
+                <div class="detail-row">
+                    <span class="label">Student ID</span>
+                    <span class="value" id="modalStudentId">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Name</span>
+                    <span class="value" id="modalStudentName">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Program</span>
+                    <span class="value" id="modalStudentProgram">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Student Type</span>
+                    <span class="value"><span class="status-pill" id="modalStudentType">-</span></span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Current Year Level</span>
+                    <span class="value" id="modalStudentYear">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Official Standing</span>
+                    <span class="value standing-value" id="modalStudentStanding">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Status</span>
+                    <span class="value status-value" id="modalStudentDecision">-</span>
+                </div>
             </div>
         </div>
-        <div class="student-details-grid">
-            <div class="detail-row"><span class="label">Student ID:</span><span class="value" id="modalStudentId">-</span></div>
-            <div class="detail-row"><span class="label">Name:</span><span class="value" id="modalStudentName">-</span></div>
-            <div class="detail-row"><span class="label">Program:</span><span class="value" id="modalStudentProgram">-</span></div>
-            <div class="detail-row"><span class="label">Student Type:</span><span class="value"><span class="status-pill" id="modalStudentType">-</span></span></div>
-            <div class="detail-row"><span class="label">Current Year Level:</span><span class="value" id="modalStudentYear">-</span></div>
-            <div class="detail-row"><span class="label">Official Standing:</span><span class="value standing-value" id="modalStudentStanding">-</span></div>
-            <div class="detail-row"><span class="label">Status:</span><span class="value status-value" id="modalStudentDecision">-</span></div>
-        </div>
-      <div class="modal-footer">
+
+        <div class="modal-footer">
             <button class="btn-cancel" onclick="closeEnrollmentModal()">Cancel</button>            
             <button class="btn-enroll" id="btn-confirm-enroll" onclick="confirmSingleEnrollment()">Enroll Student</button>
         </div>
