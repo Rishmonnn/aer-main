@@ -25,6 +25,8 @@
     {% include 'includes/footer.html' %}
   {% endblock %}
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
   {% if pageScripts %}
     {% for script in pageScripts %}
       <script src="{{ url_for('static', filename='js/' + script) }}"></script>
