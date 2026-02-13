@@ -10,7 +10,7 @@ const ClassRecords = (function() {
         { id: '2021-00001', name: 'Martinez, Recmar A.', course: 'CPE', year: '3rd', printed: true, fb: 'fb.com/recmar', group: true, messenger: true, contact: '09123456789', gmail: 'recmar@gmail.com' },
         { id: '2021-00002', name: 'Jupiter, Mami B.', course: 'CPE', year: '3rd', printed: true, fb: 'fb.com/mami', group: true, messenger: true, contact: '09234567890', gmail: 'mami@gmail.com' },
         { id: '2021-00003', name: 'Alfonso, Brader C.', course: 'CPE', year: '3rd', printed: false, fb: 'fb.com/brader', group: true, messenger: false, contact: '09345678901', gmail: 'brader@gmail.com' },
-        { id: '2021-00004', name: 'Santos, John D.', course: 'CE', year: '2nd', printed: true, fb: 'fb.com/john', group: false, messenger: true, contact: '09456789012', gmail: 'john@gmail.com' },
+        { id: '2021-00004', name: 'Santos, John D.', course: 'CPE', year: '2nd', printed: true, fb: 'fb.com/john', group: false, messenger: true, contact: '09456789012', gmail: 'john@gmail.com' },
         { id: '2021-00005', name: 'Reyes, Anna E.', course: 'CPE', year: '3rd', printed: true, fb: 'fb.com/anna', group: true, messenger: true, contact: '09567890123', gmail: 'anna@gmail.com' }
     ];
 
@@ -104,52 +104,25 @@ const ClassRecords = (function() {
 
     // --- RENDERING MAIN TABLES ---
     function renderInfoTable(tbody) {
-    tbody.innerHTML = '';
-    studentInfoData.forEach(student => {
-        const tr = document.createElement('tr');
-        
-        // Checkbox HTML generators
-        const printedChecked = student.printed_modules ? 'checked' : '';
-        const messengerChecked = student.has_messenger ? 'checked' : '';
-        
-        // We use onchange for checkboxes and onblur for text inputs (updates when you click away)
-        tr.innerHTML = `
-            <td style="font-weight:600">${student.id}</td>
-            <td>${student.name}</td>
-            <td><span class="course-badge">${student.course}</span></td>
-            <td>${student.year}</td>
-            
-            <td class="text-center">
-                <input type="checkbox" class="cr-checkbox" 
-                    ${printedChecked} 
-                    onchange="ClassRecords.updateStudentData('${student.id}', 'printed_modules', this.checked)">
-            </td>
-            
-            <td><a href="#" class="link-text">FB Link</a></td> <td class="text-center">-</td>
-            
-            <td class="text-center">
-                <input type="checkbox" class="cr-checkbox" 
-                    ${messengerChecked} 
-                    onchange="ClassRecords.updateStudentData('${student.id}', 'has_messenger', this.checked)">
-            </td>
-            
-            <td>
-                <input type="text" class="cr-input-edit" 
-                    value="${student.contact_number || ''}" 
-                    placeholder="Add No."
-                    onblur="ClassRecords.updateStudentData('${student.id}', 'contact_number', this.value)">
-            </td>
-            
-            <td>
-                <input type="text" class="cr-input-edit" 
-                    value="${student.email || ''}" 
-                    placeholder="Add Email"
-                    onblur="ClassRecords.updateStudentData('${student.id}', 'email', this.value)">
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
+        tbody.innerHTML = '';
+        studentInfoData.forEach(student => {
+            const tr = document.createElement('tr');
+            const getIcon = (status) => status ? `<i class='bx bx-check-circle icon-check'></i>` : `<i class='bx bx-x-circle icon-cross'></i>`;
+            tr.innerHTML = `
+                <td style="font-weight:600">${student.id}</td>
+                <td>${student.name}</td>
+                <td><span class="course-badge">${student.course}</span></td>
+                <td>${student.year}</td>
+                <td class="text-center">${getIcon(student.printed)}</td>
+                <td><a href="#" class="link-text">${student.fb}</a></td>
+                <td class="text-center">${getIcon(student.group)}</td>
+                <td class="text-center">${getIcon(student.messenger)}</td>
+                <td>${student.contact}</td>
+                <td>${student.gmail}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
 
     function renderAttendanceTable(tbody) {
         tbody.innerHTML = '';
@@ -394,30 +367,3 @@ const ClassRecords = (function() {
 })();
 
 document.addEventListener('DOMContentLoaded', ClassRecords.init);
-
-async function updateStudentData(studentId, field, value) {
-    console.log(`Updating ${studentId}: ${field} = ${value}`);
-    
-    try {
-        const payload = {};
-        payload[field] = value;
-
-        const response = await fetch(`/api/students/update/${studentId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        const result = await response.json();
-        if (result.success) {
-            console.log("Update saved successfully");
-            // Optional: Add a visual indicator like a toast notification here
-        } else {
-            alert("Failed to save changes: " + result.message);
-        }
-    } catch (error) {
-        console.error("Error updating student:", error);
-    }
-}
