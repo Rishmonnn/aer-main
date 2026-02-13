@@ -16,13 +16,11 @@ config_env = os.environ.get('FLASK_ENV', 'development')
 app.config.from_object(get_config(config_env))
 
 # --- NEW: Initialize Database with the App ---
-#db.init_app(app)
+db.init_app(app)
 
-# --- NEW: Create Tables Automatically (Run once on startup) ---
-#with app.app_context():
-    # This creates the tables defined in models.py if they don't exist
- #   db.create_all()
-  #  print("Database tables created successfully!")
+with app.app_context():
+     db.create_all()
+     print("Database tables created successfully!")
 
 # ==================== FACULTY MOCK DATA (Minimal) ====================
 FACULTY_DATA = {
