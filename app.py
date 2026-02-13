@@ -225,6 +225,63 @@ def get_enlistment(): return jsonify([])
 def get_schedules():
     return jsonify([{'id': 1, 'title': 'Class Schedule A', 'times': 'MWF 9:00-10:30'}])
 
+
+@app.route('/api/students', methods=['GET'])
+@login_required
+def get_all_students():
+    try:
+        # Query ALL students from the database
+        students = Student.query.all()
+        student_list = []
+        
+        for s in students:
+            student_list.append({
+                'id': s.id,
+                'name': s.name,
+                'program': s.program,
+                'year_level': s.year_level,
+                'status': s.status,
+                'contact_number': s.contact_number, 
+                'has_messenger': s.has_messenger,
+                'printed_modules': s.printed_modules
+            })
+            
+        return jsonify(student_list)
+    except Exception as e:
+        print(f"Error fetching students: {e}")
+        return jsonify([])
+# In app.py
+
+@app.route('/api/students/update/<string:student_id>', methods=['POST'])
+@login_required
+def update_student_info(student_id):
+    data = request.get_json()
+    student = Student.query.get(student_id)
+    
+    if not student:
+        return jsonify({'success': False, 'message': 'Student not found'}), 404
+        
+    try:
+        # Check which field is being updated and apply changes
+        if 'printed_modules' in data:
+            student.printed_modules = bool(data['printed_modules'])
+            
+        if 'has_messenger' in data:
+            student.has_messenger = bool(data['has_messenger'])
+            
+        if 'contact_number' in data:
+            student.contact_number = str(data['contact_number'])
+            
+        if 'email' in data:
+            student.email = str(data['email'])
+
+        db.session.commit()
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found(error): return redirect(url_for('index')), 404
 

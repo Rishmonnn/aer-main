@@ -15,12 +15,8 @@
             <div class="accordion-body">
                 <table class="journey-table">
                     <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Action</th></tr></thead>
-                    <tbody>
-                        <tr>
-                            <td>2024-00001</td><td class="student-name">Maria Cruz</td><td>BS in Computer Engineering</td>
-                            <td><button class="btn-view-journey" onclick="viewStudentJourney('2024-00001', 'Maria Cruz')">View Journey</button></td>
-                        </tr>
-                    </tbody>
+                    <tbody id="journey-tbody-1">
+                        </tbody>
                 </table>
             </div>
         </div>
@@ -32,23 +28,36 @@
             <div class="accordion-body">
                 <table class="journey-table">
                     <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Action</th></tr></thead>
-                    <tbody>
-                        <tr>
-                            <td>2024-00002</td><td class="student-name">Juan Dela Cruz</td><td>BS in Computer Engineering</td>
-                            <td><button class="btn-view-journey" onclick="viewStudentJourney('2024-00002', 'Juan Dela Cruz')">View Journey</button></td>
-                        </tr>
-                    </tbody>
+                    <tbody id="journey-tbody-2">
+                        </tbody>
                 </table>
             </div>
         </div>
         
         <div class="year-accordion collapsed">
-            <div class="accordion-header header-green" onclick="toggleJourneyAccordion(this)"><i class='bx bx-chevron-right'></i> <span>3rd Year</span></div>
-            <div class="accordion-body"><div class="empty-state">No records found.</div></div>
+            <div class="accordion-header header-green" onclick="toggleJourneyAccordion(this)">
+                <i class='bx bx-chevron-right'></i> <span>3rd Year</span>
+            </div>
+            <div class="accordion-body">
+                <table class="journey-table">
+                    <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Action</th></tr></thead>
+                    <tbody id="journey-tbody-3">
+                         </tbody>
+                </table>
+            </div>
         </div>
+
         <div class="year-accordion collapsed">
-            <div class="accordion-header header-teal" onclick="toggleJourneyAccordion(this)"><i class='bx bx-chevron-right'></i> <span>4th Year</span></div>
-            <div class="accordion-body"><div class="empty-state">No records found.</div></div>
+            <div class="accordion-header header-teal" onclick="toggleJourneyAccordion(this)">
+                <i class='bx bx-chevron-right'></i> <span>4th Year</span>
+            </div>
+            <div class="accordion-body">
+                <table class="journey-table">
+                    <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Action</th></tr></thead>
+                    <tbody id="journey-tbody-4">
+                         </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -63,11 +72,11 @@
             <div class="info-row">
                 <div class="info-group">
                     <span class="label">STUDENT ID:</span>
-                    <span class="value" id="detail-id">2224-00001</span>
+                    <span class="value" id="detail-id">-</span>
                 </div>
                 <div class="info-group">
                     <span class="label">STUDENT NAME:</span>
-                    <span class="value" id="detail-name">JUAN DELA CRUZ</span>
+                    <span class="value" id="detail-name">-</span>
                 </div>
             </div>
             <div class="info-row">
@@ -86,22 +95,22 @@
             <div class="section-header">SUMMARY</div>
             <div class="summary-stats">
                 <div class="stat-item">
-                    <span class="stat-num">68</span>
+                    <span class="stat-num" id="stat-earned">-</span>
                     <span class="stat-label">EARNED UNITS</span>
                 </div>
                 <div class="stat-divider"></div>
                 <div class="stat-item">
-                    <span class="stat-num">92</span>
+                    <span class="stat-num" id="stat-registered">-</span>
                     <span class="stat-label">REGISTERED UNITS</span>
                 </div>
                 <div class="stat-divider"></div>
                 <div class="stat-item">
-                    <span class="stat-num">104</span>
+                    <span class="stat-num" id="stat-remaining">-</span>
                     <span class="stat-label">REMAINING UNITS</span>
                 </div>
                 <div class="stat-divider"></div>
                 <div class="stat-item">
-                    <span class="stat-num">172</span>
+                    <span class="stat-num" id="stat-total">-</span>
                     <span class="stat-label">TOTAL UNITS</span>
                 </div>
             </div>
@@ -119,26 +128,8 @@
                             <th>GWA</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr class="sem-row" onclick="viewSemesterGrades(this, 'SY 24-25 SEM I')">
-                            <td class="sem-name">SY 24-25 SEM I</td>
-                            <td>22.00</td>
-                            <td>22.00</td>
-                            <td>1.80</td>
-                        </tr>
-                        <tr class="sem-row" onclick="viewSemesterGrades(this, 'SY 24-25 SEM II')">
-                            <td class="sem-name">SY 24-25 SEM II</td>
-                            <td>22.00</td>
-                            <td>22.00</td>
-                            <td>1.80</td>
-                        </tr>
-                        <tr class="sem-row" onclick="viewSemesterGrades(this, 'SY 25-26 SEM I')">
-                            <td class="sem-name">SY 25-26 SEM I</td>
-                            <td>22.00</td>
-                            <td>22.00</td>
-                            <td>1.80</td>
-                        </tr>
-                    </tbody>
+                    <tbody id="semester-list-body">
+                        </tbody>
                 </table>
             </div>
 

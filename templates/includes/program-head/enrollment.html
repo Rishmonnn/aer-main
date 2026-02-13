@@ -23,21 +23,10 @@
             <span>1st Year</span>
         </div>
         <div class="accordion-body">
-            <table class="year-table">
-                <thead>
-                    <tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Promote to</th></tr>
-                </thead>
-                <tbody>
-                    <tr class="student-row" onclick="openEnrollmentModal(event, {id: '2024-00001', name: 'Maria Cruz', program: 'BS in Computer Engineering', type: 'Regular', year: '1st Year', standing: '1st Year', decision: 'Proceed', hasWarnings: true})">
-                        <td>2024-00001</td><td class="student-name">Maria Cruz</td><td>BS in Computer Engineering</td>
-                        <td><span class="status-pill regular">Regular</span></td><td class="promote-text">2nd Year</td>
-                    </tr>
-                    <tr class="student-row" onclick="openEnrollmentModal(event, {id: '2024-00002', name: 'Pemela Wan', program: 'BS in Computer Engineering', type: 'Regular', year: '1st Year', standing: '1st Year', decision: 'Proceed', hasWarnings: false})">
-                        <td>2024-00002</td><td class="student-name">Pemela Wan</td><td>BS in Computer Engineering</td>
-                        <td><span class="status-pill regular">Regular</span></td><td class="promote-text">2nd Year</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="empty-state">
+                <i class='bx bx-info-circle' style="font-size: 2rem; color: #ccc; display: block; margin: 0 auto 10px;"></i>
+                No students pending enrollment for 2nd Semester.
+            </div>
         </div>
     </div>
 
