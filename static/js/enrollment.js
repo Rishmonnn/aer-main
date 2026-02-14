@@ -101,9 +101,23 @@ function confirmSingleEnrollment() {
     .then(res => res.json())
     .then(data => {
         if(data.success) {
-            alert(`Student successfully enrolled and promoted to ${data.new_year}! They are now in the Enlistment module.`);
+            alert(`Student successfully enrolled and promoted to ${data.new_year}!`);
             closeEnrollmentModal();
-            loadEnrollmentData(); // Refresh list
+            
+            // 1. Refresh THIS module (Enrollment)
+            loadEnrollmentData(); 
+            
+            // 2. DIRECT UPDATE: Refresh the NEXT module (Enlistment)
+            // This makes the student appear in the Enlistment tab immediately
+            if (typeof loadEnlistmentData === 'function') {
+                loadEnlistmentData();
+            }
+
+            // 3. Update Student Journey (so they move to the correct year accordion)
+            if (typeof loadStudentJourney === 'function') {
+                loadStudentJourney();
+            }
+
         } else {
             alert("Error: " + data.error);
         }

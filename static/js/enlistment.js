@@ -151,36 +151,20 @@ function updateSummary() {
 function submitEnlistment() {
     const btn = document.getElementById('btnEnlist');
     
-    // 1. Validation
+    // ... (Keep your existing validation logic here for selectedUnits > 0) ...
     if (selectedUnits === 0) {
         alert("Please select at least one subject.");
         return;
     }
-    
-    // 2. Gather Selected Data
+
+    // ... (Keep your existing data gathering logic for subjectCodes) ...
     const selectedRows = document.querySelectorAll('.subject-row[data-selected="true"]');
     const subjectCodes = [];
-    
     selectedRows.forEach(row => {
-        // We need to parse the code from the text "CPE 101 - Description..."
-        // Or better, store the code in a data attribute when rendering.
-        // Let's rely on the Render logic I gave you previously.
-        // If you used my previous code, the text is inside the span. 
-        // A safer way is to add data-code to the row in renderSubjects.
-        
-        // FIX: Let's assume we added data-code in the render step. 
-        // See Step 3 below for the render update.
-        if (row.dataset.code) {
-            subjectCodes.push(row.dataset.code);
-        }
+        if (row.dataset.code) subjectCodes.push(row.dataset.code);
     });
 
-    if (subjectCodes.length === 0) {
-        alert("Error: Could not identify selected subjects.");
-        return;
-    }
-
-    // 3. Send to Server
+    // Send to Server
     btn.innerText = "Processing...";
     btn.disabled = true;
 
@@ -197,7 +181,16 @@ function submitEnlistment() {
         if (data.success) {
             alert("Student Successfully Enlisted! They have been moved to the Enrolled list.");
             closeEnlistmentModal();
-            loadEnlistmentData(); // Refresh list to remove the student
+            
+            // 1. Refresh THIS module (Enlistment) - Removes student from list
+            loadEnlistmentData(); 
+
+            // 2. DIRECT UPDATE: Refresh Student Journey
+            // This ensures the student's new subjects appear when you view their journey
+            if (typeof loadStudentJourney === 'function') {
+                loadStudentJourney();
+            }
+            
         } else {
             alert("Error: " + data.message);
         }
