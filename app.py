@@ -3,6 +3,7 @@ from functools import wraps
 import os
 from config import get_config
 import random
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # --- NEW: Import the Database and Models ---
 from models import db, User, Student, Subject, Section, Enrollment
@@ -469,10 +470,151 @@ def get_enlistment_candidates():
             'year_level': s.year_level,  # <--- CRITICAL: Needed for the accordion
             'status': 'Regular',         # Defaulting to Regular for now
             'units': 0,
-            'maxUnits': 21,              # Default max units
+            'maxUnits': 23,              # Default max units
             'retained': False
         })
     return jsonify(output)
+
+@app.route('/register', methods=['POST'])
+def register():
+    # Get data from the form
+    name = request.form.get('name')
+    email = request.form.get('email')
+    role = request.form.get('role')
+    department = request.form.get('department')
+    password = request.form.get('password')
+
+    if email:
+        email = email.lower()
+
+    # Basic check if user already exists
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        return render_template('index.html', error="Email already registered.")
+
+    try:
+        # Create new User instance
+        new_user = User(
+            name=name,
+            email=email,
+            role=role,
+            department=department,
+            password=generate_password_hash(password) # Hash for security
+        )
+
+        # Add and commit to database
+        db.session.add(new_user)
+        db.session.commit()
+
+        # Automatically log them in after registration
+        session['user'] = email
+        session['role'] = role
+        
+        if role == 'head':
+            return redirect(url_for('program_head_dashboard'))
+        else:
+            return redirect(url_for('faculty_dashboard'))
+
+    except Exception as e:
+        db.session.rollback()
+        # === THIS LINE WILL SHOW THE REAL ERROR IN YOUR TERMINAL ===
+        print(f"\n❌ REGISTRATION ERROR: {str(e)}\n") 
+        return render_template('index.html', error=f"Registration failed: {str(e)}")
+
+# ==================== ENLISTMENT API (REAL CURRICULUM) ====================
+@app.route('/api/enlistment/subjects/<string:student_id>', methods=['GET'])
+@login_required
+def get_student_available_subjects(student_id):
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify([])
+
+    # 1. Determine Target Semester
+    # If student is "3rd Year", we assume they are enrolling for "3rd Year, 1st Semester"
+    # (You can make this dynamic later based on a global "Active Term" setting)
+    target_year = student.year_level 
+    target_sem = "1st Semester"
+
+    # 2. Fetch Subjects from Database
+    subjects = Subject.query.filter_by(year_level=target_year, semester=target_sem).all()
+    
+    output = []
+    for sub in subjects:
+        # 3. Get Section Info (Schedule/Room)
+        # We look for an existing section, or create a 'TBA' placeholder for display
+        section = Section.query.filter_by(subject_code=sub.code).first()
+        
+        sched = section.schedule if section else "TBA"
+        room = section.room if section else "TBA"
+        section_name = section.name if section else f"{sub.code}-A"
+
+        # 4. Determine Visual Tag (Critical/Major/Minor)
+        # Logic: 4+ units = Critical, 3 units = Major, <3 units = Minor
+        subject_type = "major"
+        if sub.units >= 4: subject_type = "critical"
+        elif sub.units < 3: subject_type = "minor"
+
+        output.append({
+            'code': sub.code,
+            'name': sub.description, # Map DB 'description' to Frontend 'name'
+            'units': sub.units,
+            'type': subject_type,
+            'sched': sched,
+            'room': room,
+            'section': section_name
+        })
+    
+    return jsonify(output)
+
+@app.route('/api/enlistment/submit', methods=['POST'])
+@login_required
+def submit_student_enlistment():
+    data = request.get_json()
+    student_id = data.get('student_id')
+    subjects = data.get('subjects') # List of subject codes
+    
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify({'success': False, 'message': 'Student not found'}), 404
+
+    try:
+        # 1. Update Student Status (Removes them from Enlistment Page)
+        student.status = 'Enrolled' 
+        
+        # 2. Create Enrollments for each subject
+        for code in subjects:
+            # Find the section (or create a default one if missing)
+            # In a real app, the student selects a specific Section ID. 
+            # Here we auto-assign to Section A for simplicity.
+            section = Section.query.filter_by(subject_code=code).first()
+            
+            if not section:
+                # Fail-safe: Create a section if it doesn't exist
+                subject = Subject.query.get(code)
+                if subject:
+                    section = Section(name=f"{code}-A", subject_code=code, room="TBA", schedule="TBA")
+                    db.session.add(section)
+                    db.session.commit() # Commit needed to get section.id
+            
+            if section:
+                # Check if already enrolled to avoid duplicates
+                exists = Enrollment.query.filter_by(student_id=student_id, section_id=section.id).first()
+                if not exists:
+                    enrollment = Enrollment(
+                        student_id=student_id,
+                        section_id=section.id,
+                        grade=None,      # No grade yet (Currently taking it)
+                        status='Enrolled' # Status in the class
+                    )
+                    db.session.add(enrollment)
+
+        db.session.commit()
+        return jsonify({'success': True})
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Enlistment Error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5000)

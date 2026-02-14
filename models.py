@@ -8,9 +8,10 @@ class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False) # Will store hashed passwords
+    password = db.Column(db.String(200), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(20), nullable=False) # 'head' or 'faculty'
+    department = db.Column(db.String(100), nullable=True) # <--- ADD THIS LINE
     
     # Relationships
     classes_handled = db.relationship('Section', backref='instructor', lazy=True)
@@ -66,3 +67,5 @@ class Enrollment(db.Model):
     date_enrolled = db.Column(db.DateTime, default=datetime.utcnow)
     grade = db.Column(db.Float, nullable=True) # Final Grade
     status = db.Column(db.String(20), default='Enrolled') # Enrolled, Dropped, Passed, Failed
+
+# 6. CREATE ACCOUNT PANEL (The Link: Student <-> Section)

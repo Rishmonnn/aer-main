@@ -2,17 +2,14 @@ document.addEventListener('DOMContentLoaded', function() {
     loadEnlistmentData();
 });
 
-// --- LOAD DATA FROM API ---
+// --- LOAD PENDING STUDENTS ---
 function loadEnlistmentData() {
     fetch('/api/enlistment/pending')
         .then(res => res.json())
         .then(data => {
-            // 1. Clear existing tables
             document.querySelectorAll('.enlistment-table tbody').forEach(el => el.innerHTML = '');
 
-            // 2. Populate Tables
             data.forEach(student => {
-                // Determine target table based on student's NEW year level
                 let yearIndex = '1'; 
                 if (student.year_level.includes('2')) yearIndex = '2';
                 else if (student.year_level.includes('3')) yearIndex = '3';
@@ -21,9 +18,8 @@ function loadEnlistmentData() {
                 const tbody = document.getElementById(`enlistment-tbody-${yearIndex}`);
                 
                 if (tbody) {
-                    // Create row
                     const tr = document.createElement('tr');
-                    // Attach click event for modal
+                    // We pass the whole student object to the modal opener
                     tr.onclick = () => openEnlistmentModal(student);
                     
                     tr.innerHTML = `
@@ -34,81 +30,93 @@ function loadEnlistmentData() {
                         <td><button class="btn-view-action">Select Subjects</button></td>
                     `;
                     tbody.appendChild(tr);
-                    
-                    // Auto-open accordion
                     tbody.closest('.year-accordion').classList.remove('collapsed');
                 }
             });
-        })
-        .catch(err => console.error("Error loading enlistment:", err));
+        });
 }
 
-// --- KEEP EXISTING MODAL LOGIC BELOW ---
-// (Paste the rest of your existing logic below: subjectDB, filtering, modal functions)
-// Ensure 'subjectDB' and 'openEnlistmentModal' are still there.
-
-const subjectDB = [
-    { code: 'CPE 038', name: 'Software Design', units: 3, type: 'critical', sched: '07:30 AM-01:30 PM Thursday', room: 'CL3', section: 'COC-FA-CPE2-02' },
-    { code: 'CPE 040', name: 'Logic Circuits And Design', units: 3, type: 'major', sched: '12:00 NN - 3:00 PM Wednesday', room: 'PH-315A', section: 'COC-FA-CPE2-02' },
-    { code: 'PE 3', name: 'Physical Education 3', units: 1, type: 'minor', sched: '12:00 NN - 3:00 PM Wednesday', room: 'PH-315A', section: 'COC-FA-CPE2-02' },
-    { code: 'MATH 02', name: 'Calculus 2', units: 3, type: 'major', sched: '09:00 AM - 12:00 NN Monday', room: 'RM-204', section: 'COC-FA-CPE2-02' }
-];
-
+// --- GLOBAL VARIABLES ---
 let currentStudent = {};
 let selectedUnits = 0;
+// Note: 'subjectDB' is removed. We now fetch subjects dynamically.
 
-function filterEnlistment() {
-    const val = document.getElementById('enlistmentSearch').value.toLowerCase();
-    document.querySelectorAll('.enlistment-table tbody tr').forEach(row => {
-        row.style.display = row.innerText.toLowerCase().includes(val) ? '' : 'none';
-    });
-}
-
+// --- MODAL LOGIC ---
 function openEnlistmentModal(studentData) {
     currentStudent = studentData;
     selectedUnits = 0;
 
+    // 1. Populate Header Info
     document.getElementById('modalName').innerText = studentData.name;
     document.getElementById('modalID').innerText = studentData.id;
-    document.getElementById('modalStatus').innerText = "Regular"; // Default for now
+    document.getElementById('modalStatus').innerText = "Regular"; 
     document.getElementById('modalStatus').className = `status-pill regular`;
     document.getElementById('maxUnits').innerText = studentData.maxUnits || 21;
     document.getElementById('modalStanding').innerText = studentData.year_level;
 
+    // 2. Clear Previous Data
     document.getElementById('enlistmentAlerts').innerHTML = ''; 
-    renderSubjects();
-    updateSummary();
-
+    document.getElementById('subjectListBody').innerHTML = '<div style="padding:20px; text-align:center;">Loading subjects...</div>';
+    
     document.getElementById('enlistmentModal').classList.add('active');
+
+    // 3. FETCH REAL SUBJECTS FROM API
+    fetch(`/api/enlistment/subjects/${studentData.id}`)
+        .then(res => res.json())
+        .then(subjects => {
+            renderSubjects(subjects);
+            updateSummary();
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('subjectListBody').innerHTML = '<div style="color:red; padding:20px;">Error loading subjects.</div>';
+        });
 }
 
 function closeEnlistmentModal() {
     document.getElementById('enlistmentModal').classList.remove('active');
 }
 
-function renderSubjects() {
+// --- RENDER SUBJECTS (Dynamic Data) ---
+function renderSubjects(subjects) {
     const list = document.getElementById('subjectListBody');
     list.innerHTML = '';
-    
-    // In a real app, you would filter subjectDB based on the student's year level
-    subjectDB.forEach((sub) => {
+
+    if (subjects.length === 0) {
+        list.innerHTML = '<div style="padding:20px; text-align:center; color:#666;">No subjects found for this semester.</div>';
+        return;
+    }
+
+    subjects.forEach((sub) => {
         const row = document.createElement('div');
         row.className = `subject-row`;
+        row.dataset.code = sub.code;
+        // Click handler to toggle selection
         row.onclick = () => toggleSubject(row, sub);
+        
+        // Determine Badge Color
+        let badgeColor = 'major';
+        if(sub.type === 'critical') badgeColor = 'critical';
+        if(sub.type === 'minor') badgeColor = 'minor';
+
         row.innerHTML = `
             <div class="row-top">
                 <div class="subject-title">
                     <span class="selection-icon"><i class='bx bx-circle' style='color:#ccc; font-size:1.4rem'></i></span>
                     <span>${sub.code} - ${sub.name} (${sub.units} Units)</span>
-                    <span class="tag ${sub.type}">${sub.type.toUpperCase()}</span>
+                    <span class="tag ${badgeColor}">${sub.type.toUpperCase()}</span>
                 </div>
-                <div style="font-size:0.8rem; border:1px solid #ddd; padding:2px 8px; border-radius:4px;">Section: ${sub.section}</div>
+                <div style="font-size:0.8rem; border:1px solid #ddd; padding:2px 8px; border-radius:4px;">
+                    Section: <strong>${sub.section}</strong>
+                </div>
             </div>
             <div class="row-details">
                 <div class="detail-item"><i class='bx bx-calendar'></i> ${sub.sched}</div>
                 <div class="detail-item"><i class='bx bx-map'></i> ${sub.room}</div>
             </div>
         `;
+        
+        // Initialize state
         row.dataset.selected = 'false';
         list.appendChild(row);
     });
@@ -119,11 +127,13 @@ function toggleSubject(rowElement, subject) {
     const iconSpan = rowElement.querySelector('.selection-icon');
     
     if (isSelected) {
+        // Deselect
         rowElement.dataset.selected = 'false';
         rowElement.classList.remove('selected');
         iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#ccc; font-size:1.4rem'></i>";
         selectedUnits -= subject.units;
     } else {
+        // Select
         rowElement.dataset.selected = 'true';
         rowElement.classList.add('selected');
         iconSpan.innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
@@ -139,9 +149,74 @@ function updateSummary() {
 }
 
 function submitEnlistment() {
-    alert("Student Successfully Enlisted!");
-    closeEnlistmentModal();
-    // Here you would add an API call to save the enlisted subjects
+    const btn = document.getElementById('btnEnlist');
+    
+    // 1. Validation
+    if (selectedUnits === 0) {
+        alert("Please select at least one subject.");
+        return;
+    }
+    
+    // 2. Gather Selected Data
+    const selectedRows = document.querySelectorAll('.subject-row[data-selected="true"]');
+    const subjectCodes = [];
+    
+    selectedRows.forEach(row => {
+        // We need to parse the code from the text "CPE 101 - Description..."
+        // Or better, store the code in a data attribute when rendering.
+        // Let's rely on the Render logic I gave you previously.
+        // If you used my previous code, the text is inside the span. 
+        // A safer way is to add data-code to the row in renderSubjects.
+        
+        // FIX: Let's assume we added data-code in the render step. 
+        // See Step 3 below for the render update.
+        if (row.dataset.code) {
+            subjectCodes.push(row.dataset.code);
+        }
+    });
+
+    if (subjectCodes.length === 0) {
+        alert("Error: Could not identify selected subjects.");
+        return;
+    }
+
+    // 3. Send to Server
+    btn.innerText = "Processing...";
+    btn.disabled = true;
+
+    fetch('/api/enlistment/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            student_id: currentStudent.id,
+            subjects: subjectCodes
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert("Student Successfully Enlisted! They have been moved to the Enrolled list.");
+            closeEnlistmentModal();
+            loadEnlistmentData(); // Refresh list to remove the student
+        } else {
+            alert("Error: " + data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Server Error occurred.");
+    })
+    .finally(() => {
+        btn.innerText = "Enlist Student";
+        btn.disabled = false;
+    });
+}
+
+function filterEnlistment() {
+    const val = document.getElementById('enlistmentSearch').value.toLowerCase();
+    document.querySelectorAll('.enlistment-table tbody tr').forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(val) ? '' : 'none';
+    });
 }
 
 function toggleAccordion(element) {
