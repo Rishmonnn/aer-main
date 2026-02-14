@@ -89,8 +89,11 @@
         </div>
 
         <div class="subject-list-container">
-            <div class="subject-list-header">
+            <div class="subject-list-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <span><i class='bx bx-book'></i> Subjects (Sorted by Priority)</span>
+                <button id="btnSelectAll" onclick="toggleAllSubjects()" style="padding: 4px 12px; font-size: 0.85rem; cursor: pointer; border: 1px solid #999; background: #f0f0f0; border-radius: 4px; font-weight: bold;">
+                    Select All
+                </button>
             </div>
             <div id="subjectListBody"></div>
         </div>

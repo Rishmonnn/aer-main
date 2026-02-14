@@ -7,6 +7,7 @@ function loadEnlistmentData() {
     fetch('/api/enlistment/pending')
         .then(res => res.json())
         .then(data => {
+            // Clear all tables first
             document.querySelectorAll('.enlistment-table tbody').forEach(el => el.innerHTML = '');
 
             data.forEach(student => {
@@ -19,7 +20,6 @@ function loadEnlistmentData() {
                 
                 if (tbody) {
                     const tr = document.createElement('tr');
-                    // We pass the whole student object to the modal opener
                     tr.onclick = () => openEnlistmentModal(student);
                     
                     tr.innerHTML = `
@@ -39,7 +39,6 @@ function loadEnlistmentData() {
 // --- GLOBAL VARIABLES ---
 let currentStudent = {};
 let selectedUnits = 0;
-// Note: 'subjectDB' is removed. We now fetch subjects dynamically.
 
 // --- MODAL LOGIC ---
 function openEnlistmentModal(studentData) {
@@ -54,9 +53,13 @@ function openEnlistmentModal(studentData) {
     document.getElementById('maxUnits').innerText = studentData.maxUnits || 21;
     document.getElementById('modalStanding').innerText = studentData.year_level;
 
-    // 2. Clear Previous Data
+    // 2. Clear Previous Data & Reset Select All Button
     document.getElementById('enlistmentAlerts').innerHTML = ''; 
     document.getElementById('subjectListBody').innerHTML = '<div style="padding:20px; text-align:center;">Loading subjects...</div>';
+    
+    // RESET BUTTON TEXT
+    const btnSelect = document.getElementById('btnSelectAll');
+    if(btnSelect) btnSelect.innerText = "Select All";
     
     document.getElementById('enlistmentModal').classList.add('active');
 
@@ -94,6 +97,10 @@ function renderSubjects(subjects) {
         const lockedClass = sub.locked ? 'subject-locked' : '';
         row.className = `subject-row ${lockedClass}`;
         
+        // --- NEW: Store units in dataset for Select All function ---
+        row.dataset.units = sub.units; 
+        row.dataset.code = sub.code;
+
         // Interaction Logic
         if (sub.locked) {
             row.onclick = () => alert(`Cannot take ${sub.code}: ${sub.warning}`);
@@ -121,8 +128,6 @@ function renderSubjects(subjects) {
             ? `<div style="font-size:0.75rem; color:#d32f2f; margin-top:4px;"><i class='bx bxs-error-circle'></i> ${sub.warning}</div>` 
             : '';
 
-        row.dataset.code = sub.code;
-
         row.innerHTML = `
             <div class="row-top">
                 <div class="subject-title">
@@ -147,6 +152,44 @@ function renderSubjects(subjects) {
     });
 }
 
+// --- NEW: TOGGLE ALL FUNCTION ---
+function toggleAllSubjects() {
+    // 1. Get all UNLOCKED rows
+    const rows = document.querySelectorAll('.subject-row:not(.subject-locked)');
+    if (rows.length === 0) return;
+
+    // 2. Check current state (If any row is unselected, we go to Select All mode)
+    const allSelected = Array.from(rows).every(r => r.dataset.selected === 'true');
+    const targetState = !allSelected; // True = Select All, False = Deselect All
+
+    // 3. Iterate and Update
+    selectedUnits = 0; // Reset count to calculate fresh
+
+    rows.forEach(row => {
+        const iconSpan = row.querySelector('.selection-icon');
+        const units = parseInt(row.dataset.units) || 0;
+
+        if (targetState) {
+            // Select
+            row.dataset.selected = 'true';
+            row.classList.add('selected');
+            iconSpan.innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
+            selectedUnits += units;
+        } else {
+            // Deselect
+            row.dataset.selected = 'false';
+            row.classList.remove('selected');
+            iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#ccc; font-size:1.4rem'></i>";
+        }
+    });
+
+    // 4. Update Button Text
+    const btn = document.getElementById('btnSelectAll');
+    if(btn) btn.innerText = targetState ? "Deselect All" : "Select All";
+
+    updateSummary();
+}
+
 function toggleSubject(rowElement, subject) {
     const isSelected = rowElement.dataset.selected === 'true';
     const iconSpan = rowElement.querySelector('.selection-icon');
@@ -164,6 +207,13 @@ function toggleSubject(rowElement, subject) {
         iconSpan.innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
         selectedUnits += subject.units;
     }
+    
+    // Update "Select All" button text logic (Optional)
+    const rows = document.querySelectorAll('.subject-row:not(.subject-locked)');
+    const allSelected = Array.from(rows).every(r => r.dataset.selected === 'true');
+    const btn = document.getElementById('btnSelectAll');
+    if(btn) btn.innerText = allSelected ? "Deselect All" : "Select All";
+
     updateSummary();
 }
 
@@ -176,13 +226,11 @@ function updateSummary() {
 function submitEnlistment() {
     const btn = document.getElementById('btnEnlist');
     
-    // ... (Keep your existing validation logic here for selectedUnits > 0) ...
     if (selectedUnits === 0) {
         alert("Please select at least one subject.");
         return;
     }
 
-    // ... (Keep your existing data gathering logic for subjectCodes) ...
     const selectedRows = document.querySelectorAll('.subject-row[data-selected="true"]');
     const subjectCodes = [];
     selectedRows.forEach(row => {
@@ -206,16 +254,10 @@ function submitEnlistment() {
         if (data.success) {
             alert("Student Successfully Enlisted! They have been moved to the Enrolled list.");
             closeEnlistmentModal();
-            
-            // 1. Refresh THIS module (Enlistment) - Removes student from list
             loadEnlistmentData(); 
-
-            // 2. DIRECT UPDATE: Refresh Student Journey
-            // This ensures the student's new subjects appear when you view their journey
             if (typeof loadStudentJourney === 'function') {
                 loadStudentJourney();
             }
-            
         } else {
             alert("Error: " + data.message);
         }

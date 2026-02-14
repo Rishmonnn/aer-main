@@ -438,8 +438,9 @@ def get_pending_enrollment():
 @login_required
 def confirm_student_enrollment():
     """
-    Promotes a student from 'Pending' -> 'Enlisting'.
-    Also bumps their Year Level (e.g., 2nd Year -> 3rd Year).
+    Promotes a student from 'Pending' -> 'Enlisting' (or 'Irregular').
+    - If Retained: Status = 'Irregular', Year Level = SAME.
+    - If Promoted: Status = 'Enlisting', Year Level = +1.
     """
     data = request.get_json()
     student_id = data.get('id')
@@ -448,18 +449,39 @@ def confirm_student_enrollment():
     if not student:
         return jsonify({'error': 'Student not found'}), 404
 
-    # LOGIC: Promote Student
-    # 1. Update Status to 'Enlisting' (So they appear in the Enlistment module)
-    student.status = 'Enlisting'
+    # 1. Check for Failures (Retention Logic)
+    # We look for any failing grade (> 3.0) or Failed status
+    failed_enrollments = Enrollment.query.filter_by(student_id=student.id)\
+        .filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') )\
+        .all()
     
-    # 2. Bump Year Level
-    if student.year_level == '1st Year': student.year_level = '2nd Year'
-    elif student.year_level == '2nd Year': student.year_level = '3rd Year'
-    elif student.year_level == '3rd Year': student.year_level = '4th Year'
+    is_retained = len(failed_enrollments) > 0
+
+    if is_retained:
+       
+        student.status = 'Enlisting' 
+        
+        student.status = 'Enlisting'
+        
+        # 2. Year Level DOES NOT CHANGE (Retained)
+        pass 
+
+    else:
+        # --- PROMOTED LOGIC ---
+        student.status = 'Enlisting'
+        
+        # Bump Year Level
+        if student.year_level == '1st Year': student.year_level = '2nd Year'
+        elif student.year_level == '2nd Year': student.year_level = '3rd Year'
+        elif student.year_level == '3rd Year': student.year_level = '4th Year'
     
     db.session.commit()
     
-    return jsonify({'success': True, 'new_year': student.year_level})
+    return jsonify({
+        'success': True, 
+        'new_year': student.year_level,
+        'status': 'Retained' if is_retained else 'Promoted'
+    })
 
 @app.route('/api/enlistment/pending', methods=['GET'])
 @login_required
@@ -529,29 +551,47 @@ def register():
         return render_template('index.html', error=f"Registration failed: {str(e)}")
 
 # ==================== ENLISTMENT API (REAL CURRICULUM) ====================
+# ... (Previous imports and code remain the same) ...
+
+# ==================== ENLISTMENT API (REAL CURRICULUM) ====================
 @app.route('/api/enlistment/subjects/<string:student_id>', methods=['GET'])
 @login_required
 def get_student_available_subjects(student_id):
     student = Student.query.get(student_id)
     if not student: return jsonify([])
 
-    # 1. Identify Failed Subjects
+    ACTIVE_SEMESTER = "1st Semester" 
+  
     failed_records = Enrollment.query.filter_by(student_id=student_id)\
         .filter((Enrollment.grade > 3.0) | (Enrollment.status == 'Failed')).all()
     
     failed_codes = [f.section.subject_code for f in failed_records if f.section]
 
     # 2. Determine Scope of Subjects to Show
-    # If Retained: Show Current Year (to retake) + Next Year (if allowed)?
-    # SIMPLIFIED RULE: If retained, show subjects from their *current* level (repeater).
-    # If promoted, show subjects from their *new* level.
     target_year = student.year_level
     
-    # Fetch all subjects for this level
-    subjects = Subject.query.filter_by(year_level=target_year).all()
+    print(f"DEBUG: Enlistment for {student.name} ({target_year}) - Active Sem: {ACTIVE_SEMESTER}")
+
+    regular_subjects = Subject.query.filter_by(
+        year_level=target_year, 
+        semester=ACTIVE_SEMESTER
+    ).all()
+
+   
+    back_subjects = []
+    if failed_codes:
+        back_subjects = Subject.query.filter(
+            Subject.code.in_(failed_codes),
+            Subject.semester == ACTIVE_SEMESTER
+        ).all()
+
+    # Combine lists (Use a dictionary comp to remove duplicates based on code)
+    combined = regular_subjects + back_subjects
+    unique_subjects = {s.code: s for s in combined}.values()
+    all_subjects = list(unique_subjects)
     
     output = []
-    for sub in subjects:
+    for sub in all_subjects:
         section = Section.query.filter_by(subject_code=sub.code).first()
         sched = section.schedule if section else "TBA"
         room = section.room if section else "TBA"
@@ -561,7 +601,7 @@ def get_student_available_subjects(student_id):
         warning_msg = None
         
         # Check if this subject has a prerequisite
-        if sub.prerequisite and sub.prerequisite != "None":
+        if sub.prerequisite and sub.prerequisite not in ['None', '', 'nan']:
             # If the prerequisite is in the failed list, LOCK this subject
             if sub.prerequisite in failed_codes:
                 is_locked = True
@@ -579,14 +619,15 @@ def get_student_available_subjects(student_id):
             'sched': sched,
             'room': room,
             'section': section.name if section else "TBA",
-            'locked': is_locked,   # <--- New Flag
-            'warning': warning_msg # <--- New Message
+            'locked': is_locked,   
+            'warning': warning_msg 
         })
     
     # Sort: Retakes/Unlocked first, Locked last
     output.sort(key=lambda x: x['locked'])
     
     return jsonify(output)
+# ... (Rest of the file remains the same) ...
 
 @app.route('/api/enlistment/submit', methods=['POST'])
 @login_required

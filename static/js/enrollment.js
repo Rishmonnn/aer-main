@@ -16,7 +16,6 @@ function loadEnrollmentData() {
 
             // 2. Populate Tables
             if (data.length === 0) {
-                // Optional: You could show a "No pending students" message here
                 return;
             }
 
@@ -32,16 +31,25 @@ function loadEnrollmentData() {
                 if (tbody) {
                     const row = document.createElement('tr');
                     row.className = 'student-row';
+
+                    // --- LOGIC: Check Decision (Retained vs Promoted) ---
+                    let actionHtml = '';
+                    if (student.decision === 'Retained') {
+                        actionHtml = '<span style="color:#d32f2f; font-weight:bold;">RETAINED (SAME YEAR)</span>';
+                    } else {
+                        actionHtml = '<span style="color:#2e7d32">PROMOTING TO NEXT YEAR</span>';
+                    }
+
                     // Store data for the modal
                     row.onclick = (e) => openEnrollmentModal(e, {
                         id: student.id,
                         name: student.name,
                         program: student.program,
-                        type: 'Regular',
+                        type: student.type, 
                         year: student.year_level,
                         standing: student.year_level, 
-                        decision: 'Promoted',
-                        hasWarnings: false
+                        decision: student.decision,
+                        hasWarnings: student.hasWarnings
                     });
 
                     row.innerHTML = `
@@ -49,7 +57,7 @@ function loadEnrollmentData() {
                         <td class="student-name">${student.name}</td>
                         <td>${student.program}</td>
                         <td><span class="status-pill pending">Pending</span></td>
-                        <td class="promote-text" style="color:#2e7d32">PROMOTING TO NEXT YEAR</td>
+                        <td class="promote-text">${actionHtml}</td>
                     `;
                     tbody.appendChild(row);
                     
@@ -101,19 +109,18 @@ function confirmSingleEnrollment() {
     .then(res => res.json())
     .then(data => {
         if(data.success) {
-            alert(`Student successfully enrolled and promoted to ${data.new_year}!`);
+            alert(`Student successfully enrolled! Status: ${data.status}`);
             closeEnrollmentModal();
             
             // 1. Refresh THIS module (Enrollment)
             loadEnrollmentData(); 
             
             // 2. DIRECT UPDATE: Refresh the NEXT module (Enlistment)
-            // This makes the student appear in the Enlistment tab immediately
             if (typeof loadEnlistmentData === 'function') {
                 loadEnlistmentData();
             }
 
-            // 3. Update Student Journey (so they move to the correct year accordion)
+            // 3. Update Student Journey
             if (typeof loadStudentJourney === 'function') {
                 loadStudentJourney();
             }
@@ -150,7 +157,7 @@ function filterEnrollment() {
 
 
 // =======================================================
-// PART 2: UPLOAD WIZARD (The missing part)
+// PART 2: UPLOAD WIZARD
 // =======================================================
 
 let currentStep = 1;
@@ -226,8 +233,7 @@ function processExcelFile(file) {
         return;
     }
 
-    const reader = new FileReader();
-    
+    const reader = new FileReader();    
     reader.onload = function(e) {
         try {
             const data = new Uint8Array(e.target.result);
@@ -273,7 +279,7 @@ function updateMappingUI() {
     selects.forEach(select => {
         select.innerHTML = '<option value="">Select Column...</option>';
         const key = select.getAttribute('data-key').toLowerCase();
-        fileHeaders.forEach(header => {
+        fileHeaders.forEach(header => {                               
             const option = document.createElement('option');
             option.value = header;
             option.innerText = header;
@@ -374,8 +380,8 @@ function submitEnrollment() {
             currentStep++;
             updateStepUI();
             
-            // Optional: Refresh the pending list if the new students are considered 'Pending'
-            // loadEnrollmentData(); 
+            // Refresh Pending List
+            loadEnrollmentData(); 
         } else {
             alert("Import Failed: " + (data.message || "Unknown error"));
         }
