@@ -69,21 +69,24 @@ def index():
 def login():
     email = request.form.get('email', '').lower()
     password = request.form.get('password', '')
-    role = request.form.get('role', '')
     
-    if not email or not password or not role:
+    # 1. Remove 'role' from the initial empty check
+    if not email or not password:
         return redirect(url_for('index'))
     
-    # TODO: In Phase 2, we will replace this with a Database Check (User.query.filter_by...)
-    if role == 'faculty' and 'faculty' in email:
+    # 2. Determine role based on the email address itself
+    if 'faculty' in email:
         session['user'] = email
         session['role'] = 'faculty'
         return redirect(url_for('faculty_dashboard'))
-    elif role == 'head' and 'head' in email:
+        
+    elif 'head' in email:
         session['user'] = email
         session['role'] = 'head'
         return redirect(url_for('program_head_dashboard'))
+    
     else:
+        # If the email doesn't contain 'head' or 'faculty', login fails
         return redirect(url_for('index'))
 
 @app.route('/logout')
