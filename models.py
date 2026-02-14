@@ -25,9 +25,7 @@ class Student(db.Model):
     status = db.Column(db.String(20), default='Regular') # Regular, Irregular
     email = db.Column(db.String(100), nullable=True)
 
-    contact_number = db.Column(db.String(20), nullable=True)
-    has_messenger = db.Column(db.Boolean, default=False)  # Boolean (True/False)
-    printed_modules = db.Column(db.Boolean, default=False) # Boolean (True/False)
+    
     
     # Relationships
     enrollments = db.relationship('Enrollment', backref='student', lazy=True)

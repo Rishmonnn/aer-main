@@ -30,34 +30,33 @@
 
     <!-- RIGHT -->
     <div class="right">
-        <div class="login-card">
-            <h2>Welcome Back!</h2>
-            <span>Please enter your details to log in</span>
+    <div class="login-card">
+        <h2>Welcome Back!</h2>
+        <span>Please enter your details to log in</span>
 
-            {% if error %}
-            <div style="color: #d32f2f; margin: 15px 0; padding: 10px; background: #ffebee; border-radius: 8px;">
-                {{ error }}
-            </div>
-            {% endif %}
+        {% if error %}
+        <div style="color: #d32f2f; margin: 15px 0; padding: 10px; background: #ffebee; border-radius: 8px;">
+            {{ error }}
+        </div>
+        {% endif %}
 
-            <form action="/login" method="POST" onsubmit="return validateForm()">
-                <label>Email Address</label>
-                <input type="email" name="email" placeholder="Enter your email" required>
+        <form action="/login" method="POST">
+            <label>Email Address</label>
+            <input type="email" name="email" placeholder="Enter your email" required>
 
-                <label>Password</label>
-                <input type="password" name="password" placeholder="Enter your password" required>
+            <label>Password</label>
+            <input type="password" name="password" placeholder="Enter your password" required>
 
-                <input type="hidden" name="role" id="role">
+            <input type="hidden" name="role" id="role" value="user">
 
-                <button type="submit" id="signin-btn">Sign In</button>
-            </form>
+            <button type="submit" id="signin-btn">Sign In</button>
+        </form>
 
-            <div class="roles">
-                <span class="role-option" onclick="setRole(event, 'head')">AS HEAD</span>
-                <span class="role-option" onclick="setRole(event, 'faculty')">AS FACULTY</span>
-            </div>
+        <div class="create-account">
+            <p>Don't have an account? <a href="/register">Create Account</a></p>
         </div>
     </div>
+</div>
 
 </div>
 </div>

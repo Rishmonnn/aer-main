@@ -147,26 +147,26 @@ button:active {
     background: #4a000f;
 }
 
-.roles {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 20px;
-    gap: 20px;
-}
-
-.role-option {
-    flex: 1;
+.create-account {
+    margin-top: 25px;
     text-align: center;
-    padding: 12px;
-    color: #7a001e;
-    font-weight: bold;
-    cursor: pointer;
-    border-radius: 8px;
-    border: 2px solid transparent;
-    transition: all 0.3s ease;
+    font-size: 14px;
 }
 
-.role-option:hover {
-    background: #f0f0f0;
-    border-color: #7a001e;
+.create-account p {
+    color: #666;
+    text-transform: none; /* Override brand p styles if necessary */
+    letter-spacing: normal;
+}
+
+.create-account a {
+    color: #7a001e;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+.create-account a:hover {
+    color: #5d0016;
+    text-decoration: underline;
 }

@@ -6,21 +6,10 @@ const ClassRecords = (function() {
     let currentReviewId = null;
 
     // --- MOCK DATA FOR MAIN VIEW ---
-    const studentInfoData = [
-        { id: '2021-00001', name: 'Martinez, Recmar A.', course: 'CPE', year: '3rd', printed: true, fb: 'fb.com/recmar', group: true, messenger: true, contact: '09123456789', gmail: 'recmar@gmail.com' },
-        { id: '2021-00002', name: 'Jupiter, Mami B.', course: 'CPE', year: '3rd', printed: true, fb: 'fb.com/mami', group: true, messenger: true, contact: '09234567890', gmail: 'mami@gmail.com' },
-        { id: '2021-00003', name: 'Alfonso, Brader C.', course: 'CPE', year: '3rd', printed: false, fb: 'fb.com/brader', group: true, messenger: false, contact: '09345678901', gmail: 'brader@gmail.com' },
-        { id: '2021-00004', name: 'Santos, John D.', course: 'CPE', year: '2nd', printed: true, fb: 'fb.com/john', group: false, messenger: true, contact: '09456789012', gmail: 'john@gmail.com' },
-        { id: '2021-00005', name: 'Reyes, Anna E.', course: 'CPE', year: '3rd', printed: true, fb: 'fb.com/anna', group: true, messenger: true, contact: '09567890123', gmail: 'anna@gmail.com' }
-    ];
+    let studentInfoData = [];
 
-    const attendanceData = [
-        { id: '2021-00001', name: 'Martinez, Recmar A.', course: 'CPE', year: '3rd', absentCount: 1, days: ['P','P','P','P','P','P','A','P','P','P','P','P','P','P'] },
-        { id: '2021-00002', name: 'Jupiter, Mami B.', course: 'CPE', year: '3rd', absentCount: 0, days: ['P','P','P','P','P','P','P','P','P','P','P','P','P','P'] },
-        { id: '2021-00003', name: 'Alfonso, Brader C.', course: 'CPE', year: '3rd', absentCount: 3, days: ['P','A','P','P','A','P','P','P','A','P','P','P','P','P'] },
-        { id: '2021-00004', name: 'Santos, John D.', course: 'CE', year: '2nd', absentCount: 0, days: ['P','P','P','P','P','P','P','P','P','P','P','P','P','P'] },
-        { id: '2021-00005', name: 'Reyes, Anna E.', course: 'CPE', year: '3rd', absentCount: 0, days: ['P','P','P','P','P','P','P','P','P','P','P','P','P','P'] }
-    ];
+    let attendanceRecords = {};
+    const TOTAL_SESSIONS = 14;
 
     const approvalQueue = [
         { id: 1, subject: 'CPE 038 - Web Development', info: 'CPE 3A • Submitted by Engr. Amir Hasan Bunza', date: 'Jan 21, 2026', status: 'Pending' },
@@ -54,14 +43,39 @@ const ClassRecords = (function() {
 
     function init() {
         console.log("Class Records Initialized");
-        const infoBody = document.getElementById('cr-table-body');
-        if (infoBody) renderInfoTable(infoBody);
-        
-        const attBody = document.getElementById('cr-attendance-body');
-        if (attBody) renderAttendanceTable(attBody);
+        // ONLY call fetchStudents here. Everything else must wait for it to finish!
+        fetchStudents();
+    }
 
-        switchPeriod('p1');
-        renderApprovalQueue();
+    function fetchStudents() {
+        fetch('/api/faculty/class-records/students') 
+            .then(response => response.json())
+            .then(data => {
+                studentInfoData = data.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    course: s.program,
+                    year: s.year_level,
+                    gmail: s.email
+                }));
+
+                // NEW: Initialize Attendance to 'P' (Present) for 14 days for every student
+                studentInfoData.forEach(student => {
+                    if (!attendanceRecords[student.id]) {
+                        attendanceRecords[student.id] = Array(TOTAL_SESSIONS).fill('P');
+                    }
+                });
+                
+                const infoBody = document.getElementById('cr-table-body');
+                if (infoBody) renderInfoTable(infoBody);
+
+                const attBody = document.getElementById('cr-attendance-body');
+                if (attBody) renderAttendanceTable(attBody);
+
+                switchPeriod('p1');
+                renderApprovalQueue();
+            })
+            .catch(error => console.error('Error fetching students:', error));
     }
 
     // --- NAVIGATION ---
@@ -80,8 +94,21 @@ const ClassRecords = (function() {
     function switchSubTab(tabName, btnElement) {
         document.querySelectorAll('.cr-sub-tabs .tab-item').forEach(b => b.classList.remove('active'));
         btnElement.classList.add('active');
+        
         ['info', 'attendance', 'grades'].forEach(v => document.getElementById(`cr-view-${v}`).style.display = 'none');
         document.getElementById(`cr-view-${tabName}`).style.display = 'block';
+
+        // --- NEW LOGIC: Toggle Send for Approval Button ---
+        const btnSendApproval = document.getElementById('btn-send-approval');
+        if (btnSendApproval) {
+            if (tabName === 'grades') {
+                // Show the button when on Grades (using 'flex' to keep the icon aligned properly)
+                btnSendApproval.style.display = 'flex'; 
+            } else {
+                // Hide the button on Student Info and Attendance
+                btnSendApproval.style.display = 'none'; 
+            }
+        }
     }
 
     function switchPeriod(period) {
@@ -107,41 +134,75 @@ const ClassRecords = (function() {
         tbody.innerHTML = '';
         studentInfoData.forEach(student => {
             const tr = document.createElement('tr');
-            const getIcon = (status) => status ? `<i class='bx bx-check-circle icon-check'></i>` : `<i class='bx bx-x-circle icon-cross'></i>`;
+            
+            // REMOVED: Logic for icons and links
+            // Simple data display only
             tr.innerHTML = `
                 <td style="font-weight:600">${student.id}</td>
                 <td>${student.name}</td>
-                <td><span class="course-badge">${student.course}</span></td>
-                <td>${student.year}</td>
-                <td class="text-center">${getIcon(student.printed)}</td>
-                <td><a href="#" class="link-text">${student.fb}</a></td>
-                <td class="text-center">${getIcon(student.group)}</td>
-                <td class="text-center">${getIcon(student.messenger)}</td>
-                <td>${student.contact}</td>
-                <td>${student.gmail}</td>
+                <td><span class="course-badge">${student.course || 'N/A'}</span></td>
+                <td>${student.year || 'N/A'}</td>
+                <td>${student.gmail || ''}</td>
             `;
             tbody.appendChild(tr);
         });
     }
-
     function renderAttendanceTable(tbody) {
         tbody.innerHTML = '';
-        attendanceData.forEach(row => {
+        studentInfoData.forEach(student => {
             const tr = document.createElement('tr');
+            
+            // Fetch this student's specific attendance record
+            const days = attendanceRecords[student.id] || Array(TOTAL_SESSIONS).fill('P');
+            
+            // Calculate how many times 'A' (Absent) appears
+            const absentCount = days.filter(status => status === 'A').length;
+
             let badgeClass = 'absent-badge';
-            if(row.absentCount === 0) badgeClass += ' zero';
-            else if(row.absentCount >= 3) badgeClass += ' high';
+            if(absentCount === 0) badgeClass += ' zero';
+            else if(absentCount >= 3) badgeClass += ' high';
+            
             let dateCells = '';
-            row.days.forEach(status => {
+            days.forEach((status, index) => {
                 let pillClass = 'att-pill';
                 if(status === 'P') pillClass += ' present';
                 else if(status === 'A') pillClass += ' absent';
                 else if(status === 'L') pillClass += ' late';
-                dateCells += `<td class="text-center"><span class="${pillClass}">${status}</span></td>`;
+                
+                // NEW: Added onclick toggle and a pointer cursor
+                dateCells += `<td class="text-center">
+                    <span class="${pillClass}" style="cursor: pointer; user-select: none;" 
+                          onclick="ClassRecords.toggleAttendance('${student.id}', ${index})">${status}</span>
+                </td>`;
             });
-            tr.innerHTML = `<td class="sticky-col first-col" style="font-weight:600">${row.id}</td><td class="sticky-col second-col">${row.name}</td><td><span class="course-badge">${row.course}</span></td><td>${row.year}</td><td class="text-center"><span class="${badgeClass}">${row.absentCount}</span></td>${dateCells}`;
+
+            tr.innerHTML = `
+                <td class="sticky-col first-col" style="font-weight:600">${student.id}</td>
+                <td class="sticky-col second-col">${student.name}</td>
+                <td><span class="course-badge">${student.course || 'N/A'}</span></td>
+                <td>${student.year || 'N/A'}</td>
+                <td class="text-center"><span class="${badgeClass}">${absentCount}</span></td>
+                ${dateCells}
+            `;
             tbody.appendChild(tr);
         });
+    }
+    // --- NEW: Toggle Attendance Status ---
+    function toggleAttendance(studentId, dayIndex) {
+        const currentStatus = attendanceRecords[studentId][dayIndex];
+        let nextStatus = 'P';
+        
+        // Cycle the status: Present (P) -> Absent (A) -> Late (L) -> Present (P)
+        if (currentStatus === 'P') nextStatus = 'A';
+        else if (currentStatus === 'A') nextStatus = 'L';
+        else if (currentStatus === 'L') nextStatus = 'P';
+
+        // Update the array
+        attendanceRecords[studentId][dayIndex] = nextStatus;
+        
+        // Instantly refresh the table to show the new color and updated absent count
+        const attBody = document.getElementById('cr-attendance-body');
+        if (attBody) renderAttendanceTable(attBody);
     }
 
     function renderGradesTableStructure(period) {
@@ -362,8 +423,9 @@ const ClassRecords = (function() {
         init, switchMainTab, switchSubTab, switchPeriod, handleInput,
         openConfigModal, closeConfigModal, saveConfiguration, switchConfigMode,
         addConfigItem, removeConfigItem, updateConfigItem, updateConfigCat, resetGrades,
-        reviewItem, approveItem, closeReviewModal, approveFromReview
+        reviewItem, approveItem, closeReviewModal, approveFromReview, toggleAttendance
     };
 })();
+
 
 document.addEventListener('DOMContentLoaded', ClassRecords.init);

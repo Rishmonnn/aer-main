@@ -1,0 +1,53 @@
+﻿Year,Semester,Course Code,Subject Title,Prerequisite,Lecture Unit,Lab Units,Total Units
+1,1,MAT 152,Mathematics in the Modern World,None,3,0,3
+1,1,MAT 171,Calculus 1 for Engineers,None,4,0,4
+1,1,CPE 034,Computer Engineering as a Discipline,None,1,0,1
+1,1,CPE 035,Programming Logic and Design,None,0,2,2
+1,1,NST 021,National Service Training Program 1,None,3,0,3
+1,2,MAT 076,Calculus 2,MAT 171,3,0,3
+1,2,PHY 032,Physics for Engineers,MAT 171,3,1,4
+1,2,ITE 290,Object-Oriented Programming,CPE 035,0,2,2
+1,2,NST 022,National Service Training Program 2,NST 021,3,0,3
+2,1,MAT 126,Differential Equations,MAT 076,3,0,3
+2,1,CHE 025,Chemistry for Engineers,None,3,1,4
+2,1,ITE 294,Data Structures and Algorithms,ITE 290,0,2,2
+2,1,ECE 069,Engineering Data Analysis,MAT 171,3,0,3
+2,1,CPE 037,Fundamentals of Electric Circuits,PHY 032,3,1,4
+2,1,SSP 005,Student Success Program 1,None,1,0,1
+2,2,BES 024,Computer-Aided Drafting,2nd Year Standing,0,1,1
+2,2,ECO 017,Engineering Economics,2nd Year Standing,3,0,3
+2,2,MAT 042,Discrete Mathematics,MAT 171,3,0,3
+2,2,MAT 120,Numerical Methods,MAT 126,3,0,3
+2,2,CPE 038,Software Design,ITE 294,3,1,4
+2,2,CPE 039,Fundamentals of Electronic Circuits,CPE 037,3,1,4
+2,2,SSP 006,Student Success Program 2,None,1,0,1
+3,1,CPE 040,Logic Circuits and Design,CPE 039,3,1,4
+3,1,ITE 076,Operating Systems,ITE 294,3,0,3
+3,1,CPE 041,Data and Digital Communications,CPE 039,3,0,3
+3,1,CPE 042,Introduction to Hardware Description Language,"CPE 035, CPE 039",0,1,1
+3,1,CPE 043,Feedback and Control Systems,"MAT 120, CPE 037",3,0,3
+3,1,CPE 044,Fundamentals of Mixed Signals and Sensors,CPE 039,3,0,3
+3,1,CPE 053,Embedded Systems 1 (Elective 1),3rd Year Standing,3,0,3
+3,1,PED 032,(PATHFIT 3) Individual and Dual Sport,PED 031,2,0,2
+3,1,SSP 007,Student Success Program 3,None,1,0,1
+3,2,CPE 045,Basic Occupational Health and Safety,3rd Year Standing,3,0,3
+3,2,CPE 046,Computer Networks and Security,CPE 041,3,1,4
+3,2,CPE 047,Microprocessors,CPE 040,3,1,4
+3,2,CPE 014,Design Project 1 (Methods of Research),"ECE 069, GEN 001, CPE 040",2,0,2
+3,2,CPE 054,Embedded Systems 2 (Elective 2),CPE 053,3,0,3
+3,2,PED 033,(PATHFIT 4) Team Sport,PED 032,2,0,2
+3,2,CPE 032,Computer Engineering Drafting and Design,CPE 039,0,1,1
+3,2,SSP 008,Student Success Program 4,None,1,0,1
+3,Summer,CPE 050,CpE Practice and Design 1,"CPE 047, CPE 014",0,1,1
+3,Summer,CPE 055,Embedded Systems 3 (Elective 3),CPE 054,3,0,3
+3,Summer,CPE 013,Emerging Technology,4th Year Standing,3,0,3
+4,1,CPE 048,Embedded Systems,CPE 047,3,1,4
+4,1,CPE 049,Computer Architecture and Organization,CPE 047,3,1,4
+4,1,CPE 051,CpE Practice and Design 2,CPE 050,0,2,2
+4,1,ECE 029,Digital Signal Processing,CPE 043,3,1,4
+4,1,SSP 009,Student Success Program 5,None,1,0,1
+4,1,CPE 052,CpE Laws and Professional Practice,3rd Year Standing,2,0,2
+4,1,CPE 005,CpE Seminars and Field Trips,4th Year Standing,0,1,1
+4,2,CPE 036,Technopreneurship,None,3,0,3
+4,2,CPE 004,On The Job Training for CpE (240 hours),4th Year Standing,3,0,3
+,,,,,,,

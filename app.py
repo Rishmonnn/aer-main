@@ -241,16 +241,32 @@ def get_all_students():
                 'program': s.program,
                 'year_level': s.year_level,
                 'status': s.status,
-                'contact_number': s.contact_number, 
-                'has_messenger': s.has_messenger,
-                'printed_modules': s.printed_modules
             })
             
         return jsonify(student_list)
     except Exception as e:
         print(f"Error fetching students: {e}")
         return jsonify([])
-# In app.py
+# --- 2. NEW ROUTE (Add this for Class Records) ---
+@app.route('/api/faculty/class-records/students', methods=['GET'])
+@login_required
+def get_class_record_students():
+    try:
+        students = Student.query.all()
+        student_list = []
+        for s in students:
+            # Use getattr to prevent crashing if columns are missing in DB
+            student_list.append({
+                'id': s.id,
+                'name': s.name,
+                'program': s.program,
+                'year_level': s.year_level,
+                'email': s.email
+            })
+        return jsonify(student_list)
+    except Exception as e:
+        print(f"Error fetching class record students: {e}")
+        return jsonify([])
 
 @app.route('/api/students/update/<string:student_id>', methods=['POST'])
 @login_required
@@ -262,13 +278,7 @@ def update_student_info(student_id):
         return jsonify({'success': False, 'message': 'Student not found'}), 404
         
     try:
-        # Check which field is being updated and apply changes
-        if 'printed_modules' in data:
-            student.printed_modules = bool(data['printed_modules'])
-            
-        if 'has_messenger' in data:
-            student.has_messenger = bool(data['has_messenger'])
-            
+
         if 'contact_number' in data:
             student.contact_number = str(data['contact_number'])
             
