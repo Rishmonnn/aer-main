@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// --- LOAD STUDENTS FROM API ---
+// --- LOAD STUDENTS LIST ---
 function loadStudentJourney() {
     fetch('/api/students')
         .then(response => response.json())
@@ -16,10 +16,10 @@ function loadStudentJourney() {
                 if(tbody) tbody.innerHTML = ''; 
             });
 
-            // 2. Populate Tables with Students from API
-            // This loops through EVERY student returned by the database
+            // 2. Populate Tables
             data.forEach(student => {
                 let yearIndex = '1';
+                // Simple logic to map text "2nd Year" to ID "2"
                 if (student.year_level.includes('2')) yearIndex = '2';
                 else if (student.year_level.includes('3')) yearIndex = '3';
                 else if (student.year_level.includes('4')) yearIndex = '4';
@@ -41,111 +41,76 @@ function loadStudentJourney() {
                     tbody.insertAdjacentHTML('beforeend', row);
                 }
             });
-
-            // 3. Handle Empty States for sections with no students
+            
+            // 3. Handle Empty States
             ['1', '2', '3', '4'].forEach(level => {
                 const tbody = document.getElementById(`journey-tbody-${level}`);
                 if(tbody && tbody.children.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#888;">No records found.</td></tr>';
                 }
             });
-
         })
-        .catch(err => console.error('Error loading journey data:', err));
+        .catch(err => console.error('Error loading journey list:', err));
 }
 
-// --- MOCK ACADEMIC DATA (Grades are only here for older students) ---
-const mockAcademicData = {
-    // OLD STUDENT (2nd Year) - Has Grades
-    '2023-00001': {
-        summary: { earned: 68, registered: 92, remaining: 104, total: 172 },
-        semesters: [
-            { name: 'SY 24-25 SEM I', reg: 22.00, earned: 22.00, gwa: 1.80 },
-            { name: 'SY 24-25 SEM II', reg: 22.00, earned: 22.00, gwa: 1.80 },
-            { name: 'SY 25-26 SEM I', reg: 22.00, earned: 22.00, gwa: 1.80 }
-        ]
-    }
-    // FRESHMEN (Maria/Pemela/Others) are NOT here, so they will default to empty automatically
-};
+// Global variable to store the grades fetched from server
+let currentStudentGrades = {}; 
 
-// --- GRADES DATA (Detailed) ---
-const semesterGradesData = {
-    'SY 24-25 SEM I': [
-        { code: 'BES 024', desc: 'COMPUTER AIDED DRAFTING', type: 'Laboratory', units: 1.00, grade: 1.50, remarks: 'PASSED' },
-        { code: 'CPE 038', desc: 'SOFTWARE DESIGN', type: 'Lec/Lab', units: 4.00, grade: 3.25, remarks: 'FAILED' },
-        { code: 'MAT 042', desc: 'DISCRETE MATH', type: 'Lecture', units: 3.00, grade: 1.50, remarks: 'PASSED' }
-    ],
-    'SY 24-25 SEM II': [
-        { code: 'CPE 039', desc: 'FUNDAMENTALS OF ELECTRONIC CIRCUITS', type: 'Lec/Lab', units: 4.00, grade: 1.25, remarks: 'PASSED' },
-        { code: 'ECO 017', desc: 'ENGINEERING ECONOMICS', type: 'Lecture', units: 3.00, grade: 2.50, remarks: 'PASSED' },
-        { code: 'MAT 120', desc: 'NUMERICAL METHODS', type: 'Lecture', units: 3.00, grade: 2.00, remarks: 'PASSED' }
-    ],
-    'SY 25-26 SEM I': [
-        { code: 'CPE 040', desc: 'LOGIC CIRCUITS AND DESIGN', type: 'Lec/Lab', units: 4.00, grade: 1.75, remarks: 'PASSED' },
-        { code: 'TECH 101', desc: 'TECHNOPRENEURSHIP', type: 'Lecture', units: 3.00, grade: 1.25, remarks: 'PASSED' }
-    ]
-};
-
-// --- VIEW JOURNEY LOGIC ---
+// --- VIEW JOURNEY LOGIC (CONNECTED TO DATABASE) ---
 function viewStudentJourney(id, name) {
+    // 1. Switch UI to Detail View
     document.getElementById('journey-list-section').style.display = 'none';
     const detailSection = document.getElementById('journey-detail-section');
     detailSection.style.display = 'block';
     
-    // 1. Set Header Info
+    // 2. Set Header Info
     document.getElementById('detail-id').innerText = id || '-';
     document.getElementById('detail-name').innerText = (name || '-').toUpperCase();
 
-    // 2. Fetch Data (Mock)
-    const data = mockAcademicData[id] || null;
+    // 3. FETCH REAL DATA FROM API
+    fetch(`/api/student_journey/${id}`)
+        .then(response => {
+            if (!response.ok) throw new Error("Student data not found");
+            return response.json();
+        })
+        .then(data => {
+            // Store grades globally so we can access them when clicking a semester row
+            currentStudentGrades = data.grades; 
 
-    if (data) {
-        // --- EXISTING STUDENT (Has Data) ---
-        document.getElementById('stat-earned').innerText = data.summary.earned;
-        document.getElementById('stat-registered').innerText = data.summary.registered;
-        document.getElementById('stat-remaining').innerText = data.summary.remaining;
-        document.getElementById('stat-total').innerText = data.summary.total;
+            // A. Update Summary Cards
+            document.getElementById('stat-earned').innerText = data.summary.earned;
+            document.getElementById('stat-registered').innerText = data.summary.registered;
+            document.getElementById('stat-remaining').innerText = data.summary.remaining;
+            document.getElementById('stat-total').innerText = data.summary.total;
 
-        // Render Semesters
-        const semBody = document.getElementById('semester-list-body');
-        semBody.innerHTML = '';
-        data.semesters.forEach(sem => {
-            const tr = document.createElement('tr');
-            tr.className = 'sem-row';
-            tr.onclick = function() { viewSemesterGrades(this, sem.name); };
-            tr.innerHTML = `
-                <td class="sem-name">${sem.name}</td>
-                <td>${sem.reg.toFixed(2)}</td>
-                <td>${sem.earned.toFixed(2)}</td>
-                <td>${sem.gwa.toFixed(2)}</td>
-            `;
-            semBody.appendChild(tr);
+            // B. Render Semesters List
+            const semBody = document.getElementById('semester-list-body');
+            semBody.innerHTML = '';
+
+            if (data.semesters.length === 0) {
+                semBody.innerHTML = `
+                    <tr><td colspan="4" style="text-align:center; padding:15px; color:#888;">No academic history found.</td></tr>
+                `;
+            } else {
+                data.semesters.forEach(sem => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'sem-row';
+                    // Pass the semester name to the click handler
+                    tr.onclick = function() { viewSemesterGrades(this, sem.name); };
+                    tr.innerHTML = `
+                        <td class="sem-name">${sem.name}</td>
+                        <td>${sem.reg.toFixed(2)}</td>
+                        <td>${sem.earned.toFixed(2)}</td>
+                        <td>${sem.gwa.toFixed(2)}</td>
+                    `;
+                    semBody.appendChild(tr);
+                });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Could not load student data.");
         });
-
-    } else {
-        // --- FRESHMAN / NEW STUDENT (Empty Grades) ---
-        // This runs for ANY student ID not found in mockAcademicData
-        document.getElementById('stat-earned').innerText = '0';
-        document.getElementById('stat-registered').innerText = '0'; 
-        document.getElementById('stat-remaining').innerText = '172';
-        document.getElementById('stat-total').innerText = '172';
-
-        // Render Empty State
-        const semBody = document.getElementById('semester-list-body');
-        semBody.innerHTML = `
-            <tr class="sem-row disabled" style="background: #f9f9f9; cursor: default;">
-                <td class="sem-name" style="color: #666;">SY 25-26 SEM I (Current)</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-            </tr>
-            <tr>
-                <td colspan="4" style="text-align:center; padding: 15px; font-style: italic; color: #888;">
-                    No academic history available (Freshman).
-                </td>
-            </tr>
-        `;
-    }
 
     // Hide Grades section initially
     document.getElementById('semester-grades-section').style.display = 'none';
@@ -160,10 +125,11 @@ function closeJourneyDetail() {
     document.querySelectorAll('.sem-row').forEach(row => row.classList.remove('active'));
 }
 
-// --- VIEW GRADES (Only for students with data) ---
+// --- VIEW GRADES (Uses data fetched in viewStudentJourney) ---
 function viewSemesterGrades(rowElement, semName) {
     if(rowElement.classList.contains('disabled')) return;
 
+    // Highlight active row
     document.querySelectorAll('.sem-row').forEach(row => row.classList.remove('active'));
     rowElement.classList.add('active');
 
@@ -173,22 +139,29 @@ function viewSemesterGrades(rowElement, semName) {
     const tbody = document.getElementById('grades-table-body');
     tbody.innerHTML = '';
 
-    const subjects = semesterGradesData[semName] || [];
+    // Retrieve subjects from the global variable
+    const subjects = currentStudentGrades[semName] || [];
 
     if (subjects.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#888;">No grades available for this semester.</td></tr>';
     } else {
         subjects.forEach(sub => {
-            const isFailed = sub.remarks === 'FAILED';
+            // Check fail status for red styling
+            const isFailed = sub.remarks === 'Failed' || sub.remarks === 'Dropped' || (sub.grade > 3.0 && sub.grade !== 0);
+            
             const tr = document.createElement('tr');
             tr.className = `grade-row ${isFailed ? 'failed' : ''}`;
             
+            // Format Grade: If 0, show empty or pending
+            let gradeDisplay = sub.grade.toFixed(2);
+            if (sub.grade === 0) gradeDisplay = "-";
+
             tr.innerHTML = `
                 <td>${sub.code}</td>
                 <td>${sub.desc}</td>
                 <td>${sub.type}</td>
                 <td>${sub.units.toFixed(2)}</td>
-                <td>${sub.grade.toFixed(2)}</td>
+                <td>${gradeDisplay}</td>
                 <td>${sub.remarks}</td>
             `;
             tbody.appendChild(tr);
@@ -198,7 +171,7 @@ function viewSemesterGrades(rowElement, semName) {
     gradesSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// Accordion Logic
+// --- ACCORDION & FILTER (No Changes Needed) ---
 function toggleJourneyAccordion(element) {
     const parent = element.parentElement;
     parent.classList.toggle('collapsed');

@@ -13,70 +13,199 @@
 
     <div class="content">
 
-    <div class="left">
-        <div class="brand">
-            <img src="{{ url_for('static', filename='assets/logo.png') }}" class="logo">
+        <div class="left">
+            <div class="brand">
+                <img src="{{ url_for('static', filename='assets/logo.png') }}" class="logo">
+                <h1>A E R I S</h1>
+                <p>
+                    COLLEGE OF ENGINEERING AND ARCHITECTURE<br>
+                    ACADEMIC EVALUATION, RECORDS &<br>
+                    INFORMATION SYSTEMS
+                </p>
+            </div>
+        </div>
 
-            <h1>A E R I S</h1>
+        <div class="right">
+            
+            <div class="login-card" id="login-container">
+                <h2>Welcome Back!</h2>
+                <span>Please enter your details to log in</span>
 
-            <p>
-                COLLEGE OF ENGINEERING AND ARCHITECTURE<br>
-                ACADEMIC EVALUATION, RECORDS &<br>
-                INFORMATION SYSTEMS
-            </p>
+                {% if error %}
+                <div style="color: #d32f2f; margin: 15px 0; padding: 10px; background: #ffebee; border-radius: 8px;">
+                    {{ error }}
+                </div>
+                {% endif %}
+
+                <form action="/login" method="POST">
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="Enter your email" required>
+
+                    <label>Password</label>
+                    <input type="password" name="password" placeholder="Enter your password" required>
+
+                    <button type="submit" id="signin-btn">Sign In</button>
+                </form>
+
+                <div class="create-account">
+                    <p>Don't have an account? <a href="#" onclick="toggleCards('register'); return false;">Create Account</a></p>
+                </div>
+            </div>
+
+            <div class="login-card" id="register-container" style="display: none;">
+                <h2>Create Account</h2>
+                <span>Please fill in the details to register</span>
+
+                <form action="/register" method="POST" onsubmit="return validateForm()">
+                    <label>Full Name</label>
+                    <input type="text" name="name" placeholder="Ex. Engr Russel B. Tagud" required>
+
+                    <label>Phinmaed Account</label>
+                    <input type="email" name="email" placeholder="Enter your Phinmaed email" required>
+
+                    <label>Role</label>
+                    <div class="role-selection">
+                        <div class="role-option" onclick="setRole(event, 'head')">AS HEAD</div>
+                        <div class="role-option" onclick="setRole(event, 'faculty')">AS FACULTY</div>
+                    </div>
+                    <input type="hidden" name="role" id="role" required>
+
+                    <label>CEA Department</label>
+                    <select name="department" required>
+                        <option value="" disabled selected>Select your department</option>
+                        <option value="Electrical Engineering">Electrical Engineering</option>
+                        <option value="Computer Engineering">Computer Engineering</option>
+                        <option value="Civil Engineering">Civil Engineering</option>
+                        <option value="Mechanical Engineering">Mechanical Engineering</option>
+                        <option value="Architecture">Architecture</option>
+                    </select>
+
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 1;">
+                            <label>Password</label>
+                            <input type="password" name="password" id="reg-password" placeholder="Create password" required>
+                        </div>
+                        <div style="flex: 1;">
+                            <label>Confirm Password</label>
+                            <input type="password" name="confirm_password" id="reg-confirm-password" placeholder="Confirm password" required>
+                        </div>
+                    </div>
+
+                    <div class="terms-group">
+                        <input type="checkbox" id="terms" onchange="handleTermsToggle(event)" required>
+                        <label for="terms">I agree to the <span>Terms & Conditions</span> and <span>Data Privacy Policy</span></label>
+                    </div>
+
+                    <button type="submit" id="signup-btn">Sign Up</button>
+                </form>
+
+                <div class="create-account">
+                    <p>Already have an account? <a href="#" onclick="toggleCards('login'); return false;">Sign In</a></p>
+                </div>
+            </div>
+
         </div>
     </div>
+</div>
 
-    <div class="right">
-    <div class="login-card">
-        <h2>Welcome Back!</h2>
-        <span>Please enter your details to log in</span>
-
-        {% if error %}
-        <div style="color: #d32f2f; margin: 15px 0; padding: 10px; background: #ffebee; border-radius: 8px;">
-            {{ error }}
-        </div>
-        {% endif %}
-
-        <form action="/login" method="POST">
-            <label>Email Address</label>
-            <input type="email" name="email" placeholder="Enter your email" required>
-
-            <label>Password</label>
-            <input type="password" name="password" placeholder="Enter your password" required>
-
-            <button type="submit" id="signin-btn">Sign In</button>
-        </form>
-
-        <div class="create-account">
-            <p>Don't have an account? <a href="/register">Create Account</a></p>
+<div id="termsModal" class="modal">
+    <div class="modal-content">
+        <h3>Terms & Conditions and Data Privacy Policy</h3>
+        
+        <h4>Data Privacy Notice</h4>
+        <p>In compliance with the Data Privacy Act of 2012 (Republic Act No. 10173), AERIS — the Academic Evaluation, Records & Information Systems of the College of Engineering and Architecture — is committed to protecting the privacy of your personal information.</p>
+        
+        <h4>Information We Collect</h4>
+        <p>When you create an account, we collect your full name, PHINMAed email address, role (Program Head or Faculty), and CEA department. This information is used solely for academic evaluation, records management, and system administration purposes.</p>
+        
+        <h4>How We Use Your Data</h4>
+        <ul>
+            <li>To verify your identity and role within the College of Engineering and Architecture</li>
+            <li>To provide access to academic records and evaluation tools</li>
+            <li>To facilitate communication related to academic processes</li>
+            <li>To generate reports and analytics for institutional improvement</li>
+        </ul>
+        
+        <h4>Data Protection</h4>
+        <p>Your personal data is stored securely and is accessible only to authorized personnel. We implement appropriate technical and organizational measures to protect your information against unauthorized access, alteration, or disclosure.</p>
+        
+        <h4>Your Rights</h4>
+        <p>You have the right to access, correct, and request the deletion of your personal data. For concerns regarding your data privacy, please contact the CEA Data Privacy Officer.</p>
+        
+        <h4>Consent</h4>
+        <p>By creating an account, you consent to the collection, use, and processing of your personal information as described in this policy.</p>
+        
+        <div class="modal-buttons">
+            <button type="button" id="confirm-terms-btn" onclick="confirmTerms()">Confirm & Agree</button>
+            <button type="button" id="cancel-terms-btn" onclick="cancelTerms()">Cancel</button>
         </div>
     </div>
 </div>
 
-</div>
-</div>
 <script>
-function setRole(event, role) {
-    document.getElementById('role').value = role;
-    const roleOptions = document.querySelectorAll('.role-option');
-    roleOptions.forEach(option => {
-        option.style.background = 'transparent';
-        option.style.borderColor = 'transparent';
-    });
-    event.target.style.background = '#f0f0f0';
-    event.target.style.borderColor = '#7a001e';
-}
+    function toggleCards(target) {
+        const loginContainer = document.getElementById('login-container');
+        const registerContainer = document.getElementById('register-container');
 
-function validateForm() {
-    const role = document.getElementById('role').value;
-    if (!role) {
-        alert('Please select a role (AS HEAD or AS FACULTY)');
-        return false;
+        if (target === 'register') {
+            loginContainer.style.display = 'none';
+            registerContainer.style.display = 'block';
+        } else {
+            loginContainer.style.display = 'block';
+            registerContainer.style.display = 'none';
+        }
     }
-    return true;
-}
+
+    function setRole(event, role) {
+        document.getElementById('role').value = role;
+        const roleOptions = document.querySelectorAll('.role-option');
+        roleOptions.forEach(option => {
+            option.style.background = 'transparent';
+            option.style.borderColor = '#ddd';
+            option.style.color = '#666';
+        });
+        event.target.style.background = '#f5f5f5';
+        event.target.style.borderColor = '#7a001e';
+        event.target.style.color = '#7a001e';
+    }
+
+    // --- MODAL LOGIC ---
+    function handleTermsToggle(event) {
+        const checkbox = event.target;
+        // If the user checks the box, show the modal
+        if (checkbox.checked) {
+            document.getElementById('termsModal').style.display = 'flex';
+        }
+    }
+
+    function confirmTerms() {
+        // User clicks confirm: hide modal and keep checkbox checked
+        document.getElementById('termsModal').style.display = 'none';
+        document.getElementById('terms').checked = true;
+    }
+
+    function cancelTerms() {
+        // User clicks cancel: hide modal and UNCHECK the box
+        document.getElementById('termsModal').style.display = 'none';
+        document.getElementById('terms').checked = false;
+    }
+
+    function validateForm() {
+        const role = document.getElementById('role').value;
+        if (!role) {
+            alert('Please select a role (AS HEAD or AS FACULTY)');
+            return false;
+        }
+
+        const password = document.getElementById('reg-password').value;
+        const confirmPassword = document.getElementById('reg-confirm-password').value;
+
+        if (password !== confirmPassword) {
+            alert('Passwords do not match. Please try again.');
+            return false; 
+        }
+        return true; 
+    }
 </script>
 </body>
-
 </html>

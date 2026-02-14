@@ -298,5 +298,183 @@ def update_student_info(student_id):
 @app.errorhandler(404)
 def not_found(error): return redirect(url_for('index')), 404
 
+
+# ==================== STUDENT JOURNEY API ====================
+@app.route('/api/student_journey/<string:student_id>', methods=['GET'])
+@login_required
+def get_student_journey_data(student_id):
+    # 1. Check if student exists
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify({'error': 'Student not found'}), 404
+
+    # 2. Get all enrollments for this student
+    enrollments = Enrollment.query.filter_by(student_id=student_id).all()
+
+    # 3. Aggregators
+    semesters_map = {} 
+    total_earned_units = 0
+    total_registered_units = 0
+    TOTAL_CURRICULUM_UNITS = 172 # Based on your curriculum file
+
+    for enroll in enrollments:
+        # Get related data
+        section = db.session.get(Section, enroll.section_id)
+        if not section: continue
+        subject = db.session.get(Subject, section.subject_code)
+        if not subject: continue
+
+        # Group Key: e.g., "1st Year - 1st Semester"
+        # We assume database stores "1st Year" and "1st Semester"
+        sem_key = f"{subject.year_level} - {subject.semester}"
+
+        # Initialize Semester bucket if missing
+        if sem_key not in semesters_map:
+            semesters_map[sem_key] = {
+                'units_reg': 0,
+                'units_earned': 0,
+                'gwa_accum': 0, # grade * units
+                'gwa_units': 0, # total units for GWA
+                'subjects': []
+            }
+
+        # Process Grade
+        raw_grade = enroll.grade
+        grade_display = float(raw_grade) if raw_grade else 0.0
+        
+        # Add Subject Data to List
+        semesters_map[sem_key]['subjects'].append({
+            'code': subject.code,
+            'desc': subject.description,
+            'type': subject.type,
+            'units': subject.units,
+            'grade': grade_display,
+            'remarks': enroll.status  # Passed, Failed, Pending
+        })
+
+        # Calculate Units
+        semesters_map[sem_key]['units_reg'] += subject.units
+        total_registered_units += subject.units
+
+        if enroll.status == 'Passed' or (raw_grade and raw_grade <= 3.0):
+            semesters_map[sem_key]['units_earned'] += subject.units
+            total_earned_units += subject.units
+            
+            # GWA Calculation (Only count if there is a numeric grade)
+            if raw_grade:
+                semesters_map[sem_key]['gwa_accum'] += (raw_grade * subject.units)
+                semesters_map[sem_key]['gwa_units'] += subject.units
+
+    # 4. Format Output for Frontend
+    semesters_list = []
+    grades_data = {}
+
+    # Sort keys to ensure 1st Year comes before 2nd Year
+    sorted_keys = sorted(semesters_map.keys())
+
+    for key in sorted_keys:
+        data = semesters_map[key]
+        
+        # Calculate Final GWA for this semester
+        gwa = 0.00
+        if data['gwa_units'] > 0:
+            gwa = data['gwa_accum'] / data['gwa_units']
+
+        semesters_list.append({
+            'name': key,
+            'reg': data['units_reg'],
+            'earned': data['units_earned'],
+            'gwa': round(gwa, 2)
+        })
+        
+        # Assign subjects to the grades dictionary
+        grades_data[key] = data['subjects']
+
+    # Final JSON Structure
+    return jsonify({
+        'summary': {
+            'earned': total_earned_units,
+            'registered': total_registered_units,
+            'remaining': TOTAL_CURRICULUM_UNITS - total_earned_units,
+            'total': TOTAL_CURRICULUM_UNITS
+        },
+        'semesters': semesters_list,
+        'grades': grades_data
+    })
+    
+    
+    # ==================== ENROLLMENT & ENLISTMENT WORKFLOW ====================
+
+@app.route('/api/enrollment/pending', methods=['GET'])
+@login_required
+def get_pending_enrollment():
+    """Fetches students who are waiting to be enrolled (Status: Pending)."""
+    # We fetch students with status='Pending'
+    students = Student.query.filter_by(status='Pending').all()
+    
+    # We group them for the frontend
+    output = []
+    for s in students:
+        output.append({
+            'id': s.id,
+            'name': s.name,
+            'program': s.program,
+            'year_level': s.year_level,
+            'status': s.status,
+            'type': 'Regular', # Assuming regular for now
+            'decision': 'Promoted' # Default decision
+        })
+    return jsonify(output)
+
+@app.route('/api/enrollment/confirm', methods=['POST'])
+@login_required
+def confirm_student_enrollment():
+    """
+    Promotes a student from 'Pending' -> 'Enlisting'.
+    Also bumps their Year Level (e.g., 2nd Year -> 3rd Year).
+    """
+    data = request.get_json()
+    student_id = data.get('id')
+    
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify({'error': 'Student not found'}), 404
+
+    # LOGIC: Promote Student
+    # 1. Update Status to 'Enlisting' (So they appear in the Enlistment module)
+    student.status = 'Enlisting'
+    
+    # 2. Bump Year Level
+    if student.year_level == '1st Year': student.year_level = '2nd Year'
+    elif student.year_level == '2nd Year': student.year_level = '3rd Year'
+    elif student.year_level == '3rd Year': student.year_level = '4th Year'
+    
+    db.session.commit()
+    
+    return jsonify({'success': True, 'new_year': student.year_level})
+
+@app.route('/api/enlistment/pending', methods=['GET'])
+@login_required
+def get_enlistment_candidates():
+    """Fetches students who are ready to pick subjects (Status: Enlisting)."""
+    # Fetch students who have been promoted to 'Enlisting'
+    students = Student.query.filter_by(status='Enlisting').all()
+    
+    output = []
+    for s in students:
+        output.append({
+            'id': s.id,
+            'name': s.name,
+            'program': s.program,
+            'year_level': s.year_level,  # <--- CRITICAL: Needed for the accordion
+            'status': 'Regular',         # Defaulting to Regular for now
+            'units': 0,
+            'maxUnits': 21,              # Default max units
+            'retained': False
+        })
+    return jsonify(output)
+
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5000)
+    
+    

@@ -188,3 +188,177 @@ select:focus {
     background: white;
     border-color: #7a001e;
 }
+
+/* Custom Role Selection Buttons */
+.role-selection {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.role-option {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 13px;
+    font-weight: bold;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.role-option:hover {
+    border-color: #999;
+}
+/* Compress margins slightly so the taller form fits nicely */
+#register-container label {
+    margin-top: 10px;
+}
+
+#register-container input, 
+#register-container select {
+    padding: 10px;
+    margin-top: 5px;
+}
+
+#register-container button {
+    margin-top: 15px;
+}
+
+/* Custom Role Selection Buttons */
+.role-selection {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.role-option {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 13px;
+    font-weight: bold;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.role-option:hover {
+    border-color: #999;
+}
+
+/* Terms and Conditions Checkbox Styling */
+.terms-group {
+    display: flex;
+    align-items: center; 
+    margin-top: 15px;
+    gap: 8px; 
+}
+
+.terms-group input[type="checkbox"] {
+    width: auto;
+    margin-top: 0;
+    cursor: pointer;
+}
+
+.terms-group label {
+    margin-top: 0 !important;
+    font-size: 12px;
+    font-weight: normal;
+    color: #666;
+    cursor: pointer;
+}
+
+/* Highlights the important document links */
+.terms-group label span {
+    color: #7a001e;
+    font-weight: bold;
+}
+
+.terms-group label span:hover {
+    text-decoration: underline;
+}
+
+/* --- TERMS AND CONDITIONS MODAL STYLING --- */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; 
+    z-index: 100; /* Sit on top of everything */
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    background-color: rgba(0, 0, 0, 0.6); /* Black background with opacity */
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 85vh; /* Prevents modal from being taller than the screen */
+    overflow-y: auto; /* Adds a scrollbar if the text is too long */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.modal-content h3 {
+    color: #7a001e;
+    margin-bottom: 15px;
+    font-size: 20px;
+    text-align: center;
+}
+
+.modal-content h4 {
+    margin-top: 20px;
+    margin-bottom: 8px;
+    color: #333;
+    font-size: 15px;
+}
+
+.modal-content p, .modal-content ul {
+    font-size: 13.5px;
+    color: #555;
+    line-height: 1.6;
+}
+
+.modal-content ul {
+    padding-left: 20px;
+    margin-bottom: 10px;
+}
+
+.modal-content li {
+    margin-bottom: 5px;
+}
+
+/* Modal Buttons Side-by-Side */
+.modal-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 35px;
+    padding-left: 220px;
+}
+
+#confirm-terms-btn {
+    flex: 1;
+    margin-top: 0;
+}
+
+#cancel-terms-btn {
+    flex: 1;
+    margin-top: 0;
+    background: #e0e0e0;
+    color: #333;
+}
+
+#cancel-terms-btn:hover {
+    background: #ccc;
+}

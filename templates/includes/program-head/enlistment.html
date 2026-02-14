@@ -13,18 +13,8 @@
         <div class="accordion-body">
             <table class="enlistment-table">
                 <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody>
-                    <tr onclick="openEnlistmentModal({id:'2024-00001', name:'Maria Cruz', status:'Regular', units: 0, maxUnits: 21, retained: false})">
-                        <td>2024-00001</td><td class="student-name">Maria Cruz</td><td>BS in Computer Engineering</td>
-                        <td><span class="status-pill regular">Regular</span></td>
-                        <td><button class="btn-view-action">Review</button></td>
-                    </tr>
-                    <tr onclick="openEnlistmentModal({id:'2024-00002', name:'Pemela Wan', status:'Regular', units: 0, maxUnits: 21, retained: false})">
-                        <td>2024-00002</td><td class="student-name">Pemela Wan</td><td>BS in Computer Engineering</td>
-                        <td><span class="status-pill regular">Regular</span></td>
-                        <td><button class="btn-view-action">Review</button></td>
-                    </tr>
-                </tbody>
+                <tbody id="enlistment-tbody-1">
+                    </tbody>
             </table>
         </div>
     </div>
@@ -36,24 +26,36 @@
         <div class="accordion-body">
             <table class="enlistment-table">
                 <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody>
-                    <tr onclick="openEnlistmentModal({id:'2024-00002', name:'Juan Dela Cruz', status:'Irregular', units: 0, maxUnits: 6, retained: true})">
-                        <td>2024-00002</td><td class="student-name">Juan Dela Cruz</td><td>BS in Computer Engineering</td>
-                        <td><span class="status-pill irregular">Irregular</span></td>
-                        <td><button class="btn-view-action">Review</button></td>
-                    </tr>
-                </tbody>
+                <tbody id="enlistment-tbody-2">
+                     </tbody>
             </table>
         </div>
     </div>
 
     <div class="year-accordion collapsed">
-        <div class="accordion-header header-green" onclick="toggleAccordion(this)"><i class='bx bx-chevron-right'></i> 3rd Year</div>
-        <div class="accordion-body"><div class="empty-state">No pending students</div></div>
+        <div class="accordion-header header-green" onclick="toggleAccordion(this)">
+            <i class='bx bx-chevron-right'></i> <span>3rd Year</span>
+        </div>
+        <div class="accordion-body">
+            <table class="enlistment-table">
+                <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="enlistment-tbody-3">
+                     </tbody>
+            </table>
+        </div>
     </div>
+
     <div class="year-accordion collapsed">
-        <div class="accordion-header header-teal" onclick="toggleAccordion(this)"><i class='bx bx-chevron-right'></i> 4th Year</div>
-        <div class="accordion-body"><div class="empty-state">No pending students</div></div>
+        <div class="accordion-header header-teal" onclick="toggleAccordion(this)">
+            <i class='bx bx-chevron-right'></i> <span>4th Year</span>
+        </div>
+        <div class="accordion-body">
+            <table class="enlistment-table">
+                <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="enlistment-tbody-4">
+                     </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -78,8 +80,7 @@
             </div>
         </div>
 
-        <div id="enlistmentAlerts">
-            </div>
+        <div id="enlistmentAlerts"></div>
 
         <div class="legend-bar">
             <span class="tag critical"><i class='bx bxs-star'></i> Critical Path</span>
@@ -91,8 +92,7 @@
             <div class="subject-list-header">
                 <span><i class='bx bx-book'></i> Subjects (Sorted by Priority)</span>
             </div>
-            <div id="subjectListBody">
-                </div>
+            <div id="subjectListBody"></div>
         </div>
 
         <div class="modal-footer-bar">
