@@ -83,31 +83,58 @@ function renderSubjects(subjects) {
     list.innerHTML = '';
 
     if (subjects.length === 0) {
-        list.innerHTML = '<div style="padding:20px; text-align:center; color:#666;">No subjects found for this semester.</div>';
+        list.innerHTML = '<div style="padding:20px; text-align:center;">No subjects found.</div>';
         return;
     }
 
     subjects.forEach((sub) => {
         const row = document.createElement('div');
-        row.className = `subject-row`;
-        row.dataset.code = sub.code;
-        // Click handler to toggle selection
-        row.onclick = () => toggleSubject(row, sub);
         
-        // Determine Badge Color
-        let badgeColor = 'major';
-        if(sub.type === 'critical') badgeColor = 'critical';
-        if(sub.type === 'minor') badgeColor = 'minor';
+        // Dynamic Classes
+        const lockedClass = sub.locked ? 'subject-locked' : '';
+        row.className = `subject-row ${lockedClass}`;
+        
+        // Interaction Logic
+        if (sub.locked) {
+            row.onclick = () => alert(`Cannot take ${sub.code}: ${sub.warning}`);
+            row.style.opacity = '0.6';
+            row.style.cursor = 'not-allowed';
+            row.style.background = '#f9f9f9';
+        } else {
+            row.onclick = () => toggleSubject(row, sub);
+        }
+        
+        // Icon Logic
+        let icon = "<i class='bx bx-circle' style='color:#ccc; font-size:1.4rem'></i>";
+        if (sub.locked) icon = "<i class='bx bxs-lock-alt' style='color:#666; font-size:1.4rem'></i>";
+
+        // Badge Logic
+        let badgeHtml = `<span class="tag ${sub.type}">${sub.type.toUpperCase()}</span>`;
+        if (sub.locked) {
+            badgeHtml = `<span class="tag" style="background:#444; color:white;">LOCKED</span>`;
+        } else if (sub.type === 'critical') {
+            badgeHtml = `<span class="tag critical">RETAKE REQUIRED</span>`;
+        }
+
+        // Warning Text (if locked)
+        let warningHtml = sub.locked 
+            ? `<div style="font-size:0.75rem; color:#d32f2f; margin-top:4px;"><i class='bx bxs-error-circle'></i> ${sub.warning}</div>` 
+            : '';
+
+        row.dataset.code = sub.code;
 
         row.innerHTML = `
             <div class="row-top">
                 <div class="subject-title">
-                    <span class="selection-icon"><i class='bx bx-circle' style='color:#ccc; font-size:1.4rem'></i></span>
-                    <span>${sub.code} - ${sub.name} (${sub.units} Units)</span>
-                    <span class="tag ${badgeColor}">${sub.type.toUpperCase()}</span>
+                    <span class="selection-icon">${icon}</span>
+                    <div style="display:flex; flex-direction:column;">
+                        <span>${sub.code} - ${sub.name} (${sub.units} Units)</span>
+                        ${warningHtml}
+                    </div>
+                    ${badgeHtml}
                 </div>
                 <div style="font-size:0.8rem; border:1px solid #ddd; padding:2px 8px; border-radius:4px;">
-                    Section: <strong>${sub.section}</strong>
+                    ${sub.section}
                 </div>
             </div>
             <div class="row-details">
@@ -116,8 +143,6 @@ function renderSubjects(subjects) {
             </div>
         `;
         
-        // Initialize state
-        row.dataset.selected = 'false';
         list.appendChild(row);
     });
 }

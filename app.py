@@ -35,17 +35,13 @@ FACULTY_CLASS_LIST = [
     {'id': 2, 'code': 'CE102', 'name': 'Structural Analysis', 'students': 40},
     {'id': 3, 'code': 'CE103', 'name': 'Fluid Mechanics', 'students': 38}
 ]
-
-# --- SHARED INSTRUCTORS DATA (Source of Truth) ---
 INSTRUCTORS_DATA = [
-    { 'id': 1, 'name': "SANTOS, MARIA CLARA", 'department': "Computer Engineering", 'classes': 2, 'lec': 3.0, 'lab': 0.0 },
-    { 'id': 2, 'name': "REYES, JOHN MICHAEL", 'department': "Computer Engineering", 'classes': 2, 'lec': 3.0, 'lab': 3.0 },
-    { 'id': 3, 'name': "DELA CRUZ, ANNA", 'department': "Computer Engineering", 'classes': 2, 'lec': 0.0, 'lab': 3.0 },
-    { 'id': 4, 'name': "GARCIA, PEDRO", 'department': "Computer Engineering", 'classes': 5, 'lec': 9.0, 'lab': 0.0 },
-    { 'id': 5, 'name': "VILLANUEVA, JOSE", 'department': "Computer Engineering", 'classes': 2, 'lec': 3.0, 'lab': 1.5 },
-    { 'id': 6, 'name': "SAMPLE, FULL LOAD", 'department': "Computer Engineering", 'classes': 8, 'lec': 18.0, 'lab': 8.0 },
-    { 'id': 7, 'name': "Engr. Juan Dela Cruz", 'department': "Computer Engineering", 'classes': 0, 'lec': 0, 'lab': 0 },
-    { 'id': 8, 'name': "Dr. Jose Rizal", 'department': "General Education", 'classes': 0, 'lec': 0, 'lab': 0 }
+    { 'id': 1001, 'name': "SANTOS, MARIA CLARA", 'department': "Computer Engineering", 'classes': 2, 'lec': 3.0, 'lab': 0.0 },
+    { 'id': 1002, 'name': "REYES, JOHN MICHAEL", 'department': "Computer Engineering", 'classes': 2, 'lec': 3.0, 'lab': 3.0 },
+    { 'id': 1003, 'name': "DELA CRUZ, ANNA", 'department': "Computer Engineering", 'classes': 2, 'lec': 0.0, 'lab': 3.0 },
+    { 'id': 1004, 'name': "SAMPLE, FULL LOAD", 'department': "Computer Engineering", 'classes': 8, 'lec': 18.0, 'lab': 8.0 },
+    { 'id': 1005, 'name': "Engr. Juan Dela Cruz", 'department': "Computer Engineering", 'classes': 0, 'lec': 0, 'lab': 0 },
+    { 'id': 1006, 'name': "Dr. Jose Rizal", 'department': "General Education", 'classes': 0, 'lec': 0, 'lab': 0 }
 ]
 
 # ==================== AUTH & ROUTES ====================
@@ -410,22 +406,33 @@ def get_student_journey_data(student_id):
 @login_required
 def get_pending_enrollment():
     """Fetches students who are waiting to be enrolled (Status: Pending)."""
-    # We fetch students with status='Pending'
     students = Student.query.filter_by(status='Pending').all()
     
-    # We group them for the frontend
     output = []
     for s in students:
+        # 1. Check for Failures in the Database
+        # We look for any failing grade (5.0) or Failed status
+        failed_enrollments = Enrollment.query.filter_by(student_id=s.id)\
+            .filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') )\
+            .all()
+        
+        is_retained = len(failed_enrollments) > 0
+        
+        decision = 'Retained' if is_retained else 'Promoted'
+        decision_color = 'retained' if is_retained else 'promoted' # CSS class helper
+
         output.append({
             'id': s.id,
             'name': s.name,
             'program': s.program,
             'year_level': s.year_level,
             'status': s.status,
-            'type': 'Regular', # Assuming regular for now
-            'decision': 'Promoted' # Default decision
+            'type': 'Irregular' if is_retained else 'Regular',
+            'decision': decision,
+            'hasWarnings': is_retained # Triggers the warning icon in frontend
         })
     return jsonify(output)
+
 
 @app.route('/api/enrollment/confirm', methods=['POST'])
 @login_required
@@ -526,43 +533,58 @@ def register():
 @login_required
 def get_student_available_subjects(student_id):
     student = Student.query.get(student_id)
-    if not student:
-        return jsonify([])
+    if not student: return jsonify([])
 
-    # 1. Determine Target Semester
-    # If student is "3rd Year", we assume they are enrolling for "3rd Year, 1st Semester"
-    # (You can make this dynamic later based on a global "Active Term" setting)
-    target_year = student.year_level 
-    target_sem = "1st Semester"
+    # 1. Identify Failed Subjects
+    failed_records = Enrollment.query.filter_by(student_id=student_id)\
+        .filter((Enrollment.grade > 3.0) | (Enrollment.status == 'Failed')).all()
+    
+    failed_codes = [f.section.subject_code for f in failed_records if f.section]
 
-    # 2. Fetch Subjects from Database
-    subjects = Subject.query.filter_by(year_level=target_year, semester=target_sem).all()
+    # 2. Determine Scope of Subjects to Show
+    # If Retained: Show Current Year (to retake) + Next Year (if allowed)?
+    # SIMPLIFIED RULE: If retained, show subjects from their *current* level (repeater).
+    # If promoted, show subjects from their *new* level.
+    target_year = student.year_level
+    
+    # Fetch all subjects for this level
+    subjects = Subject.query.filter_by(year_level=target_year).all()
     
     output = []
     for sub in subjects:
-        # 3. Get Section Info (Schedule/Room)
-        # We look for an existing section, or create a 'TBA' placeholder for display
         section = Section.query.filter_by(subject_code=sub.code).first()
-        
         sched = section.schedule if section else "TBA"
         room = section.room if section else "TBA"
-        section_name = section.name if section else f"{sub.code}-A"
 
-        # 4. Determine Visual Tag (Critical/Major/Minor)
-        # Logic: 4+ units = Critical, 3 units = Major, <3 units = Minor
-        subject_type = "major"
-        if sub.units >= 4: subject_type = "critical"
-        elif sub.units < 3: subject_type = "minor"
+        # --- CRITICAL LOGIC: CHECK PREREQUISITES ---
+        is_locked = False
+        warning_msg = None
+        
+        # Check if this subject has a prerequisite
+        if sub.prerequisite and sub.prerequisite != "None":
+            # If the prerequisite is in the failed list, LOCK this subject
+            if sub.prerequisite in failed_codes:
+                is_locked = True
+                warning_msg = f"Prerequisite {sub.prerequisite} Failed"
+
+        # Check if this subject ITSELF was failed (Must Retake)
+        is_retake = sub.code in failed_codes
+        type_tag = 'critical' if is_retake else ('major' if sub.units >= 3 else 'minor')
 
         output.append({
             'code': sub.code,
-            'name': sub.description, # Map DB 'description' to Frontend 'name'
+            'name': sub.description,
             'units': sub.units,
-            'type': subject_type,
+            'type': type_tag,
             'sched': sched,
             'room': room,
-            'section': section_name
+            'section': section.name if section else "TBA",
+            'locked': is_locked,   # <--- New Flag
+            'warning': warning_msg # <--- New Message
         })
+    
+    # Sort: Retakes/Unlocked first, Locked last
+    output.sort(key=lambda x: x['locked'])
     
     return jsonify(output)
 
@@ -615,6 +637,30 @@ def submit_student_enlistment():
         db.session.rollback()
         print(f"Enlistment Error: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
+    
+    # --- SHARED INSTRUCTORS DATA (Source of Truth) ---
+@app.route('/api/users/faculty', methods=['GET'])
+@login_required
+def get_registered_faculty():
+    try:
+        # Use .ilike() instead of filter_by so it catches "Faculty", "faculty", or "FACULTY"
+        faculty_users = User.query.filter(User.role.ilike('faculty')).all()
+        
+        output = []
+        for user in faculty_users:
+            output.append({
+                'id': user.id,
+                'name': user.name.upper(),
+                'department': getattr(user, 'department', 'Unassigned'), 
+                'classes': 0,
+                'lec': 0.0,
+                'lab': 0.0
+            })
+            
+        return jsonify(output)
+    except Exception as e:
+        print(f"ERROR IN GET_REGISTERED_FACULTY: {e}") 
+        return jsonify([])
 
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5000)

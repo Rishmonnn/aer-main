@@ -12,13 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- MAIN FACULTY DATA (Fetched from API) ---
     let facultyData = [];
 
-    let registeredTeachers = [
-        { id: 101, name: "BAUTISTA, RYAN", department: "General Education" },
-        { id: 102, name: "LOPEZ, JESSICA", department: "Mathematics" },
-        { id: 103, name: "TAN, DAVID", department: "Engineering" },
-        { id: 104, name: "GONZALES, MARK", department: "Physics" },
-        { id: 105, name: "RAMOS, SARAH", department: "General Education" }
-    ];
+    let registeredTeachers = [];
 
     // --- DOM Elements ---
     const searchInput = document.getElementById('searchInput');
@@ -220,6 +214,41 @@ document.addEventListener('DOMContentLoaded', function() {
         updateStats(data);
     }
 
+    function fetchRegisteredFaculty() {
+        // Show a loading state
+        registeredTeachersList.innerHTML = "<p style='text-align:center; padding:10px;'>Loading faculty...</p>";
+        
+        fetch('/api/users/faculty')
+            .then(async response => {
+                // Check if the response is actually OK (Status 200)
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP Error ${response.status}: ${errorText}`);
+                }
+                
+                // Check if the response is HTML instead of JSON (usually means a 404 or redirect)
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") === -1) {
+                    throw new Error("Server returned HTML instead of JSON. The route might be missing or you are logged out.");
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                // Filter out faculty that are already displayed in the main grid
+                const existingIds = facultyData.map(f => f.id);
+                registeredTeachers = data.filter(teacher => !existingIds.includes(teacher.id));
+                
+                // Render the list
+                renderRegisteredTeachers(searchRegistered ? searchRegistered.value : "");
+            })
+            .catch(err => {
+                console.error('Detailed Fetch Error:', err);
+                // Display the real error in the UI
+                registeredTeachersList.innerHTML = `<p style='color: #a00; text-align:center; font-size: 0.9rem; padding: 10px;'><b>Error:</b> ${err.message}<br><br>Check your terminal for Flask errors.</p>`;
+            });
+    }
+
     function renderRegisteredTeachers(filter = "") {
         registeredTeachersList.innerHTML = "";
         const term = filter.toLowerCase();
@@ -257,7 +286,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (closeModalBtn) closeModalBtn.onclick = () => scheduleModal.style.display = 'none';
     if (btnAddTeacher) {
-        btnAddTeacher.onclick = () => { renderRegisteredTeachers(); addTeacherModal.style.display = 'flex'; };
+        btnAddTeacher.onclick = () => { 
+            fetchRegisteredFaculty(); // Fetch fresh data from DB
+            addTeacherModal.style.display = 'flex'; 
+        };
     }
     if (closeAddModalBtn) closeAddModalBtn.onclick = () => addTeacherModal.style.display = 'none';
     if (searchRegistered) {

@@ -37,6 +37,12 @@ def seed_subjects():
                     # UPDATED: Use db.session.get() to avoid the LegacyAPIWarning
                     subject = db.session.get(Subject, code)
                     
+                    # --- FIX: Define raw_prereq HERE (Before 'if not subject') ---
+                    raw_prereq = str(row.get('Prerequisite', '')).strip()
+                    if raw_prereq in ['None', '', 'nan']:
+                        raw_prereq = None
+                    # -------------------------------------------------------------
+
                     if not subject:
                         # Mappings
                         y_map = {'1': '1st Year', '2': '2nd Year', '3': '3rd Year', '4': '4th Year'}
@@ -56,7 +62,8 @@ def seed_subjects():
                             units=int(float(row['Total Units'] or 0)),
                             semester=s_map.get(str(row['Semester']).strip(), "1st Semester"),
                             year_level=y_map.get(str(row['Year']).strip(), "1st Year"),
-                            type=stype
+                            type=stype,
+                            prerequisite=raw_prereq  # <--- Now it is defined!
                         )
                         db.session.add(new_sub)
                         count += 1

@@ -40,6 +40,7 @@ class Subject(db.Model):
     semester = db.Column(db.String(20)) # "1st", "2nd"
     year_level = db.Column(db.String(20)) # "1st Year", etc.
     type = db.Column(db.String(20)) # "Lecture", "Laboratory"
+    prerequisite = db.Column(db.String(100), nullable=True)
 
 # 4. SECTIONS (Actual Scheduled Classes)
 class Section(db.Model):
