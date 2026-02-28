@@ -383,3 +383,134 @@
     padding: 10px 24px;
     font-size: 0.95rem;
 }
+
+/* --- Custom Import Modal Styles --- */
+.custom-import-modal {
+    width: 100% !important;
+    max-width: 750px !important; 
+    height: auto !important; /* Forces the modal to only be as tall as its content */
+    min-height: unset !important; /* Removes any leftover minimum heights */
+    max-height: 90vh; /* Keeps it from going off the screen on small laptops */
+    margin: 0 auto; 
+}
+.column-tags {
+    display: flex;
+    flex-wrap: wrap !important; /* Forces the pills to drop to the next line instead of stretching the box */
+    gap: 8px;
+}
+
+.custom-modal-header {
+    padding: 20px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid #eee;
+}
+
+.header-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-text-custom h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.header-text-custom p {
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.custom-modal-body {
+    padding: 20px 25px;
+    gap: 20px;
+    flex: none !important; /* Stops the middle section from stretching to fill empty space */
+    overflow-y: auto; /* Adds a scrollbar ONLY if the content gets too tall */
+}
+
+/* Expected Columns Styling */
+.expected-columns-box {
+    background-color: #f8f9fa;
+    border: 1px solid #eef0f2;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.expected-columns-box h4 {
+    margin: 0 0 12px 0;
+    font-size: 0.75rem;
+    color: #888;
+    letter-spacing: 0.5px;
+}
+
+.column-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.column-tags span {
+    background: white;
+    border: 1px solid #ddd;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: #444;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+/* Drag and Drop Zone */
+.drag-drop-zone {
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    background-color: #fcfaf9;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.drag-drop-zone:hover, .drag-drop-zone.drag-over {
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.drag-drop-zone i {
+    font-size: 2.5rem;
+    color: #9ca3af;
+    margin-bottom: 10px;
+}
+
+.drag-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.drag-subtitle {
+    margin: 5px 0 0 0;
+    font-size: 0.85rem;
+    color: #9ca3af;
+}
+
+.success-banner {
+    background-color: #ecfdf5;
+    border: 1px solid #10b981;
+    color: #065f46;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.success-banner i {
+    font-size: 1.2rem;
+    color: #10b981;
+}

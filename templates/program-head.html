@@ -42,33 +42,38 @@
             <div id="home-view" class="dashboard-grid">
                 
                 <div class="stats-col">
-                    <div class="stat-card">
+                    <div class="stat-card highlight centered-card">
+                        <span class="year-selector top-right" onclick="cycleYear()">
+                            <span id="year-label">All Years</span>
+                            <i class='bx bx-chevron-right'></i>
+                        </span>
+                        
                         <div class="stat-icon-wrapper blue"><i class='bx bxs-group'></i></div>
                         <div class="stat-content">
                             <h3 class="stat-label">Total Students</h3>
-                            <div class="stat-value-row">
-                                <span class="val" id="student-count">326</span>
-                                <span class="year-selector" onclick="cycleYear()">
-                                    <span id="year-label">1st Year</span>
-                                    <i class='bx bx-chevron-right'></i>
-                                </span>
+                            <div class="stat-value-row centered-row">
+                                <span class="val" id="student-count" data-total="{{ total_students }}">{{ total_students }}</span>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="stat-card">
+                    <div class="stat-card highlight centered-card">
                         <div class="stat-icon-wrapper teal"><i class='bx bxs-user-badge'></i></div>
                         <div class="stat-content">
                             <h3 class="stat-label">Faculty Members</h3>
-                            <div class="stat-value-row"><span class="val">4</span></div>
+                            <div class="stat-value-row centered-row">
+                                <span class="val">{{ total_faculty }}</span>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="stat-card highlight">
+                    <div class="stat-card highlight centered-card">
                         <div class="stat-icon-wrapper red"><i class='bx bxs-calendar'></i></div>
                         <div class="stat-content">
                             <h3 class="stat-label">Academic Year</h3>
-                            <div class="stat-value-row"><span class="val" style="font-size: 1.6rem;">2025-2026</span></div>
+                            <div class="stat-value-row centered-row">
+                                <span class="val" style="font-size: 1.6rem;">{{ academic_year }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>

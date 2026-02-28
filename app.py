@@ -112,28 +112,35 @@ def faculty_dashboard():
 def program_head_dashboard():
     if session.get('role') != 'head': return redirect(url_for('index'))
     
+    # --- GET ACTUAL DATA FROM DATABASE ---
+    try:
+        # Count all students
+        total_students = Student.query.count()
+        # Count all faculty (case-insensitive check for 'faculty' role)
+        total_faculty = User.query.filter(User.role.ilike('faculty')).count()
+        # Set academic year (you can make this dynamic later if you have a Settings table)
+        academic_year = "2025-2026"
+    except Exception as e:
+        print(f"Error fetching stats: {e}")
+        total_students = 0
+        total_faculty = 0
+        academic_year = "2025-2026"
+
     context = {
         'pageTitle': 'Program Head Dashboard',
         'user_name': session.get('user', 'Program Head'),
+        'total_students': total_students,   # Pass to frontend
+        'total_faculty': total_faculty,     # Pass to frontend
+        'academic_year': academic_year,     # Pass to frontend
         'pageStyles': [
-            'program-head.css', 
-            'enrollment.css', 
-            'enlistment.css', 
-            'student_journey.css', 
-            'retention.css', 
-            'classrecords.css',
-            'instructors.css', 
-            'schedules.css'
+            'program-head.css', 'enrollment.css', 'enlistment.css', 
+            'student_journey.css', 'retention.css', 'classrecords.css',
+            'instructors.css', 'schedules.css'
         ],
         'pageScripts': [
-            'program-head.js', 
-            'enrollment.js', 
-            'enlistment.js', 
-            'student_journey.js', 
-            'retention.js', 
-            'classrecords.js',
-            'instructors.js',
-            'schedules.js'
+            'program-head.js', 'enrollment.js', 'enlistment.js', 
+            'student_journey.js', 'retention.js', 'classrecords.js',
+            'instructors.js', 'schedules.js'
         ]
     }
     return render_template('program-head.html', **context)

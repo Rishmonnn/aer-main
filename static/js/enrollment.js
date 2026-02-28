@@ -160,7 +160,7 @@ function confirmSingleEnrollment() {
     })
     .catch(err => alert("Server Error"))
     .finally(() => {
-        btn.innerHTML = "<i class='bx bx-check-circle'></i> Enroll Student";
+       btn.innerHTML = "<i class='bx bx-check-circle'></i> Approve Enrollment";
         btn.disabled = false;
     });
 }

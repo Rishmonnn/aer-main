@@ -80,15 +80,40 @@ body {
 .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: #cbd5e1; }
 .stat-card.highlight { border-left: 4px solid var(--maroon); }
 
+/* --- ALIGNMENT MODIFIERS --- */
+.centered-card {
+    position: relative;
+    flex-direction: column; 
+    align-items: center;    
+    text-align: center;
+    justify-content: center;
+}
+.centered-row {
+    justify-content: center !important;
+    width: 100%;
+}
+.year-selector.top-right {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    margin: 0;
+    z-index: 10;
+}
+
 .stat-icon-wrapper { 
     width: 50px; height: 50px; border-radius: 12px; display: flex; 
     align-items: center; justify-content: center; font-size: 1.8rem; flex-shrink: 0;
 }
+/* Re-margin the icon slightly when centered */
+.centered-card .stat-icon-wrapper {
+    margin-bottom: 10px;
+}
+
 .stat-icon-wrapper.blue { background: #e0f2fe; color: #0284c7; }
 .stat-icon-wrapper.teal { background: #ccfbf1; color: #0f766e; }
 .stat-icon-wrapper.red { background: #ffe4e6; color: #e11d48; }
 
-.stat-content { flex: 1; }
+.stat-content { flex: 1; width: 100%; }
 .stat-label { font-size: 0.8rem; font-weight: 700; color: #64748b; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;}
 .stat-value-row { display: flex; align-items: baseline; justify-content: space-between; }
 .stat-value-row .val { font-size: 2.2rem; font-weight: 800; color: #0f172a; line-height: 1; }

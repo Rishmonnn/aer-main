@@ -147,7 +147,7 @@
                     <label>Faculty</label>
                     <select id="facultySelect" class="form-control">
                         <option value="">-- Select Instructor --</option>
-                        </select>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Type</label>
@@ -188,6 +188,70 @@
         <div class="modal-footer">
             <button class="btn-secondary" onclick="Schedules.closeModal()">Cancel</button>
             <button class="btn-primary" onclick="Schedules.saveClass()">Save Class</button>
+        </div>
+    </div>
+</div>
+
+<div id="importModal" class="modal-overlay">
+    <div class="modal-content custom-import-modal">
+        <div class="custom-modal-header">
+            <div class="header-title-group">
+                <i class='bx bx-file' style="color: var(--maroon-main); font-size: 1.5rem;"></i>
+                <div class="header-text-custom">
+                    <h3>Import Schedule from Excel</h3>
+                    <p>Upload an Excel file with the following columns:</p>
+                </div>
+            </div>
+            <span class="close-modal" onclick="Schedules.closeImportModal()">&times;</span>
+        </div>
+        
+        <div class="modal-body custom-modal-body">
+            <div class="expected-columns-box">
+                <h4>EXPECTED COLUMNS</h4>
+                <div class="column-tags">
+                    <span>CAMPUS</span>
+                    <span>Code</span>
+                    <span>Descriptive Title</span>
+                    <span>Course</span>
+                    <span>Units (Lec)</span>
+                    <span>Units (Lab)</span>
+                    <span>Units (Total)</span>
+                    <span>Teaching Hours (Lec)</span>
+                    <span>Teaching Hours (Lab)</span>
+                    <span>Teaching Hours (Total)</span>
+                    <span>Section</span>
+                    <span>Time – Face to Face (Lec)</span>
+                    <span>Time – Face to Face (Lab)</span>
+                    <span>Days – Face to Face (Lec)</span>
+                    <span>Days – Face to Face (Lab)</span>
+                    <span>Room (Lec)</span>
+                    <span>Room (Lab)</span>
+                    <span>Faculty</span>
+                </div>
+            </div>
+
+            <<div class="drag-drop-zone" id="dragDropZone" onclick="document.getElementById('modalFileInput').click()">
+    <div id="dropZoneDefault">
+        <i class='bx bx-upload'></i>
+        <p class="drag-title">Drop your file here or click to browse</p>
+        <p class="drag-subtitle">Supports .xlsx, .xls files</p>
+    </div>
+    <div id="fileInfoDisplay" style="display: none;">
+        <i class='bx bx-file' style="font-size: 3rem; color: var(--maroon-main);"></i>
+        <p id="fileNameText" class="drag-title" style="margin-top: 10px;"></p>
+        <p id="fileSizeText" class="drag-subtitle"></p>
+    </div>
+    <input type="file" id="modalFileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="Schedules.handleImport(event)">
+</div>
+
+<div id="importSuccessBanner" class="success-banner" style="display: none; margin: 0 25px 15px 25px;">
+    <i class='bx bx-check-circle'></i>
+    <span id="successMessageText"></span>
+</div>
+
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="Schedules.closeImportModal()"><i class='bx bx-x'></i> Cancel</button>
+            <button class="btn-primary" onclick="document.getElementById('modalFileInput').click()"><i class='bx bx-upload'></i> Import</button>
         </div>
     </div>
 </div>

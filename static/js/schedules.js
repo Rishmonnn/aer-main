@@ -344,6 +344,43 @@
     function closeModal() { document.getElementById('addClassModal').style.display = 'none'; }
 
     function setupEventListeners() {
+        const dropZone = document.getElementById('dragDropZone');
+const fileInput = document.getElementById('modalFileInput');
+
+if (dropZone) {
+    // Prevent default browser behavior (which is to open the file in a new tab)
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // Add highlight effect when dragging over
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+    });
+
+    // Handle dropped files
+    dropZone.addEventListener('drop', function(e) {
+        let dt = e.dataTransfer;
+        let files = dt.files;
+
+        if (files.length) {
+            // Assign the dropped file to the hidden input
+            fileInput.files = files;
+            // Manually trigger your existing handleImport event
+            const event = new Event('change');
+            fileInput.dispatchEvent(event);
+        }
+    });
+}
         const container = document.getElementById('schedules');
         if (container) {
             container.addEventListener('click', function(e) {
@@ -358,11 +395,21 @@
                 }
             });
         }
+        
     }
 
     // Expose public methods
     window.Schedules = {
-        init, addEvent: openModal, closeModal, saveClass, onSubjectChange, filterSubjects, triggerImport, handleImport
+        
+        init, 
+        addEvent: openModal, 
+        closeModal, 
+        saveClass, 
+        onSubjectChange, 
+        filterSubjects,
+        triggerImport, 
+        handleImport,
+        closeImportModal
     };
     
     // Auto-init if the calendar div exists immediately (for safety)
@@ -370,63 +417,101 @@
         init();
     }
     function triggerImport() {
-        const fileInput = document.getElementById('importFile');
-        if (fileInput) {
-            fileInput.click(); // Opens the file picker dialog
-        }
+        const modal = document.getElementById('importModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeImportModal() {
+        const modal = document.getElementById('importModal');
+        if (modal) modal.style.display = 'none';
     }
 
     function handleImport(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+    const file = event.target.files[0];
+    if (!file) return;
 
-        const reader = new FileReader();
+    // 1. Update UI to show File Name and Size
+    document.getElementById('dropZoneDefault').style.display = 'none';
+    document.getElementById('fileInfoDisplay').style.display = 'block';
+    document.getElementById('fileNameText').textContent = file.name;
+    document.getElementById('fileSizeText').textContent = (file.size / 1024).toFixed(1) + " KB";
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
-        reader.onload = function(e) {
-            // 1. Read the file using SheetJS
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
+        // 2. Process data and get the count
+        const count = processExcelData(jsonData, true); // Added 'true' to skip immediate alert
+
+        // 3. Show Success Banner
+        if (count > 0) {
+            const banner = document.getElementById('importSuccessBanner');
+            const msg = document.getElementById('successMessageText');
+            const importBtn = document.querySelector('#importModal .btn-primary');
             
-            // 2. Get the first sheet and convert to JSON
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            msg.textContent = `Successfully parsed ${count} schedule entries. Ready to import.`;
+            banner.style.display = 'flex';
             
-            // 3. Process the extracted data
-            processExcelData(jsonData);
-            
-            // Reset the file input so you can upload the same file again if needed
-            event.target.value = '';
-        };
-        
-        reader.readAsArrayBuffer(file);
-    }
+            // Update the main button text like in your screenshot
+            importBtn.innerHTML = `<i class='bx bx-upload'></i> Import ${count} Entries`;
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
 
     function processExcelData(data) {
         let importedEvents = [];
         const color = mockDatabase[currentActiveYear]?.color || '#54a0ff';
 
-        data.forEach(row => {
-            // 1. Target the column that holds strings like "CE-1, ME-1, EE-1, CPE-1"
-            // (Add your exact exact CSV column header to this list if it's different)
-            const targetColumn = (row['Course'] || row['Section'] || row['Course/Year/Section'] || row['Program'] || '').toString().toUpperCase();
-            
-            // 2. Capture the row if it contains 'CPE' or 'BSCPE' anywhere in the string
-            if (targetColumn.includes('CPE') || targetColumn.includes('BSCPE')) {
-                
-                // Extract details (adjust these keys to match your CSV headers!)
-                const title = row['Description'] || row['Subject'] || row['Title'] || 'Imported Class';
-                const code = row['Subject Code'] || row['Course Code'] || 'TBA';
-                const room = row['Room'] || 'TBA';
-                const faculty = row['Instructor'] || row['Faculty'] || 'TBA';
-                const type = (row['Type'] || '').toLowerCase().includes('lab') ? 'lab' : 'lecture';
-                
-                // Format Time and Days
-                const startTime = formatTime(row['Start Time'] || row['Time Start']); 
-                const endTime = formatTime(row['End Time'] || row['Time End']);
-                const days = parseDays(row['Day'] || row['Days'] || ''); 
+        // 🛠️ DEBUGGING: This prints the very first row to your browser console
+        console.log("Extracted Data Format:", data[0]); 
 
-                // Create an event for each day the class occurs
+        data.forEach(row => {
+            let isCpeClass = false;
+
+            // 1. Scan EVERY column in the row for 'CPE' or 'BSCPE'
+            for (const key in row) {
+                const cellValue = String(row[key]).toUpperCase();
+                if (cellValue.includes('CPE') || cellValue.includes('BSCPE')) {
+                    isCpeClass = true;
+                    break; // We found it, stop searching this row
+                }
+            }
+
+            // 2. If it's a CPE class, capture it
+            if (isCpeClass) {
+                
+                // We dynamically search the keys for words like 'room', 'time', 'day' 
+                // just in case your headers are named slightly differently.
+                let title = 'Imported Class';
+                let code = 'TBA';
+                let room = 'TBA';
+                let faculty = 'TBA';
+                let type = 'lecture';
+                let startTime = '07:30'; 
+                let endTime = '09:00';
+                let dayStr = 'M'; // Default to Monday if not found
+
+                for (const key in row) {
+                    const upperKey = key.toUpperCase();
+                    const val = String(row[key]);
+
+                    if (upperKey.includes('DESC') || upperKey.includes('TITLE')) title = val;
+                    if (upperKey.includes('SUBJ') || upperKey.includes('CODE')) code = val;
+                    if (upperKey.includes('ROOM')) room = val;
+                    if (upperKey.includes('FACULTY') || upperKey.includes('INSTRUCT')) faculty = val;
+                    if (upperKey.includes('TYPE')) type = val.toLowerCase().includes('lab') ? 'lab' : 'lecture';
+                    if (upperKey.includes('START') || upperKey.includes('TIME IN')) startTime = formatTime(val);
+                    if (upperKey.includes('END') || upperKey.includes('TIME OUT')) endTime = formatTime(val);
+                    if (upperKey.includes('DAY')) dayStr = val;
+                }
+
+                const days = parseDays(dayStr); 
+
                 days.forEach(date => {
                     importedEvents.push({
                         title: title,
@@ -446,21 +531,13 @@
         });
 
         if (importedEvents.length > 0) {
-            // Save to mock database
-            if (!mockDatabase[currentActiveYear]) {
-                mockDatabase[currentActiveYear] = { color: color, events: [] };
-            }
-            mockDatabase[currentActiveYear].events = mockDatabase[currentActiveYear].events.concat(importedEvents);
-            
-            // Reload the view and hide empty state
-            loadYearData(currentActiveYear);
-            toggleEmptyState(true);
-            alert(`✅ Successfully imported ${importedEvents.length} CPE classes!`);
-        } else {
-            alert("⚠️ No CPE or BSCPE courses found. Please check if the column headers in the code match your file.");
-        }
+        mockDatabase[currentActiveYear].events = mockDatabase[currentActiveYear].events.concat(importedEvents);
+        loadYearData(currentActiveYear);
+        if (!silent) alert(`Successfully imported ${importedEvents.length} entries.`);
+        return importedEvents.length;
     }
-
+    return 0;
+}
     // --- HELPER: Converts Excel Time (e.g., "7:30 AM") to 24hr ("07:30") ---
     function formatTime(timeStr) {
         if (!timeStr) return "00:00";
