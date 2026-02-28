@@ -45,13 +45,17 @@ function openEnlistmentModal(studentData) {
     currentStudent = studentData;
     selectedUnits = 0;
 
-    // 1. Populate Header Info
+    // 1. Populate New Profile Grid Info
     document.getElementById('modalName').innerText = studentData.name;
     document.getElementById('modalID').innerText = studentData.id;
-    document.getElementById('modalStatus').innerText = "Regular"; 
-    document.getElementById('modalStatus').className = `status-pill regular`;
     document.getElementById('maxUnits').innerText = studentData.maxUnits || 21;
     document.getElementById('modalStanding').innerText = studentData.year_level;
+
+    // Badge styling for status
+    const typeLabel = studentData.type || 'Regular';
+    const typeClass = typeLabel.toLowerCase() === 'irregular' ? 'irregular' : 'regular';
+    document.getElementById('modalStatus').innerHTML = `<span class="status-pill ${typeClass}">${typeLabel}</span>`;
+
 
     // 2. Clear Previous Data & Reset Select All Button
     document.getElementById('enlistmentAlerts').innerHTML = ''; 
@@ -97,7 +101,7 @@ function renderSubjects(subjects) {
         const lockedClass = sub.locked ? 'subject-locked' : '';
         row.className = `subject-row ${lockedClass}`;
         
-        // --- NEW: Store units in dataset for Select All function ---
+        // --- Store units in dataset for Select All function ---
         row.dataset.units = sub.units; 
         row.dataset.code = sub.code;
 
@@ -106,26 +110,26 @@ function renderSubjects(subjects) {
             row.onclick = () => alert(`Cannot take ${sub.code}: ${sub.warning}`);
             row.style.opacity = '0.6';
             row.style.cursor = 'not-allowed';
-            row.style.background = '#f9f9f9';
+            row.style.background = '#f8fafc';
         } else {
             row.onclick = () => toggleSubject(row, sub);
         }
         
         // Icon Logic
-        let icon = "<i class='bx bx-circle' style='color:#ccc; font-size:1.4rem'></i>";
-        if (sub.locked) icon = "<i class='bx bxs-lock-alt' style='color:#666; font-size:1.4rem'></i>";
+        let icon = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
+        if (sub.locked) icon = "<i class='bx bxs-lock-alt' style='color:#64748b; font-size:1.4rem'></i>";
 
         // Badge Logic
         let badgeHtml = `<span class="tag ${sub.type}">${sub.type.toUpperCase()}</span>`;
         if (sub.locked) {
-            badgeHtml = `<span class="tag" style="background:#444; color:white;">LOCKED</span>`;
+            badgeHtml = `<span class="tag" style="background:#475569; color:white;">LOCKED</span>`;
         } else if (sub.type === 'critical') {
             badgeHtml = `<span class="tag critical">RETAKE REQUIRED</span>`;
         }
 
         // Warning Text (if locked)
         let warningHtml = sub.locked 
-            ? `<div style="font-size:0.75rem; color:#d32f2f; margin-top:4px;"><i class='bx bxs-error-circle'></i> ${sub.warning}</div>` 
+            ? `<div style="font-size:0.75rem; color:#ef4444; margin-top:4px; font-weight:500;"><i class='bx bxs-error-circle'></i> ${sub.warning}</div>` 
             : '';
 
         row.innerHTML = `
@@ -136,10 +140,12 @@ function renderSubjects(subjects) {
                         <span>${sub.code} - ${sub.name} (${sub.units} Units)</span>
                         ${warningHtml}
                     </div>
-                    ${badgeHtml}
                 </div>
-                <div style="font-size:0.8rem; border:1px solid #ddd; padding:2px 8px; border-radius:4px;">
-                    ${sub.section}
+                <div style="display:flex; gap:10px; align-items:center;">
+                    ${badgeHtml}
+                    <div style="font-size:0.8rem; border:1px solid #cbd5e1; padding:2px 8px; border-radius:4px; font-weight:600; color:#475569;">
+                        ${sub.section}
+                    </div>
                 </div>
             </div>
             <div class="row-details">
@@ -152,7 +158,7 @@ function renderSubjects(subjects) {
     });
 }
 
-// --- NEW: TOGGLE ALL FUNCTION ---
+// --- TOGGLE ALL FUNCTION ---
 function toggleAllSubjects() {
     // 1. Get all UNLOCKED rows
     const rows = document.querySelectorAll('.subject-row:not(.subject-locked)');
@@ -179,7 +185,7 @@ function toggleAllSubjects() {
             // Deselect
             row.dataset.selected = 'false';
             row.classList.remove('selected');
-            iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#ccc; font-size:1.4rem'></i>";
+            iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
         }
     });
 
@@ -198,7 +204,7 @@ function toggleSubject(rowElement, subject) {
         // Deselect
         rowElement.dataset.selected = 'false';
         rowElement.classList.remove('selected');
-        iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#ccc; font-size:1.4rem'></i>";
+        iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
         selectedUnits -= subject.units;
     } else {
         // Select
@@ -208,7 +214,7 @@ function toggleSubject(rowElement, subject) {
         selectedUnits += subject.units;
     }
     
-    // Update "Select All" button text logic (Optional)
+    // Update "Select All" button text logic
     const rows = document.querySelectorAll('.subject-row:not(.subject-locked)');
     const allSelected = Array.from(rows).every(r => r.dataset.selected === 'true');
     const btn = document.getElementById('btnSelectAll');
@@ -220,7 +226,6 @@ function toggleSubject(rowElement, subject) {
 function updateSummary() {
     document.getElementById('unitCounter').innerText = selectedUnits;
     document.getElementById('summaryCount').innerText = document.querySelectorAll('.subject-row[data-selected="true"]').length;
-    document.getElementById('summaryUnitsText').innerText = `Total Units: ${selectedUnits}`;
 }
 
 function submitEnlistment() {
@@ -267,7 +272,7 @@ function submitEnlistment() {
         alert("Server Error occurred.");
     })
     .finally(() => {
-        btn.innerText = "Enlist Student";
+        btn.innerHTML = "<i class='bx bx-check-circle'></i> Enlist Student";
         btn.disabled = false;
     });
 }

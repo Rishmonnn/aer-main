@@ -37,7 +37,7 @@ function loadEnrollmentData() {
                     if (student.decision === 'Retained') {
                         actionHtml = '<span style="color:#d32f2f; font-weight:bold;">RETAINED (SAME YEAR)</span>';
                     } else {
-                        actionHtml = '<span style="color:#2e7d32">PROMOTING TO NEXT YEAR</span>';
+                        actionHtml = '<span style="color:#166534; font-weight:bold;">PROMOTING TO NEXT YEAR</span>';
                     }
 
                     // Store data for the modal
@@ -73,13 +73,42 @@ function loadEnrollmentData() {
 function openEnrollmentModal(event, data) {
     if (event) event.stopPropagation();
     
-    // UI Updates
+    // UI Updates - Text details
     document.getElementById('modalStudentId').innerText = data.id || '-';
     document.getElementById('modalStudentName').innerText = data.name || '-';
     document.getElementById('modalStudentProgram').innerText = data.program || '-';
     document.getElementById('modalStudentYear').innerText = data.year || '-';
     document.getElementById('modalStudentStanding').innerText = data.standing || '-';
     
+    // UI Update - Student Type Badge
+    const typeLabel = data.type || 'Regular';
+    const typeClass = typeLabel.toLowerCase() === 'irregular' ? 'irregular' : 'regular';
+    document.getElementById('modalStudentType').innerHTML = `<span class="status-pill ${typeClass}">${typeLabel}</span>`;
+    
+    // UI Update - Decision Badge (Promote vs Retain)
+    const decisionEl = document.getElementById('modalStudentDecision');
+    const isRetained = data.decision === 'Retained';
+    const decisionIcon = isRetained ? "bx-minus-circle" : "bx-chevrons-up";
+    const decisionClass = isRetained ? "badge-retain" : "badge-promote";
+    const decisionText = isRetained ? "RETAINED" : "PROMOTING TO NEXT YEAR";
+    
+    // Change background of the full-width card depending on decision
+    const fullCard = decisionEl.closest('.detail-card.full-width');
+    if (isRetained) {
+        fullCard.style.background = "#fff1f2";
+        fullCard.style.borderColor = "#fecdd3";
+    } else {
+        fullCard.style.background = "#f0fdf4";
+        fullCard.style.borderColor = "#bbf7d0";
+    }
+
+    decisionEl.innerHTML = `
+        <span class="badge-status ${decisionClass}">
+            <i class='bx ${decisionIcon}'></i> ${decisionText}
+        </span>
+    `;
+
+    // Show the modal
     document.getElementById('enrollmentModal').classList.add('active');
 
     // Attach ID to Confirm Button
@@ -131,7 +160,7 @@ function confirmSingleEnrollment() {
     })
     .catch(err => alert("Server Error"))
     .finally(() => {
-        btn.innerText = "Enroll Student";
+        btn.innerHTML = "<i class='bx bx-check-circle'></i> Enroll Student";
         btn.disabled = false;
     });
 }

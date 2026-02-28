@@ -4,6 +4,7 @@ import os
 from config import get_config
 import random
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime # Make sure to import datetime
 
 # --- NEW: Import the Database and Models ---
 from models import db, User, Student, Subject, Section, Enrollment
@@ -679,7 +680,7 @@ def submit_student_enlistment():
         print(f"Enlistment Error: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
     
-    # --- SHARED INSTRUCTORS DATA (Source of Truth) ---
+# --- SHARED INSTRUCTORS DATA (Source of Truth) ---
 @app.route('/api/users/faculty', methods=['GET'])
 @login_required
 def get_registered_faculty():
@@ -703,7 +704,84 @@ def get_registered_faculty():
         print(f"ERROR IN GET_REGISTERED_FACULTY: {e}") 
         return jsonify([])
 
+# ==================== DASHBOARD APIs ====================
+@app.route('/api/dashboard/activities', methods=['GET'])
+@login_required
+def get_dashboard_activities():
+    """Generates dynamic recent activities and suggested actions based on DB state."""
+    try:
+        activities = []
+        actions = []
+        
+        # --- 1. Generate Recent Activities ---
+        # Fetch recently enrolled students (Status = 'Enrolled' or 'Enlisting')
+        recent_students = Student.query.filter(Student.status.in_(['Enrolled', 'Enlisting'])).limit(5).all()
+        for s in recent_students:
+            action_type = "Enlisted" if s.status == 'Enrolled' else "Enrolled"
+            activities.append({
+                'type': action_type,
+                'message': f"{s.name} ({s.id})",
+                'time': datetime.now().strftime("%b %d, %Y, %I:%M %p") # In a real app, use a timestamp column
+            })
+            
+        # Add some mock grading activities if list is short
+        if len(activities) < 3:
+             activities.append({
+                'type': "Approved Grade",
+                'message': "CPE 035 - Logic & Design",
+                'time': datetime.now().strftime("%b %d, %Y, %I:%M %p")
+            })
+
+        # --- 2. Generate Suggested Actions ---
+        
+        # Check for Pending Enrollments
+        pending_enroll = Student.query.filter_by(status='Pending').count()
+        if pending_enroll > 0:
+            actions.append({
+                'type': 'enrollment',
+                'title': 'Pending Enrollments',
+                'description': f"{pending_enroll} student(s) waiting for enrollment confirmation.",
+                'btn_text': 'Review Enrollments'
+            })
+            
+        # Check for Pending Enlistments
+        pending_enlist = Student.query.filter_by(status='Enlisting').count()
+        if pending_enlist > 0:
+            actions.append({
+                'type': 'enlistment',
+                'title': 'Pending Enlistments',
+                'description': f"{pending_enlist} student(s) waiting for subject selection.",
+                'btn_text': 'Proceed to Enlistment'
+            })
+            
+        # Check for failed grades (Retention risk)
+        failed_count = Enrollment.query.filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') ).count()
+        if failed_count > 0:
+            actions.append({
+                'type': 'retention',
+                'title': 'Retention Risks Detected',
+                'description': f"{failed_count} failing grades recorded. Review student standings.",
+                'btn_text': 'View Retention'
+            })
+            
+        # Default action if everything is clear
+        if not actions:
+             actions.append({
+                'type': 'clear',
+                'title': 'All Clear',
+                'description': "No pending actions required at this time.",
+                'btn_text': 'View Dashboard'
+            })
+
+        return jsonify({
+            'activities': activities,
+            'actions': actions
+        })
+
+    except Exception as e:
+        print(f"Error fetching dashboard data: {e}")
+        return jsonify({'activities': [], 'actions': []}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5000)
-    
-    

@@ -32,7 +32,7 @@ function loadStudentJourney() {
                             <td class="student-name">${student.name}</td>
                             <td>${student.program}</td>
                             <td>
-                                <button class="btn-view-journey" onclick="viewStudentJourney('${student.id}', '${student.name}')">
+                                <button class="btn-view-action" onclick="viewStudentJourney('${student.id}', '${student.name}')">
                                     View Journey
                                 </button>
                             </td>
@@ -46,7 +46,7 @@ function loadStudentJourney() {
             ['1', '2', '3', '4'].forEach(level => {
                 const tbody = document.getElementById(`journey-tbody-${level}`);
                 if(tbody && tbody.children.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#888;">No records found.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#64748b; font-weight:500;">No records found.</td></tr>';
                 }
             });
         })
@@ -89,7 +89,7 @@ function viewStudentJourney(id, name) {
 
             if (data.semesters.length === 0) {
                 semBody.innerHTML = `
-                    <tr><td colspan="4" style="text-align:center; padding:15px; color:#888;">No academic history found.</td></tr>
+                    <tr><td colspan="4" style="text-align:center; padding:20px; color:#64748b; font-weight:500;">No academic history found.</td></tr>
                 `;
             } else {
                 data.semesters.forEach(sem => {
@@ -101,7 +101,7 @@ function viewStudentJourney(id, name) {
                         <td class="sem-name">${sem.name}</td>
                         <td>${sem.reg.toFixed(2)}</td>
                         <td>${sem.earned.toFixed(2)}</td>
-                        <td>${sem.gwa.toFixed(2)}</td>
+                        <td><span style="font-weight:700; color:#0f172a;">${sem.gwa.toFixed(2)}</span></td>
                     `;
                     semBody.appendChild(tr);
                 });
@@ -114,7 +114,7 @@ function viewStudentJourney(id, name) {
 
     // Hide Grades section initially
     document.getElementById('semester-grades-section').style.display = 'none';
-    detailSection.scrollIntoView({ behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function closeJourneyDetail() {
@@ -143,7 +143,7 @@ function viewSemesterGrades(rowElement, semName) {
     const subjects = currentStudentGrades[semName] || [];
 
     if (subjects.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#888;">No grades available for this semester.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#64748b;">No grades available for this semester.</td></tr>';
     } else {
         subjects.forEach(sub => {
             // Check fail status for red styling
@@ -157,21 +157,21 @@ function viewSemesterGrades(rowElement, semName) {
             if (sub.grade === 0) gradeDisplay = "-";
 
             tr.innerHTML = `
-                <td>${sub.code}</td>
+                <td style="font-weight:600;">${sub.code}</td>
                 <td>${sub.desc}</td>
                 <td>${sub.type}</td>
                 <td>${sub.units.toFixed(2)}</td>
-                <td>${gradeDisplay}</td>
+                <td style="font-weight:700;">${gradeDisplay}</td>
                 <td>${sub.remarks}</td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    gradesSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    gradesSection.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 
-// --- ACCORDION & FILTER (No Changes Needed) ---
+// --- ACCORDION & FILTER ---
 function toggleJourneyAccordion(element) {
     const parent = element.parentElement;
     parent.classList.toggle('collapsed');

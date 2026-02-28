@@ -5,12 +5,13 @@
 
         <div class="search-container">
             <i class='bx bx-search'></i>
-            <input type="text" id="journeySearch" placeholder="Search by Name or Student ID..." onkeyup="filterJourney()">
+            <input type="text" id="journeySearch" placeholder="Search by Student Name or ID Number..." onkeyup="filterJourney()">
         </div>
 
         <div class="year-accordion">
             <div class="accordion-header header-pink" onclick="toggleJourneyAccordion(this)">
-                <i class='bx bx-chevron-down'></i> <span>1st Year</span>
+                <span>1st Year</span>
+                <i class='bx bx-chevron-down'></i> 
             </div>
             <div class="accordion-body">
                 <table class="journey-table">
@@ -23,7 +24,8 @@
 
         <div class="year-accordion">
             <div class="accordion-header header-blue" onclick="toggleJourneyAccordion(this)">
-                <i class='bx bx-chevron-down'></i> <span>2nd Year</span>
+                <span>2nd Year</span>
+                <i class='bx bx-chevron-down'></i> 
             </div>
             <div class="accordion-body">
                 <table class="journey-table">
@@ -36,7 +38,8 @@
         
         <div class="year-accordion collapsed">
             <div class="accordion-header header-green" onclick="toggleJourneyAccordion(this)">
-                <i class='bx bx-chevron-right'></i> <span>3rd Year</span>
+                <span>3rd Year</span>
+                <i class='bx bx-chevron-down'></i> 
             </div>
             <div class="accordion-body">
                 <table class="journey-table">
@@ -49,7 +52,8 @@
 
         <div class="year-accordion collapsed">
             <div class="accordion-header header-teal" onclick="toggleJourneyAccordion(this)">
-                <i class='bx bx-chevron-right'></i> <span>4th Year</span>
+                <span>4th Year</span>
+                <i class='bx bx-chevron-down'></i> 
             </div>
             <div class="accordion-body">
                 <table class="journey-table">
@@ -64,68 +68,60 @@
     <div id="journey-detail-section" style="display: none;">
         
         <div class="detail-header-nav">
-            <button class="btn-back" onclick="closeJourneyDetail()"><i class='bx bx-arrow-back'></i> Back</button>
-            <div class="detail-title">STUDENT JOURNEY</div>
+            <button class="btn-back" onclick="closeJourneyDetail()"><i class='bx bx-arrow-back'></i> Back to List</button>
+            <div class="detail-title"><i class='bx bxs-graduation accent-icon'></i> STUDENT JOURNEY</div>
+            <div style="width: 100px;"></div> </div>
+
+        <div class="student-profile-header">
+            <div class="student-title-info">
+                <h3 id="detail-name">-</h3>
+                <p><i class='bx bx-id-card' style="color: #90242d;"></i> <span id="detail-id">-</span></p>
+            </div>
         </div>
 
-        <div class="info-card">
-            <div class="info-row">
-                <div class="info-group">
-                    <span class="label">STUDENT ID:</span>
-                    <span class="value" id="detail-id">-</span>
-                </div>
-                <div class="info-group">
-                    <span class="label">STUDENT NAME:</span>
-                    <span class="value" id="detail-name">-</span>
-                </div>
+        <div class="student-details-grid-enhanced" style="margin-bottom: 30px;">
+            <div class="detail-card accent-card">
+                <span class="label"><i class='bx bx-book-open'></i> Program</span>
+                <span class="value">BACHELOR OF SCIENCE IN COMPUTER ENGINEERING</span>
             </div>
-            <div class="info-row">
-                <div class="info-group">
-                    <span class="label">COURSE:</span>
-                    <span class="value">BACHELOR OF SCIENCE IN COMPUTER ENGINEERING</span>
-                </div>
-                <div class="info-group">
-                    <span class="label">CURRICULUM:</span>
-                    <span class="value">CEA-BACHELOR OF SCIENCE IN COMPUTER ENGINEERING 23-24</span>
-                </div>
+            <div class="detail-card accent-card">
+                <span class="label"><i class='bx bx-certification'></i> Curriculum</span>
+                <span class="value">CEA-BSCpE 23-24</span>
             </div>
         </div>
 
         <div class="content-section">
-            <div class="section-header">SUMMARY</div>
-            <div class="summary-stats">
-                <div class="stat-item">
+            <div class="section-header accent-header"><i class='bx bx-bar-chart-alt-2'></i> ACADEMIC SUMMARY</div>
+            <div class="summary-stats-grid">
+                <div class="stat-card">
                     <span class="stat-num" id="stat-earned">-</span>
-                    <span class="stat-label">EARNED UNITS</span>
+                    <span class="stat-label">Earned Units</span>
                 </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item">
+                <div class="stat-card">
                     <span class="stat-num" id="stat-registered">-</span>
-                    <span class="stat-label">REGISTERED UNITS</span>
+                    <span class="stat-label">Registered Units</span>
                 </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item">
+                <div class="stat-card">
                     <span class="stat-num" id="stat-remaining">-</span>
-                    <span class="stat-label">REMAINING UNITS</span>
+                    <span class="stat-label">Remaining Units</span>
                 </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item">
+                <div class="stat-card highlight">
                     <span class="stat-num" id="stat-total">-</span>
-                    <span class="stat-label">TOTAL UNITS</span>
+                    <span class="stat-label">Total Required</span>
                 </div>
             </div>
         </div>
 
         <div class="content-section">
-            <div class="section-header">SEMESTER</div>
+            <div class="section-header accent-header"><i class='bx bx-history'></i> SEMESTER RECORDS</div>
             <div class="semester-table-wrapper">
                 <table class="semester-table">
                     <thead>
                         <tr>
-                            <th class="text-left"></th> 
+                            <th class="text-left">Academic Term</th> 
                             <th>Registered Units</th>
                             <th>Earned Units</th>
-                            <th>GWA</th>
+                            <th>Term GWA</th>
                         </tr>
                     </thead>
                     <tbody id="semester-list-body">
@@ -135,15 +131,16 @@
 
             <div id="semester-grades-section" style="display: none;">
                 <div class="grades-wrapper">
+                    <div class="grades-header-title"><i class='bx bx-list-check'></i> Term Subject Grades</div>
                     <table class="grades-table">
                         <thead>
                             <tr>
-                                <th>SUBJECT CODE</th>
-                                <th>SUBJECT DESCRIPTION</th>
-                                <th>SUBJECT TYPE</th>
-                                <th>UNITS</th>
-                                <th>FINAL GRADE</th>
-                                <th>REMARKS</th>
+                                <th>Subject Code</th>
+                                <th>Description</th>
+                                <th>Type</th>
+                                <th>Units</th>
+                                <th>Final Grade</th>
+                                <th>Remarks</th>
                             </tr>
                         </thead>
                         <tbody id="grades-table-body">

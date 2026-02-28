@@ -3,12 +3,13 @@
 
     <div class="search-container">
         <i class='bx bx-search'></i>
-        <input type="text" id="enlistmentSearch" placeholder="Search by Name or Student ID Number" onkeyup="filterEnlistment()">
+        <input type="text" id="enlistmentSearch" placeholder="Search by Student Name or ID Number..." onkeyup="filterEnlistment()">
     </div>
 
     <div class="year-accordion">
         <div class="accordion-header header-pink" onclick="toggleAccordion(this)">
-            <i class='bx bx-chevron-down'></i> <span>1st Year</span>
+            <span>1st Year</span>
+            <i class='bx bx-chevron-down'></i> 
         </div>
         <div class="accordion-body">
             <table class="enlistment-table">
@@ -21,7 +22,8 @@
 
     <div class="year-accordion">
         <div class="accordion-header header-blue" onclick="toggleAccordion(this)">
-            <i class='bx bx-chevron-down'></i> <span>2nd Year</span>
+            <span>2nd Year</span>
+            <i class='bx bx-chevron-down'></i> 
         </div>
         <div class="accordion-body">
             <table class="enlistment-table">
@@ -34,7 +36,8 @@
 
     <div class="year-accordion collapsed">
         <div class="accordion-header header-green" onclick="toggleAccordion(this)">
-            <i class='bx bx-chevron-right'></i> <span>3rd Year</span>
+            <span>3rd Year</span>
+            <i class='bx bx-chevron-down'></i> 
         </div>
         <div class="accordion-body">
             <table class="enlistment-table">
@@ -47,7 +50,8 @@
 
     <div class="year-accordion collapsed">
         <div class="accordion-header header-teal" onclick="toggleAccordion(this)">
-            <i class='bx bx-chevron-right'></i> <span>4th Year</span>
+            <span>4th Year</span>
+            <i class='bx bx-chevron-down'></i> 
         </div>
         <div class="accordion-body">
             <table class="enlistment-table">
@@ -60,53 +64,74 @@
 </div>
 
 <div class="modal-overlay" id="enlistmentModal">
-    <div class="modal-content modal-large">
-        <div class="modal-header-simple">
-            <h3>Enlistment - Subject Selection</h3>
+    <div class="modal-content enhanced-modal modal-large">
+        <div class="modal-header">
+            <div>
+                <h2>Enlistment - Subject Selection</h2>
+                <p>Review standing and select subjects for the current semester</p>
+            </div>
+            <button class="btn-close-modal" onclick="closeEnlistmentModal()">
+                <i class='bx bx-x'></i>
+            </button>
         </div>
 
-        <div class="student-info-box">
-            <div class="info-group">
-                <i class='bx bx-user'></i>
-                <div>
-                    <h4 id="modalName">Student Name</h4>
-                    <p>ID: <span id="modalID">0000</span> | Program: BSCpE</p>
+        <div class="modal-body-scroll">
+            <div class="student-profile-header">
+                <div class="student-title-info">
+                    <h3 id="modalName">-</h3>
+                    <p><i class='bx bx-id-card'></i> <span id="modalID">-</span></p>
                 </div>
             </div>
-            <div class="info-group right">
-                <span class="status-pill" id="modalStatus">Regular</span>
-                <p class="standing-text">Official Standing: <span id="modalStanding">2nd Year</span></p>
-                <p class="units-text">Units: <span id="unitCounter">0</span>/<span id="maxUnits">21</span></p>
+
+            <div class="student-details-grid-enhanced" style="margin-bottom: 25px;">
+                <div class="detail-card">
+                    <span class="label">Program</span>
+                    <span class="value">BSCpE</span>
+                </div>
+                <div class="detail-card">
+                    <span class="label">Official Standing</span>
+                    <span class="value" id="modalStanding">-</span>
+                </div>
+                <div class="detail-card">
+                    <span class="label">Student Type</span>
+                    <span class="value" id="modalStatus">-</span>
+                </div>
+                <div class="detail-card">
+                    <span class="label">Max Allowed Units</span>
+                    <span class="value"><span id="maxUnits">-</span> Units</span>
+                </div>
             </div>
-        </div>
 
-        <div id="enlistmentAlerts"></div>
+            <div id="enlistmentAlerts"></div>
 
-        <div class="legend-bar">
-            <span class="tag critical"><i class='bx bxs-star'></i> Critical Path</span>
-            <span class="tag major"><i class='bx bxs-star'></i> Major - Current Year</span>
-            <span class="tag minor"><i class='bx bxs-star'></i> Minor Subject</span>
-        </div>
-
-        <div class="subject-list-container">
-            <div class="subject-list-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <span><i class='bx bx-book'></i> Subjects (Sorted by Priority)</span>
-                <button id="btnSelectAll" onclick="toggleAllSubjects()" style="padding: 4px 12px; font-size: 0.85rem; cursor: pointer; border: 1px solid #999; background: #f0f0f0; border-radius: 4px; font-weight: bold;">
-                    Select All
-                </button>
+            <div class="legend-bar">
+                <span class="tag critical"><i class='bx bxs-star'></i> Critical Path</span>
+                <span class="tag major"><i class='bx bxs-star'></i> Major - Current Year</span>
+                <span class="tag minor"><i class='bx bxs-star'></i> Minor Subject</span>
             </div>
-            <div id="subjectListBody"></div>
+
+            <div class="subject-list-container">
+                <div class="subject-list-header">
+                    <span><i class='bx bx-book'></i> Subjects (Sorted by Priority)</span>
+                    <button class="btn-select-all" id="btnSelectAll" onclick="toggleAllSubjects()">Select All</button>
+                </div>
+                <div id="subjectListBody"></div>
+            </div>
         </div>
 
         <div class="modal-footer-bar">
             <div class="summary-text">
                 <p><strong>Enlistment Summary</strong></p>
-                <p>Selected Subjects: <span id="summaryCount">0</span></p>
-                <p id="summaryUnitsText">Total Units: 0/6</p>
+                <div style="display: flex; gap: 20px; margin-top: 5px;">
+                    <span>Selected Subjects: <span id="summaryCount" style="font-weight: 700;">0</span></span>
+                    <span>Total Units: <span id="unitCounter" style="font-weight: 700; color: #90242d;">0</span></span>
+                </div>
             </div>
             <div class="footer-buttons">
                 <button class="btn-cancel" onclick="closeEnlistmentModal()">Cancel</button>
-                <button class="btn-enroll" id="btnEnlist" onclick="submitEnlistment()">Enlist Student</button>
+                <button class="btn-enroll" id="btnEnlist" onclick="submitEnlistment()">
+                    <i class='bx bx-check-circle'></i> Enlist Student
+                </button>
             </div>
         </div>
     </div>

@@ -3,24 +3,26 @@
 
     <div class="upload-banner">
         <div class="upload-content">
-            <i class='bx bx-upload'></i>
+            <div class="upload-icon-wrapper">
+                <i class='bx bx-upload'></i>
+            </div>
             <div class="upload-text">
                 <h3>Upload Freshmen Files</h3>
                 <p>Excel file containing files of the 1st year newly enrolled students</p>
             </div>
         </div>
-        <button class="btn-upload-main" onclick="handleUpload()">UPLOAD</button>
+        <button class="btn-upload-main" onclick="handleUpload()">Upload Files</button>
     </div>
 
     <div class="search-container">
         <i class='bx bx-search'></i>
-        <input type="text" id="enrollmentSearch" placeholder="Search by Name or by Student ID Number" onkeyup="filterEnrollment()">
+        <input type="text" id="enrollmentSearch" placeholder="Search by Student Name or ID Number..." onkeyup="filterEnrollment()">
     </div>
 
     <div class="year-accordion">
         <div class="accordion-header header-pink" onclick="toggleAccordion(this)">
-            <i class='bx bx-chevron-down'></i>
             <span>1st Year</span>
+            <i class='bx bx-chevron-down'></i>
         </div>
         <div class="accordion-body">
             <table class="year-table">
@@ -35,8 +37,8 @@
 
     <div class="year-accordion">
         <div class="accordion-header header-blue" onclick="toggleAccordion(this)">
-            <i class='bx bx-chevron-down'></i>
             <span>2nd Year</span>
+            <i class='bx bx-chevron-down'></i>
         </div>
         <div class="accordion-body">
             <table class="year-table">
@@ -51,8 +53,8 @@
 
     <div class="year-accordion collapsed">
         <div class="accordion-header header-green" onclick="toggleAccordion(this)">
-            <i class='bx bx-chevron-right'></i> 
             <span>3rd Year</span>
+            <i class='bx bx-chevron-down'></i>
         </div>
         <div class="accordion-body">
             <table class="year-table">
@@ -67,8 +69,8 @@
 
     <div class="year-accordion collapsed">
         <div class="accordion-header header-teal" onclick="toggleAccordion(this)">
-            <i class='bx bx-chevron-right'></i> 
             <span>4th Year</span>
+            <i class='bx bx-chevron-down'></i>
         </div>
         <div class="accordion-body">
             <table class="year-table">
@@ -83,13 +85,25 @@
 </div>
 
 <div class="modal-overlay" id="enrollmentModal">
-    <div class="modal-content">
+    <div class="modal-content enhanced-modal">
         <div class="modal-header">
-            <h2>Confirm Enrollment</h2>
-            <p>Review student standing and enrollment details</p>
+            <div>
+                <h2>Confirm Enrollment</h2>
+                <p>Review student standing and enrollment details</p>
+            </div>
+            <button class="btn-close-modal" onclick="closeEnrollmentModal()">
+                <i class='bx bx-x'></i>
+            </button>
         </div>
         
         <div class="modal-body-scroll">
+            <div class="student-profile-header">
+                <div class="student-title-info">
+                    <h3 id="modalStudentName">-</h3>
+                    <p><i class='bx bx-id-card'></i> <span id="modalStudentId">-</span></p>
+                </div>
+            </div>
+
             <div id="modalWarnings" style="display: none;">
                 <div class="alert-box danger">
                     <i class='bx bx-error-circle'></i>
@@ -104,41 +118,35 @@
                 </div>
             </div>
 
-            <div class="student-details-grid">
-                <div class="detail-row">
-                    <span class="label">Student ID</span>
-                    <span class="value" id="modalStudentId">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="label">Name</span>
-                    <span class="value" id="modalStudentName">-</span>
-                </div>
-                <div class="detail-row">
+            <div class="student-details-grid-enhanced">
+                <div class="detail-card">
                     <span class="label">Program</span>
                     <span class="value" id="modalStudentProgram">-</span>
                 </div>
-                <div class="detail-row">
-                    <span class="label">Student Type</span>
-                    <span class="value"><span class="status-pill" id="modalStudentType">-</span></span>
-                </div>
-                <div class="detail-row">
+                <div class="detail-card">
                     <span class="label">Current Year Level</span>
                     <span class="value" id="modalStudentYear">-</span>
                 </div>
-                <div class="detail-row">
+                <div class="detail-card">
                     <span class="label">Official Standing</span>
                     <span class="value standing-value" id="modalStudentStanding">-</span>
                 </div>
-                <div class="detail-row">
-                    <span class="label">Status</span>
-                    <span class="value status-value" id="modalStudentDecision">-</span>
+                <div class="detail-card">
+                    <span class="label">Student Type</span>
+                    <span class="value" id="modalStudentType">-</span>
+                </div>
+                <div class="detail-card full-width">
+                    <span class="label">Action Decision</span>
+                    <span class="value" id="modalStudentDecision">-</span>
                 </div>
             </div>
         </div>
 
         <div class="modal-footer">
             <button class="btn-cancel" onclick="closeEnrollmentModal()">Cancel</button>            
-            <button class="btn-enroll" id="btn-confirm-enroll" onclick="confirmSingleEnrollment()">Enroll Student</button>
+            <button class="btn-enroll" id="btn-confirm-enroll" onclick="confirmSingleEnrollment()">
+                <i class='bx bx-check-circle'></i> Enroll Student
+            </button>
         </div>
     </div>
 </div>
