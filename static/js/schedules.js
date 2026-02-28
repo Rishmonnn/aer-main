@@ -18,10 +18,7 @@
 
     // 3. MOCK DATABASE
     const mockDatabase = {
-        "1": { color: '#54a0ff', events: [ 
-            { title: 'Understanding the Self', start: '2026-02-09T07:30:00', end: '2026-02-09T09:00:00', extendedProps: { code: 'GEN 002', type: 'lecture', room: '305', faculty: 'Mr. Andres Bonifacio' } },
-            { title: 'Calculus 1', start: '2026-02-10T08:30:00', end: '2026-02-10T11:30:00', extendedProps: { code: 'MAT 171', type: 'lecture', room: '304', faculty: 'Dr. Jose Rizal' } },
-        ]},
+        "1": { color: '#54a0ff', events: [] },
         "2": { color: '#2ecc71', events: [] },
         "3": { color: '#f39c12', events: [] },
         "4": { color: '#9b59b6', events: [] }
@@ -263,11 +260,12 @@
         mockDatabase[modalYear].events.push(newEvent);
 
         if (modalYear === currentActiveYear) {
-            calendarInstance.addEvent(newEvent);
-            updateKPIs(calendarInstance.getEvents());
-        } else {
-            alert(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
-        }
+    calendarInstance.addEvent(newEvent);
+    updateKPIs(calendarInstance.getEvents());
+    toggleEmptyState(true); // Ensure calendar is visible after adding
+} else {
+    alert(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
+}
 
         Schedules.closeModal();
     }
@@ -282,22 +280,43 @@
     }
 
     function loadYearData(yearKey) {
-        if (!calendarInstance) return;
-        currentActiveYear = yearKey;
-        calendarInstance.removeAllEvents();
-        const data = mockDatabase[yearKey];
-        if (data) {
-            const coloredEvents = data.events.map(ev => ({
-                ...ev,
-                backgroundColor: data.color,
-                borderColor: data.color
-            }));
-            calendarInstance.addEventSource(coloredEvents);
-            updateKPIs(coloredEvents);
-        } else {
-            updateKPIs([]);
-        }
+    if (!calendarInstance) return;
+    currentActiveYear = yearKey;
+    calendarInstance.removeAllEvents();
+    const data = mockDatabase[yearKey];
+    
+    // Check if there are events for this year
+    if (data && data.events && data.events.length > 0) {
+        const coloredEvents = data.events.map(ev => ({
+            ...ev,
+            backgroundColor: data.color,
+            borderColor: data.color
+        }));
+        calendarInstance.addEventSource(coloredEvents);
+        updateKPIs(coloredEvents);
+        toggleEmptyState(true); // Show calendar
+    } else {
+        updateKPIs([]);
+        toggleEmptyState(false); // Show empty state
     }
+}
+    function toggleEmptyState(hasEvents) {
+    const emptyState = document.getElementById('empty-state');
+    const calendarWrapper = document.getElementById('calendar-wrapper');
+
+    if (hasEvents) {
+        emptyState.style.display = 'none';
+        calendarWrapper.style.display = 'block';
+        
+        // Force FullCalendar to recalculate its size when it becomes visible again
+        if (calendarInstance) {
+            setTimeout(() => calendarInstance.updateSize(), 50);
+        }
+    } else {
+        emptyState.style.display = 'flex';
+        calendarWrapper.style.display = 'none';
+    }
+}
 
     function updateKPIs(events) {
         const totalEl = document.getElementById('kpi-total');
@@ -343,11 +362,136 @@
 
     // Expose public methods
     window.Schedules = {
-        init, addEvent: openModal, closeModal, saveClass, onSubjectChange, filterSubjects
+        init, addEvent: openModal, closeModal, saveClass, onSubjectChange, filterSubjects, triggerImport, handleImport
     };
     
     // Auto-init if the calendar div exists immediately (for safety)
     if(document.getElementById('calendar')) {
         init();
+    }
+    function triggerImport() {
+        const fileInput = document.getElementById('importFile');
+        if (fileInput) {
+            fileInput.click(); // Opens the file picker dialog
+        }
+    }
+
+    function handleImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            // 1. Read the file using SheetJS
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            
+            // 2. Get the first sheet and convert to JSON
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            
+            // 3. Process the extracted data
+            processExcelData(jsonData);
+            
+            // Reset the file input so you can upload the same file again if needed
+            event.target.value = '';
+        };
+        
+        reader.readAsArrayBuffer(file);
+    }
+
+    function processExcelData(data) {
+        let importedEvents = [];
+        const color = mockDatabase[currentActiveYear]?.color || '#54a0ff';
+
+        data.forEach(row => {
+            // 1. Target the column that holds strings like "CE-1, ME-1, EE-1, CPE-1"
+            // (Add your exact exact CSV column header to this list if it's different)
+            const targetColumn = (row['Course'] || row['Section'] || row['Course/Year/Section'] || row['Program'] || '').toString().toUpperCase();
+            
+            // 2. Capture the row if it contains 'CPE' or 'BSCPE' anywhere in the string
+            if (targetColumn.includes('CPE') || targetColumn.includes('BSCPE')) {
+                
+                // Extract details (adjust these keys to match your CSV headers!)
+                const title = row['Description'] || row['Subject'] || row['Title'] || 'Imported Class';
+                const code = row['Subject Code'] || row['Course Code'] || 'TBA';
+                const room = row['Room'] || 'TBA';
+                const faculty = row['Instructor'] || row['Faculty'] || 'TBA';
+                const type = (row['Type'] || '').toLowerCase().includes('lab') ? 'lab' : 'lecture';
+                
+                // Format Time and Days
+                const startTime = formatTime(row['Start Time'] || row['Time Start']); 
+                const endTime = formatTime(row['End Time'] || row['Time End']);
+                const days = parseDays(row['Day'] || row['Days'] || ''); 
+
+                // Create an event for each day the class occurs
+                days.forEach(date => {
+                    importedEvents.push({
+                        title: title,
+                        start: `${date}T${startTime}:00`,
+                        end: `${date}T${endTime}:00`,
+                        backgroundColor: color,
+                        borderColor: color,
+                        extendedProps: {
+                            code: code,
+                            type: type,
+                            room: room,
+                            faculty: faculty
+                        }
+                    });
+                });
+            }
+        });
+
+        if (importedEvents.length > 0) {
+            // Save to mock database
+            if (!mockDatabase[currentActiveYear]) {
+                mockDatabase[currentActiveYear] = { color: color, events: [] };
+            }
+            mockDatabase[currentActiveYear].events = mockDatabase[currentActiveYear].events.concat(importedEvents);
+            
+            // Reload the view and hide empty state
+            loadYearData(currentActiveYear);
+            toggleEmptyState(true);
+            alert(`✅ Successfully imported ${importedEvents.length} CPE classes!`);
+        } else {
+            alert("⚠️ No CPE or BSCPE courses found. Please check if the column headers in the code match your file.");
+        }
+    }
+
+    // --- HELPER: Converts Excel Time (e.g., "7:30 AM") to 24hr ("07:30") ---
+    function formatTime(timeStr) {
+        if (!timeStr) return "00:00";
+        // If already in 24-hour format (HH:mm)
+        if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr; 
+        
+        const match = timeStr.toString().trim().match(/(\d+):(\d+)\s*(AM|PM|am|pm)?/);
+        if (!match) return "00:00";
+        
+        let [ , hours, minutes, modifier ] = match;
+        hours = parseInt(hours, 10);
+        
+        if (modifier && modifier.toUpperCase() === 'PM' && hours < 12) hours += 12;
+        if (modifier && modifier.toUpperCase() === 'AM' && hours === 12) hours = 0;
+        
+        return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    }
+
+    // --- HELPER: Maps days like "M W F" or "TTh" to dates in your calendar week ---
+    function parseDays(dayString) {
+        const str = dayString.toString().toUpperCase();
+        let dates = [];
+        
+        // Base week starts Monday, Feb 9, 2026
+        if (str.includes('MON') || /\bM\b/.test(str) || str.startsWith('M')) dates.push('2026-02-09');
+        if (str.includes('TUE') || str.includes('TTH') || /\bT\b/.test(str) && !str.includes('TH')) dates.push('2026-02-10');
+        if (str.includes('WED') || /\bW\b/.test(str)) dates.push('2026-02-11');
+        if (str.includes('THU') || str.includes('TH')) dates.push('2026-02-12');
+        if (str.includes('FRI') || /\bF\b/.test(str)) dates.push('2026-02-13');
+        if (str.includes('SAT') || /\bS\b/.test(str)) dates.push('2026-02-14');
+        
+        return dates;
     }
 })();

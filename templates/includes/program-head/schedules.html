@@ -1,5 +1,7 @@
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <div id="schedules" class="content-section">
     <div class="sched-container">
+        <input type="file" id="importFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="Schedules.handleImport(event)">
         <div class="sched-top-bar">
             <div class="title-group">
                 <div class="icon-box">
@@ -11,7 +13,7 @@
                 </div>
             </div>
             <div class="top-actions">
-                <button class="btn-secondary"><i class='bx bx-import'></i> Import</button>
+                <button class="btn-secondary" onclick="Schedules.triggerImport()"><i class='bx bx-import'></i> Import</button>
                 <button class="btn-secondary"><i class='bx bx-export'></i> Export</button>
                 <button class="btn-primary" onclick="Schedules.addEvent()"><i class='bx bx-plus'></i> Add Class</button>
             </div>
@@ -63,11 +65,20 @@
         </div>
 
         <div class="calendar-card">
-            <div id="calendar"></div>
-            <div class="calendar-footer">
-                <span>↕ Drag to move</span>
-                <span>↕ Drag edge to resize</span>
-            </div>
+    <div id="empty-state" class="empty-state" style="display: none;">
+        <div class="empty-icon"><i class='bx bx-calendar'></i></div>
+        <h3>No Schedule Yet</h3>
+        <p>Import an Excel file to display the class schedule.</p>
+        <button class="btn-primary" onclick="Schedules.triggerImport()">
+    <i class='bx bx-upload'></i> Import Schedule
+</button>
+    </div>
+
+    <div id="calendar-wrapper">
+        <div id="calendar"></div>
+        <div class="calendar-footer">
+            <span>↕ Drag to move</span>
+            <span>↕ Drag edge to resize</span>
         </div>
     </div>
 </div>
