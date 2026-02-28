@@ -552,9 +552,6 @@ def register():
         return render_template('index.html', error=f"Registration failed: {str(e)}")
 
 # ==================== ENLISTMENT API (REAL CURRICULUM) ====================
-# ... (Previous imports and code remain the same) ...
-
-# ==================== ENLISTMENT API (REAL CURRICULUM) ====================
 @app.route('/api/enlistment/subjects/<string:student_id>', methods=['GET'])
 @login_required
 def get_student_available_subjects(student_id):
@@ -628,7 +625,7 @@ def get_student_available_subjects(student_id):
     output.sort(key=lambda x: x['locked'])
     
     return jsonify(output)
-# ... (Rest of the file remains the same) ...
+
 
 @app.route('/api/enlistment/submit', methods=['POST'])
 @login_required
@@ -708,29 +705,42 @@ def get_registered_faculty():
 @app.route('/api/dashboard/activities', methods=['GET'])
 @login_required
 def get_dashboard_activities():
-    """Generates dynamic recent activities and suggested actions based on DB state."""
+    """Generates ALL dynamic recent activities and suggested actions based on DB state."""
     try:
         activities = []
         actions = []
         
-        # --- 1. Generate Recent Activities ---
-        # Fetch recently enrolled students (Status = 'Enrolled' or 'Enlisting')
-        recent_students = Student.query.filter(Student.status.in_(['Enrolled', 'Enlisting'])).limit(5).all()
-        for s in recent_students:
+        # --- 1. Fetch ALL Recent Activities ---
+        
+        # A. Fetch ALL Enrolled and Enlisting students
+        recent_students = Student.query.filter(Student.status.in_(['Enrolled', 'Enlisting'])).all()
+        
+        for s in reversed(recent_students):
             action_type = "Enlisted" if s.status == 'Enrolled' else "Enrolled"
             activities.append({
                 'type': action_type,
                 'message': f"{s.name} ({s.id})",
-                'time': datetime.now().strftime("%b %d, %Y, %I:%M %p") # In a real app, use a timestamp column
+                'time': "Recently Updated" # Used because Student table has no timestamp col
             })
             
-        # Add some mock grading activities if list is short
-        if len(activities) < 3:
-             activities.append({
-                'type': "Approved Grade",
-                'message': "CPE 035 - Logic & Design",
-                'time': datetime.now().strftime("%b %d, %Y, %I:%M %p")
-            })
+        # B. Add Grading Activities (Aggregated by Section)
+        graded_enrollments = Enrollment.query.filter(Enrollment.grade.isnot(None)).all()
+        
+        # Keep track of which sections we've already added an activity for 
+        # so we don't spam the dashboard for every single student in that section.
+        processed_sections = set()
+        
+        for eg in reversed(graded_enrollments):
+            if eg.section_id not in processed_sections:
+                processed_sections.add(eg.section_id)
+                
+                section = db.session.get(Section, eg.section_id)
+                if section:
+                    activities.append({
+                        'type': "Grades Approved",
+                        'message': f"{section.subject_code} - Section {section.name}",
+                        'time': "Recently Updated"
+                    })
 
         # --- 2. Generate Suggested Actions ---
         
