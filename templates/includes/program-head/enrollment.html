@@ -2,17 +2,20 @@
     <div class="module-header">ENROLLMENT</div>
 
     <div class="upload-banner">
-        <div class="upload-content">
-            <div class="upload-icon-wrapper">
-                <i class='bx bx-upload'></i>
-            </div>
-            <div class="upload-text">
-                <h3>Upload Freshmen Files</h3>
-                <p>Excel file containing files of the 1st year newly enrolled students</p>
-            </div>
+    <div class="upload-content">
+        <div class="upload-icon-wrapper">
+            <i class='bx bx-user-plus'></i>
         </div>
-        <button class="btn-upload-main" onclick="handleUpload()">Upload Files</button>
+        <div class="upload-text">
+            <h3>Enroll Freshmen Students</h3>
+            <p>Upload an Excel file or add a student manually</p>
+        </div>
     </div>
+    <div style="display: flex; gap: 10px;">
+        <button class="btn-upload-main" onclick="handleUpload()">Bulk Upload</button>
+        <button class="btn-upload-main" style="background-color: #4a5568;" onclick="openManualEnrollmentModal()">Single Upload</button>
+    </div>
+</div>
 
     <div class="search-container">
         <i class='bx bx-search'></i>
@@ -88,56 +91,62 @@
     <div class="modal-content enhanced-modal">
         <div class="modal-header">
             <div>
-                <h2>Confirm Enrollment</h2>
-                <p>Review student standing and enrollment details</p>
-            </div>
-            <button class="btn-close-modal" onclick="closeEnrollmentModal()">
-                <i class='bx bx-x'></i>
-            </button>
+                <h2 style="color: #ffffff; font-weight: 700; font-size: 1.5rem;">Confirm Enrollment</h2>
+                <p style="color: #e2e8f0; font-size: 14px; margin-top: 4px; font-weight: 500;">Review student standing and enrollment details</p>
+            </div>          
         </div>
         
-        <div class="modal-body-scroll">
-            <div class="student-profile-header">
+        <div class="modal-body-scroll" style="padding: 20px;">
+            <div class="student-profile-header" style="text-align: left; margin-bottom: 25px;">
                 <div class="student-title-info">
-                    <h3 id="modalStudentName">-</h3>
-                    <p><i class='bx bx-id-card'></i> <span id="modalStudentId">-</span></p>
+                    <h3 id="modalStudentName" style="color: #0f172a; font-size: 1.6rem; margin-bottom: 6px;">-</h3>
+                    <p style="color: #64748b; font-size: 1rem; font-weight: 600;"><i class='bx bx-id-card' style="color: #90242d;"></i> <span id="modalStudentId">-</span></p>
                 </div>
             </div>
 
             <div id="modalWarnings" style="display: none;">
                 <div class="alert-box danger">
                     <i class='bx bx-error-circle'></i>
-                    <div><h4>Student Retained</h4><p>Failed curriculum due to critical subject: CPE 038</p></div>
-                </div>
-                <div class="alert-box info">
-                    <i class='bx bx-info-circle'></i>
-                    <div>
-                        <h4>Failed Subjects Impact</h4>
-                        <p><strong>CPE 038</strong> - Software Design <span class="text-danger">(Blocks curriculum path)</span></p>
-                    </div>
+                    <div><h4>Student Retained</h4><p>Failed curriculum due to critical subject</p></div>
                 </div>
             </div>
 
-            <div class="student-details-grid-enhanced">
-                <div class="detail-card">
-                    <span class="label">Program</span>
-                    <span class="value" id="modalStudentProgram">-</span>
+            <div class="modern-personal-info-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="info-card">
+                    <div class="info-icon"><i class='bx bx-book-open'></i></div>
+                    <div class="info-content">
+                        <span class="info-label">Program</span>
+                        <span class="info-value" id="modalStudentProgram">-</span>
+                    </div>
                 </div>
-                <div class="detail-card">
-                    <span class="label">Current Year Level</span>
-                    <span class="value" id="modalStudentYear">-</span>
+                <div class="info-card">
+                    <div class="info-icon"><i class='bx bx-layer'></i></div>
+                    <div class="info-content">
+                        <span class="info-label">Current Year Level</span>
+                        <span class="info-value" id="modalStudentYear">-</span>
+                    </div>
                 </div>
-                <div class="detail-card">
-                    <span class="label">Official Standing</span>
-                    <span class="value standing-value" id="modalStudentStanding">-</span>
+                <div class="info-card">
+                    <div class="info-icon"><i class='bx bx-bar-chart-alt-2'></i></div>
+                    <div class="info-content">
+                        <span class="info-label">Status</span>
+                        <span class="info-value standing-value" id="modalStudentStanding" style="margin-top: 4px;">-</span>
+                    </div>
                 </div>
-                <div class="detail-card">
-                    <span class="label">Student Type</span>
-                    <span class="value" id="modalStudentType">-</span>
+                <div class="info-card">
+                    <div class="info-icon"><i class='bx bx-user'></i></div>
+                    <div class="info-content">
+                        <span class="info-label">Student Type</span>
+                        <span class="info-value" id="modalStudentType" style="margin-top: 4px;">-</span>
+                    </div>
                 </div>
-                <div class="detail-card full-width">
-                    <span class="label">Action Decision</span>
-                    <span class="value" id="modalStudentDecision">-</span>
+                
+                <div class="info-card full-width" id="decision-card-container">
+                    <div class="info-icon" id="decision-icon-container"><i class='bx bx-check-shield'></i></div>
+                    <div class="info-content">
+                        <span class="info-label">Action Decision</span>
+                        <span class="info-value" id="modalStudentDecision" style="margin-top: 4px;">-</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -225,6 +234,98 @@
         <div class="modal-footer-custom" id="modal-footer">
             <button class="btn-cancel-custom" onclick="closeUploadModal()">Cancel</button>
             <button class="btn-primary-custom" id="btn-next" onclick="nextStep()">Continue</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="manualEnrollmentModal">
+    <div class="modal-content enhanced-modal" style="max-width: 650px;">
+        <div class="modal-header">
+            <div>
+                <h2 style="color: #ffffff; font-weight: 700; font-size: 1.5rem;">Add Student Manually</h2>
+                <p style="color: #e2e8f0; font-size: 14px; margin-top: 4px; font-weight: 500;">Enter the details for the new freshman</p>
+            </div>
+            </div>
+        
+        <div class="modal-body-scroll" style="padding: 24px;">
+            <form id="manualEnrollmentForm">
+                
+                <div class="form-section">
+                    <h4 class="form-section-title"><i class='bx bx-book-bookmark'></i> Academic Details</h4>
+                    <div class="modern-form-grid">
+                        <div class="input-group">
+                            <label>Student ID Number *</label>
+                            <input type="text" id="manualId" required placeholder="e.g. 2024-0001">
+                        </div>
+                        <div class="input-group">
+                            <label>Program *</label>
+                            <div class="select-wrapper">
+                                <select id="manualProgram" required>
+                                    <option value="BSCpE">BSCpE - Computer Engineering</option>
+                                    <option value="BSCE">BSCE - Civil Engineering</option>
+                                    <option value="BSEE">BSEE - Electrical Engineering</option>
+                                    <option value="BSME">BSME - Mechanical Engineering</option>
+                                </select>
+                                <i class='bx bx-chevron-down select-icon'></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4 class="form-section-title"><i class='bx bx-user'></i> Personal Information</h4>
+                    <div class="modern-form-grid">
+                        <div class="input-group">
+                            <label>First Name *</label>
+                            <input type="text" id="manualFirst" required placeholder="Enter first name">
+                        </div>
+                        <div class="input-group">
+                            <label>Last Name *</label>
+                            <input type="text" id="manualLast" required placeholder="Enter last name">
+                        </div>
+                        <div class="input-group">
+                            <label>Middle Name <span class="optional">(Optional)</span></label>
+                            <input type="text" id="manualMiddle" placeholder="Enter middle name">
+                        </div>
+                        <div class="input-group">
+                            <label>Gender</label>
+                            <div class="select-wrapper">
+                                <select id="manualGender">
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                                <i class='bx bx-chevron-down select-icon'></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4 class="form-section-title"><i class='bx bx-phone'></i> Contact Details</h4>
+                    <div class="modern-form-grid">
+                        <div class="input-group">
+                            <label>Email Address</label>
+                            <input type="email" id="manualEmail" placeholder="student@example.com">
+                        </div>
+                        <div class="input-group">
+                            <label>Contact Number</label>
+                            <input type="text" id="manualContact" placeholder="e.g. 09123456789">
+                        </div>
+                        <div class="input-group full-width">
+                            <label>Home Address</label>
+                            <input type="text" id="manualAddress" placeholder="Enter complete home address">
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-cancel" type="button" onclick="closeManualEnrollmentModal()">Cancel</button>            
+            <button class="btn-enroll" type="button" onclick="submitManualEnrollment()">
+                <i class='bx bx-check-circle'></i> Save Student
+            </button>
         </div>
     </div>
 </div>

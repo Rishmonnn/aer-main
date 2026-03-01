@@ -38,7 +38,7 @@ def seed_data():
         
         faculty = get_or_create_faculty()
 
-        # ---------------------------------------------------------
+# ---------------------------------------------------------
         # 1. DEFINE STUDENTS
         # ---------------------------------------------------------
         # Format: (ID, Name)
@@ -52,21 +52,45 @@ def seed_data():
         ]
 
         student_objects = []
+        
+        # Local barangays for realistic mock addresses
+        mock_barangays = [
+            "Carmen, Cagayan de Oro City", 
+            "Lapasan, Cagayan de Oro City", 
+            "Bulua, Cagayan de Oro City", 
+            "Macasandig, Cagayan de Oro City", 
+            "Kauswagan, Cagayan de Oro City"
+        ]
 
         for s_id, s_name in students_to_create:
             # Check if student exists, if not, create them
             student = db.session.get(Student, s_id)
             if not student:
+                # Generate random mock data
+                random_contact = f"09{random.randint(100000000, 999999999)}"
+                random_address = random.choice(mock_barangays)
+                random_gender = random.choice(["Male", "Female"])
+                
+                # Generate a random birthdate for someone roughly 19-21 years old
+                year = random.randint(2003, 2005)
+                month = random.randint(1, 12)
+                day = random.randint(1, 28) # Kept at 28 to avoid max day errors for Feb
+                random_birthdate = f"{year}-{month:02d}-{day:02d}"
+
                 student = Student(
                     id=s_id,
                     name=s_name,
                     program="BSCpE",
                     year_level=CURRENT_YEAR_LEVEL,
                     status="Regular",
-                    email=f"{s_name.split()[0].lower()}@student.edu"
+                    email=f"{s_name.split()[0].lower()}@student.edu",
+                    contact_number=random_contact,
+                    address=random_address,
+                    birthdate=random_birthdate,
+                    gender=random_gender
                 )
                 db.session.add(student)
-                print(f"Created Student: {s_name}")
+                print(f"Created Student: {s_name} with mock info")
             else:
                 print(f"Student exists: {s_name}")
             student_objects.append(student)
@@ -103,26 +127,38 @@ def seed_data():
 
                 # 2b. Give every student a grade for this subject
                 for student in student_objects:
-                    # Check if already has a grade (don't duplicate)
+                    # THIS IS THE LINE THAT WAS MISSING:
                     exists = Enrollment.query.filter_by(student_id=student.id, section_id=section.id).first()
                     
                     if not exists:
-                        # Random Grade: 1.0 to 3.0
-                        # 1.0, 1.25, 1.5, ... 3.0
-                        choices = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0]
-                        # Bias towards better grades for "Main Student" if you want?
-                        # For now, totally random passing grades.
-                        grade = random.choice(choices)
+                        # Random Grade choices: 1.0 to 3.0 (Passing grades), plus a rare chance of 5.0 (Failed)
+                        choices = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.0]
+                        
+                        # Generate random period grades
+                        p1_grade = random.choice(choices)
+                        p2_grade = random.choice(choices)
+                        p3_grade = random.choice(choices)
+                        
+                        # Calculate the final grade as the average of the 3 periods
+                        average_grade = (p1_grade + p2_grade + p3_grade) / 3.0
+                        
+                        # Round to 2 decimal places for clean storage
+                        final_grade = round(average_grade, 2)
+                        
+                        # Determine status based on the calculated final grade
+                        # (Assuming anything strictly greater than 3.0 is a failing mark)
+                        status = 'Failed' if final_grade > 3.0 else 'Passed'
                         
                         enrollment = Enrollment(
                             student_id=student.id,
                             section_id=section.id,
-                            grade=grade,
-                            status='Passed'
+                            grade=final_grade,
+                            p1_grade=p1_grade, 
+                            p2_grade=p2_grade, 
+                            p3_grade=p3_grade, 
+                            status=status
                         )
                         db.session.add(enrollment)
-        
-        db.session.commit()
         print("Past grades generated.")
 
         # ---------------------------------------------------------

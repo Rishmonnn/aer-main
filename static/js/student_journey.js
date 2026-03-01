@@ -77,6 +77,37 @@ function viewStudentJourney(id, name) {
             // Store grades globally so we can access them when clicking a semester row
             currentStudentGrades = data.grades; 
 
+if (data.student_info) {
+                document.getElementById('detail-email').innerText = data.student_info.email || 'N/A';
+                document.getElementById('detail-contact').innerText = data.student_info.contact_number || 'N/A';
+                document.getElementById('detail-year').innerText = data.student_info.year_level || '-';
+                
+                // NEW: Address and Birthdate
+                document.getElementById('detail-address').innerText = data.student_info.address || 'N/A';
+                const birthdateStr = data.student_info.birthdate || 'N/A';
+                document.getElementById('detail-birthdate').innerText = birthdateStr;
+
+                // NEW: Calculate Age Dynamically
+                let ageText = 'N/A';
+                if (birthdateStr !== 'N/A') {
+                    const bDate = new Date(birthdateStr);
+                    // Check if it's a valid date
+                    if (!isNaN(bDate)) {
+                        const ageDifMs = Date.now() - bDate.getTime();
+                        const ageDate = new Date(ageDifMs);
+                        ageText = Math.abs(ageDate.getUTCFullYear() - 1970) + " years old";
+                    } else {
+                        ageText = "Invalid Date";
+                    }
+                }
+                document.getElementById('detail-age').innerText = ageText;
+                
+                // Add a visual badge for status
+                const status = data.student_info.status || 'Regular';
+                const statusClass = status.toLowerCase() === 'irregular' ? 'irregular' : 'regular';
+                document.getElementById('detail-status').innerHTML = `<span class="status-pill ${statusClass}">${status}</span>`;
+            }
+
             // A. Update Summary Cards
             document.getElementById('stat-earned').innerText = data.summary.earned;
             document.getElementById('stat-registered').innerText = data.summary.registered;
@@ -145,26 +176,80 @@ function viewSemesterGrades(rowElement, semName) {
     if (subjects.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#64748b;">No grades available for this semester.</td></tr>';
     } else {
-        subjects.forEach(sub => {
-            // Check fail status for red styling
+subjects.forEach(sub => {
             const isFailed = sub.remarks === 'Failed' || sub.remarks === 'Dropped' || (sub.grade > 3.0 && sub.grade !== 0);
             
+            // Format Grade
+            let gradeDisplay = sub.grade === 0 ? "-" : sub.grade.toFixed(2);
+
+            // --- 1. Create Main Subject Row ---
             const tr = document.createElement('tr');
             tr.className = `grade-row ${isFailed ? 'failed' : ''}`;
+            tr.style.cursor = 'pointer'; 
             
-            // Format Grade: If 0, show empty or pending
-            let gradeDisplay = sub.grade.toFixed(2);
-            if (sub.grade === 0) gradeDisplay = "-";
-
+            // Notice the new chevron icon before the subject code
             tr.innerHTML = `
-                <td style="font-weight:600;">${sub.code}</td>
+                <td style="font-weight:600; display: flex; align-items: center; gap: 8px;">
+                    <i class='bx bx-chevron-right toggle-icon' style="font-size: 18px; color: #64748b; transition: 0.2s;"></i> 
+                    ${sub.code}
+                </td>
                 <td>${sub.desc}</td>
                 <td>${sub.type}</td>
                 <td>${sub.units.toFixed(2)}</td>
                 <td style="font-weight:700;">${gradeDisplay}</td>
                 <td>${sub.remarks}</td>
             `;
+
+            // --- 2. Create the Hidden Breakdown Row ---
+            const breakdownTr = document.createElement('tr');
+            breakdownTr.className = 'breakdown-row';
+            breakdownTr.style.display = 'none'; // Hidden by default
+            
+            // Format period grades safely
+            const formatGrade = (val) => typeof val === 'number' ? val.toFixed(2) : (val || '-');
+
+            breakdownTr.innerHTML = `
+                <td colspan="6" style="padding: 0; border: none;">
+                    <div class="breakdown-container">
+                        <div class="period-box">
+                            <span class="period-label">Period !</span>
+                            <span class="period-grade">${formatGrade(sub.p1)}</span>
+                        </div>
+                        <div class="period-box">
+                            <span class="period-label">Period 2</span>
+                            <span class="period-grade">${formatGrade(sub.p2)}</span>
+                        </div>
+                        <div class="period-box">
+                            <span class="period-label">Period 3</span>
+                            <span class="period-grade">${formatGrade(sub.p3)}</span>
+                        </div>
+                        <div class="period-box highlight">
+                            <span class="period-label">Final Grade</span>
+                            <span class="period-grade">${gradeDisplay}</span>
+                        </div>
+                    </div>
+                </td>
+            `;
+
+            // --- 3. Click Event to Toggle Dropdown ---
+            tr.onclick = () => {
+                const icon = tr.querySelector('.toggle-icon');
+                if (breakdownTr.style.display === 'none') {
+                    // Open it
+                    breakdownTr.style.display = 'table-row';
+                    icon.classList.replace('bx-chevron-right', 'bx-chevron-down');
+                    tr.style.backgroundColor = '#f8fafc'; // Slight highlight when open
+                } else {
+                    // Close it
+                    breakdownTr.style.display = 'none';
+                    icon.classList.replace('bx-chevron-down', 'bx-chevron-right');
+                    tr.style.backgroundColor = ''; // Remove highlight
+                }
+            };
+
+            // Append both rows to the table
             tbody.appendChild(tr);
+            tbody.appendChild(breakdownTr);
         });
     }
 
@@ -193,3 +278,4 @@ function filterJourney() {
         }
     });
 }
+

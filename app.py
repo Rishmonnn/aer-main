@@ -199,7 +199,12 @@ def enroll_students():
                     program=row.get('program', 'BSCpE'),
                     email=row.get('email'),
                     year_level='1st Year',
-                    status='Regular'
+                    status='Regular',
+                    # --- NEW FIELDS SAVED HERE ---
+                    contact_number=row.get('contact'),
+                    address=row.get('address'),
+                    birthdate=row.get('birthdate'),
+                    gender=row.get('gender')
                 )
                 db.session.add(student)
                 success_count += 1
@@ -354,7 +359,11 @@ def get_student_journey_data(student_id):
             'type': subject.type,
             'units': subject.units,
             'grade': grade_display,
-            'remarks': enroll.status  # Passed, Failed, Pending
+            'remarks': enroll.status,  # Passed, Failed, Pending
+            # --- NEW: FETCH PERIOD GRADES ---
+            'p1': enroll.p1_grade if enroll.p1_grade else '-',
+            'p2': enroll.p2_grade if enroll.p2_grade else '-',
+            'p3': enroll.p3_grade if enroll.p3_grade else '-'
         })
 
         # Calculate Units
@@ -395,8 +404,26 @@ def get_student_journey_data(student_id):
         # Assign subjects to the grades dictionary
         grades_data[key] = data['subjects']
 
+  # 5. Determine Regular/Irregular Status Dynamically
+    # Check if the student has any failed grades in their history
+    failed_records = Enrollment.query.filter_by(student_id=student_id)\
+        .filter((Enrollment.grade > 3.0) | (Enrollment.status == 'Failed')).all()
+    
+    academic_status = 'Irregular' if len(failed_records) > 0 else 'Regular'
+
     # Final JSON Structure
     return jsonify({
+        'student_info': {
+            'id': student.id,
+            'name': student.name,
+            'program': student.program,
+            'year_level': student.year_level,
+            'status': academic_status, # <--- Now strictly sends Regular or Irregular
+            'email': student.email if student.email else 'N/A',
+            'contact_number': getattr(student, 'contact_number', 'N/A'),
+            'address': getattr(student, 'address', 'N/A'),
+            'birthdate': getattr(student, 'birthdate', 'N/A')
+        },
         'summary': {
             'earned': total_earned_units,
             'registered': total_registered_units,

@@ -86,24 +86,35 @@ function openEnrollmentModal(event, data) {
     document.getElementById('modalStudentType').innerHTML = `<span class="status-pill ${typeClass}">${typeLabel}</span>`;
     
     // UI Update - Decision Badge (Promote vs Retain)
+// UI Update - Decision Badge (Promote vs Retain)
     const decisionEl = document.getElementById('modalStudentDecision');
     const isRetained = data.decision === 'Retained';
     const decisionIcon = isRetained ? "bx-minus-circle" : "bx-chevrons-up";
     const decisionClass = isRetained ? "badge-retain" : "badge-promote";
     const decisionText = isRetained ? "RETAINED" : "PROMOTING TO NEXT YEAR";
     
-    // Change background of the full-width card depending on decision
-    const fullCard = decisionEl.closest('.detail-card.full-width');
+    // Change background of the full-width modern card depending on decision
+    const fullCard = document.getElementById('decision-card-container');
+    const iconContainer = document.getElementById('decision-icon-container');
+    
     if (isRetained) {
         fullCard.style.background = "#fff1f2";
         fullCard.style.borderColor = "#fecdd3";
+        if (iconContainer) {
+            iconContainer.style.background = "#ffe4e6";
+            iconContainer.style.color = "#e11d48";
+        }
     } else {
         fullCard.style.background = "#f0fdf4";
         fullCard.style.borderColor = "#bbf7d0";
+        if (iconContainer) {
+            iconContainer.style.background = "#dcfce7";
+            iconContainer.style.color = "#16a34a";
+        }
     }
 
     decisionEl.innerHTML = `
-        <span class="badge-status ${decisionClass}">
+        <span class="badge-status ${decisionClass}" style="font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
             <i class='bx ${decisionIcon}'></i> ${decisionText}
         </span>
     `;
@@ -460,4 +471,81 @@ function updateStepUI() {
         nextBtn.innerText = "Done"; nextBtn.style.background = "#90242d";
         cancelBtn.style.display = 'none'; nextBtn.onclick = closeUploadModal;
     }
+}
+
+// =======================================================
+// PART 3: MANUAL ENROLLMENT
+// =======================================================
+
+function openManualEnrollmentModal() {
+    // Reset the form whenever it opens
+    document.getElementById('manualEnrollmentForm').reset();
+    document.getElementById('manualEnrollmentModal').classList.add('active');
+}
+
+function closeManualEnrollmentModal() {
+    document.getElementById('manualEnrollmentModal').classList.remove('active');
+}
+
+function submitManualEnrollment() {
+    // 1. Gather data from form inputs
+    const studentId = document.getElementById('manualId').value.trim();
+    const first = document.getElementById('manualFirst').value.trim();
+    const last = document.getElementById('manualLast').value.trim();
+    const middle = document.getElementById('manualMiddle').value.trim();
+    const program = document.getElementById('manualProgram').value;
+    const email = document.getElementById('manualEmail').value.trim();
+    const contact = document.getElementById('manualContact').value.trim();
+    const gender = document.getElementById('manualGender').value;
+    const address = document.getElementById('manualAddress').value.trim();
+
+    // Basic Validation
+    if (!studentId || !first || !last) {
+        alert("Student ID, First Name, and Last Name are required.");
+        return;
+    }
+
+    // 2. Wrap it in an array to match the Excel Upload API format
+    const payload = [{
+        student_id: studentId || null,
+        firstname: first,
+        lastname: last,
+        middlename: middle,
+        program: program,
+        email: email,
+        contact: contact,
+        gender: gender,
+        address: address
+    }];
+
+    // Update button UI
+    const btn = document.querySelector('#manualEnrollmentModal .btn-enroll');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = "Processing...";
+    btn.disabled = true;
+
+    // 3. Post to the exact same endpoint as the Excel Upload
+    fetch('/api/enrollment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert("Student successfully enrolled!");
+            closeManualEnrollmentModal();
+            loadEnrollmentData(); // Refresh the list
+        } else {
+            alert("Failed to add student: " + (data.message || "Unknown error"));
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Server Error: Unable to enroll student.");
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
 }

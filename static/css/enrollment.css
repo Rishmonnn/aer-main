@@ -217,3 +217,111 @@
 /* Loader */
 .loader { border: 4px solid #f3f3f3; border-top: 4px solid #90242d; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* =========================================
+   MODERN MANUAL ENROLLMENT FORM
+   ========================================= */
+.form-section {
+    margin-bottom: 24px;
+}
+
+.form-section:last-child {
+    margin-bottom: 0;
+}
+
+.form-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #90242d; /* Website accent color */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 8px;
+}
+
+.form-section-title i {
+    font-size: 18px;
+}
+
+.modern-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.input-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.input-group label .optional {
+    font-weight: 400;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+/* Sleek Inputs */
+.input-group input, 
+.input-group select {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #0f172a;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    outline: none;
+    transition: all 0.2s ease-in-out;
+    box-sizing: border-box;
+}
+
+.input-group input::placeholder {
+    color: #94a3b8;
+}
+
+/* Focus State using Accent Color */
+.input-group input:focus, 
+.input-group select:focus {
+    background-color: #ffffff;
+    border-color: #90242d;
+    box-shadow: 0 0 0 3px rgba(144, 36, 45, 0.1); /* Soft maroon glow */
+}
+
+/* Custom Select Dropdown Styling */
+.select-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.select-wrapper select {
+    appearance: none; /* Removes default browser styling */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+    padding-right: 40px; /* Space for the icon */
+}
+
+.select-wrapper .select-icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 18px;
+    pointer-events: none; /* Allows clicking through the icon to the select */
+}

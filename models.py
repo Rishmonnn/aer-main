@@ -19,14 +19,18 @@ class User(db.Model):
 # 2. STUDENTS (Data only - They cannot log in)
 class Student(db.Model):
     __tablename__ = 'students'
-    id = db.Column(db.String(20), primary_key=True) # e.g. "2023-0001"
+    id = db.Column(db.String(20), primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     program = db.Column(db.String(50), default='BSCpE')
     year_level = db.Column(db.String(20), default='1st Year')
-    status = db.Column(db.String(20), default='Regular') # Regular, Irregular
+    status = db.Column(db.String(20), default='Regular') 
     email = db.Column(db.String(100), nullable=True)
-
     
+    # --- NEW COLUMNS ---
+    contact_number = db.Column(db.String(50), nullable=True)
+    address = db.Column(db.String(255), nullable=True)
+    birthdate = db.Column(db.String(50), nullable=True)
+    gender = db.Column(db.String(20), nullable=True)
     
     # Relationships
     enrollments = db.relationship('Enrollment', backref='student', lazy=True)
@@ -66,7 +70,12 @@ class Enrollment(db.Model):
     student_id = db.Column(db.String(20), db.ForeignKey('students.id'), nullable=False)
     section_id = db.Column(db.Integer, db.ForeignKey('sections.id'), nullable=False)
     date_enrolled = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # --- NEW: GRADE BREAKDOWN PERIODS ---
+    p1_grade = db.Column(db.Float, nullable=True) 
+    p2_grade = db.Column(db.Float, nullable=True)
+    p3_grade = db.Column(db.Float, nullable=True)
+    
     grade = db.Column(db.Float, nullable=True) # Final Grade
     status = db.Column(db.String(20), default='Enrolled') # Enrolled, Dropped, Passed, Failed
-
 # 6. CREATE ACCOUNT PANEL (The Link: Student <-> Section)

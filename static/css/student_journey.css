@@ -155,3 +155,139 @@
 .grade-row:hover { background-color: #f8fafc; }
 .grade-row.failed { background-color: #fef2f2; border-left: 3px solid #ef4444;}
 .grade-row.failed td { color: #b91c1c; font-weight: 600; }
+
+/* =========================================
+   MODERN PERSONAL INFO CARDS
+   ========================================= */
+.modern-personal-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+.info-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease-in-out;
+}
+
+.info-card:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    border-color: #cbd5e1;
+    transform: translateY(-2px);
+}
+
+.info-card.full-width {
+    grid-column: 1 / -1; /* Forces the address card to span the entire bottom row */
+}
+
+.info-icon {
+    background: #f8fafc;
+    color: #90242d; /* Your theme's maroon accent color */
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+    border: 1px solid #f1f5f9;
+}
+
+.info-card:hover .info-icon {
+    background: #90242d;
+    color: #ffffff;
+    transition: all 0.3s ease;
+}
+
+.info-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.info-label {
+    font-size: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.info-value {
+    font-size: 15px;
+    color: #0f172a;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.info-card.full-width .info-value {
+    white-space: normal; /* Allows long addresses to wrap to the next line */
+}
+
+/* =========================================
+   GRADE BREAKDOWN ACCORDION
+   ========================================= */
+.breakdown-row .breakdown-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    background-color: #f1f5f9; /* Inset grey background */
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: inset 0 3px 6px rgba(0,0,0,0.02);
+    animation: slideDown 0.2s ease-out;
+}
+
+.period-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 24px;
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    min-width: 140px;
+}
+
+.period-box.highlight {
+    border-color: #fecdd3;
+    background: #fff1f2;
+}
+
+.period-box.highlight .period-label, 
+.period-box.highlight .period-grade {
+    color: #90242d;
+}
+
+.period-label {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.period-grade {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
