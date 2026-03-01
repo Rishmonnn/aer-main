@@ -24,6 +24,21 @@
         "4": { color: '#9b59b6', events: [] }
     };
 
+    const COLOR_PALETTE = [
+        'hsl(210, 90%, 55%)',
+        'hsl(160, 60%, 45%)',
+        'hsl(35, 90%, 55%)',
+        'hsl(280, 60%, 55%)',
+        'hsl(0, 70%, 55%)',
+        'hsl(195, 80%, 45%)',
+    ];
+
+    function hashColor(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) & 0xffffffff;
+        return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
+    }
+
     function init() {
         const calendarEl = document.getElementById('calendar');
         if (!calendarEl) {
@@ -47,35 +62,48 @@
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGridWeek',
             initialDate: '2026-02-09',
-            headerToolbar: false,
-            dayHeaderFormat: { weekday: 'short' },
+            headerToolbar: false, // Hides default toolbar
+            dayHeaderFormat: { weekday: 'short' }, // "Mon" -> CSS makes it "MON"
             hiddenDays: [0], // Hide Sunday
-            slotMinTime: '07:00:00',
-            slotMaxTime: '19:00:00',
-            allDaySlot: false,
-            height: 'auto',
             
+            // Match React Time Range (7am to 9pm)
+            slotMinTime: '07:00:00',
+            slotMaxTime: '21:00:00',
+            allDaySlot: false,
+            
+            // Match React Labels
+            slotLabelInterval: '01:00', // Only show labels every hour
+            slotLabelFormat: { hour: 'numeric', meridiem: 'lowercase' }, // e.g., "7am"
+            
+            height: 'auto',
             editable: true, 
             eventOverlap: false,
             slotEventOverlap: false,
+            expandRows: true,
             
             eventDrop: handleScheduleChange,
             eventResize: handleScheduleChange,
             
-            expandRows: true,
-            slotLabelFormat: { hour: 'numeric', meridiem: 'short' },
+            // Inject EXACT React HTML Structure into Events
             eventContent: function(arg) {
                 let props = arg.event.extendedProps;
-                let typeIcon = props.type === 'lab' ? '🧪' : '📖';
-                let footerInfo = props.room ? `${typeIcon} ${props.room}` : typeIcon;
-                if (props.faculty) footerInfo += ` • ${props.faculty}`;
-
+                let facultyShort = props.faculty ? props.faculty.split(',')[0] : 'TBA';
+                let room = props.room || 'TBA';
+                
+                // Using the exact typography styles from course-data-magic
                 return {
-                    html: `<div class="fc-event-main-frame">
-                             <div class="evt-code" style="font-weight:800; font-size:0.85rem;">${props.code}</div>
-                             <div class="evt-title" style="font-size:0.75rem; opacity:0.9;">${arg.event.title}</div>
-                             <div style="font-size:0.7rem; margin-top:2px; opacity:0.8;">${footerInfo}</div>
-                           </div>`
+                    html: `
+                    <div style="padding: 4px 8px; color: white; height: 100%; overflow: hidden; display: flex; flex-direction: column;">
+                        <p style="font-size: 0.75rem; font-weight: 700; line-height: 1.25; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${props.code}
+                        </p>
+                        <p style="font-size: 0.75rem; line-height: 1.25; margin: 0; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${arg.event.title}
+                        </p>
+                        <p style="font-size: 0.75rem; line-height: 1.25; margin: 2px 0 0 0; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: auto;">
+                            ${room} • ${facultyShort}
+                        </p>
+                    </div>`
                 };
             }
         });
@@ -235,11 +263,7 @@
             return; 
         }
 
-        let color = '#54a0ff'; 
-        if(modalYear == 2) color = '#2ecc71';
-        if(modalYear == 3) color = '#f39c12';
-        if(modalYear == 4) color = '#9b59b6';
-
+        const color = hashColor(subData.code + type);
         const newEvent = {
             title: subData.title,
             start: `${date}T${start}:00`,
@@ -280,26 +304,47 @@
     }
 
     function loadYearData(yearKey) {
-    if (!calendarInstance) return;
-    currentActiveYear = yearKey;
-    calendarInstance.removeAllEvents();
-    const data = mockDatabase[yearKey];
-    
-    // Check if there are events for this year
-    if (data && data.events && data.events.length > 0) {
-        const coloredEvents = data.events.map(ev => ({
-            ...ev,
-            backgroundColor: data.color,
-            borderColor: data.color
-        }));
-        calendarInstance.addEventSource(coloredEvents);
-        updateKPIs(coloredEvents);
-        toggleEmptyState(true); // Show calendar
-    } else {
-        updateKPIs([]);
-        toggleEmptyState(false); // Show empty state
+        if (!calendarInstance) return;
+        currentActiveYear = yearKey;
+        calendarInstance.removeAllEvents();
+        
+        let allEventsToDisplay = [];
+
+        if (yearKey === 'all') {
+            // Loop through all years in the database and combine them
+            for (let year in mockDatabase) {
+                const data = mockDatabase[year];
+                if (data && data.events && data.events.length > 0) {
+                    const coloredEvents = data.events.map(ev => ({
+                        ...ev,
+                        backgroundColor: data.color,
+                        borderColor: data.color
+                    }));
+                    allEventsToDisplay = allEventsToDisplay.concat(coloredEvents);
+                }
+            }
+        } else {
+            // Load just the specific year
+            const data = mockDatabase[yearKey];
+            if (data && data.events && data.events.length > 0) {
+                allEventsToDisplay = data.events.map(ev => ({
+                    ...ev,
+                    backgroundColor: data.color,
+                    borderColor: data.color
+                }));
+            }
+        }
+
+        // Display the events
+        if (allEventsToDisplay.length > 0) {
+            calendarInstance.addEventSource(allEventsToDisplay);
+            updateKPIs(allEventsToDisplay);
+            toggleEmptyState(true); // Show calendar
+        } else {
+            updateKPIs([]);
+            toggleEmptyState(false); // Show empty state
+        }
     }
-}
     function toggleEmptyState(hasEvents) {
     const emptyState = document.getElementById('empty-state');
     const calendarWrapper = document.getElementById('calendar-wrapper');
@@ -400,6 +445,7 @@ if (dropZone) {
 
     // Expose public methods
     window.Schedules = {
+        
         init, 
         addEvent: openModal, 
         closeModal, 
@@ -407,7 +453,7 @@ if (dropZone) {
         onSubjectChange, 
         filterSubjects,
         triggerImport, 
-        handleImport,        // <--- This connects the HTML to the function
+        handleImport,
         closeImportModal
     };
     
@@ -429,7 +475,7 @@ if (dropZone) {
         const file = event.target.files[0];
         if (!file) return;
 
-        // 1. Update UI to show File Name and Size
+        // 1. Update UI
         document.getElementById('dropZoneDefault').style.display = 'none';
         document.getElementById('fileInfoDisplay').style.display = 'block';
         document.getElementById('fileNameText').textContent = file.name;
@@ -442,13 +488,13 @@ if (dropZone) {
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            // MAGIC FIX: Read as a raw 2D array of rows and columns instead of using headers
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
+            // MAGIC FIX: Read as a raw 2D array, ensuring empty cells aren't skipped
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
             
-            // 2. Process data and get the count
+            // 2. Process data
             const count = processExcelData(jsonData, true);
             
-            // 3. Show Success/Error Banner & Update Button
+            // 3. Show Success/Error Banner
             const banner = document.getElementById('importSuccessBanner');
             const msg = document.getElementById('successMessageText');
             const importBtn = document.querySelector('#importModal .btn-primary');
@@ -465,134 +511,170 @@ if (dropZone) {
                     Schedules.closeImportModal();
                 };
             } else {
-                msg.textContent = `Failed to process. Check if it's the right schedule format.`;
+                msg.textContent = `Failed to process. Make sure the file matches the expected format.`;
                 banner.style.display = 'flex';
                 banner.style.backgroundColor = '#fde8e8';
                 banner.style.borderColor = '#f8b4b4';
                 banner.style.color = '#c53030';
             }
 
-            // 4. Reset the input so you can re-upload the same file if needed
+            // 4. Reset input
             event.target.value = '';
         };
         reader.readAsArrayBuffer(file);
     }
 
     function processExcelData(data, silent = false) {
-        let importedEvents = [];
-        const color = mockDatabase[currentActiveYear]?.color || '#54a0ff';
+        let count = 0;
 
-        console.log("Raw Array Data Loaded", data);
-
-        data.forEach((row) => {
-            // Skip the header rows (rows that don't have a valid Class Code in column 2)
-            // In your CSV snippet, data starts where column 1 is "CARMEN" and column 2 is the code.
-            if (!row || row.length < 10 || row[1] === 'CAMPUS' || !row[2]) return;
-
-            // Map data by its strict column index from your file format
-            let code = row[2] ? row[2].toString().trim() : 'TBA';
-            let title = row[3] ? row[3].toString().trim() : 'Imported Class';
-            let section = row[11] ? row[11].toString().trim() : '';
-            let faculty = row[18] ? row[18].toString().trim() : 'TBA';
-
-            // Helper to process Lec or Lab
-            const addEvents = (type, timeStr, dayStr, roomStr) => {
-                if (!timeStr || !dayStr || timeStr.toString().trim() === '' || dayStr.toString().trim() === '') return;
-                
-                // Some times look like "03:00PM-04:30PM/03:00PM-04:30PM", we just need the first part
-                let cleanTimeStr = timeStr.toString().split('/')[0];
-                let times = cleanTimeStr.split('-');
-                
-                let startTime = times[0] ? formatTime(times[0].trim()) : '07:30';
-                let endTime = times[1] ? formatTime(times[1].trim()) : '09:00';
-
-                // Pass "TUE/THU" into your existing parser, which will extract both days perfectly!
-                const days = parseDays(dayStr.toString().split('/')[0]); 
-
-                days.forEach(date => {
-                    importedEvents.push({
-                        title: title,
-                        start: `${date}T${startTime}:00`,
-                        end: `${date}T${endTime}:00`,
-                        backgroundColor: color,
-                        borderColor: color,
-                        extendedProps: {
-                            code: code,
-                            sectionCode: section,
-                            type: type,
-                            room: roomStr ? String(roomStr).trim() : 'TBA',
-                            faculty: faculty
-                        }
-                    });
-                });
-            };
-
-            // Column 12=Lec Time, 14=Lec Days, 16=Lec Room
-            addEvents('lecture', row[12], row[14], row[16]);
+        // Loop starting from index 3 to skip headers
+        for (let i = 3; i < data.length; i++) {
+            const row = data[i];
             
-            // Column 13=Lab Time, 15=Lab Days, 17=Lab Room
-            addEvents('lab', row[13], row[15], row[17]);
-        });
+            // Skip empty or incomplete rows
+            if (!row || row.length < 10) continue;
 
-        if (importedEvents.length > 0) {
-            if (!mockDatabase[currentActiveYear]) {
-                mockDatabase[currentActiveYear] = { color: color, events: [] };
+            let campus = String(row[1] || '').trim();
+            let code = String(row[2] || '').trim();
+            let title = String(row[3] || '').trim();
+            let course = String(row[4] || '').trim();
+            let section = String(row[11] || '').trim();
+            let faculty = String(row[18] || '').trim();
+
+            if (!campus || !code || !title) continue;
+
+            // 1. Filter for CPE / BSCPE
+            const courseLower = course.toLowerCase();
+            const isCPE = courseLower.includes('cpe') || courseLower.includes('bscpe') || courseLower.includes('computer engineering');
+            if (!isCPE) continue; 
+
+            // 2. Extract Year Level from Course (e.g., "CPE-1" -> "1")
+            let targetYear = currentActiveYear; // Default fallback
+            const yearMatch = course.match(/-(\d)/); // Looks for the number after a hyphen
+            if (yearMatch) {
+                targetYear = yearMatch[1];
             }
-            
-            mockDatabase[currentActiveYear].events = mockDatabase[currentActiveYear].events.concat(importedEvents);
+
+            // 3. Get the correct color for this specific year
+            let yearColor = '#54a0ff'; // 1st year default
+            if (targetYear == "2") yearColor = '#2ecc71';
+            if (targetYear == "3") yearColor = '#f39c12';
+            if (targetYear == "4") yearColor = '#9b59b6';
+
+            // Ensure the mockDatabase exists for this year
+            if (!mockDatabase[targetYear]) {
+                mockDatabase[targetYear] = { color: yearColor, events: [] };
+            }
+
+            // Create a temporary array just for this specific row's events
+            let rowEvents = [];
+
+            // Extract LECTURE: Time (12), Days (14), Room (16)
+            extractAndAddEvent('lecture', row[12], row[14], row[16], code, title, section, faculty, rowEvents, yearColor);
+
+            // Extract LAB: Time (13), Days (15), Room (17)
+            extractAndAddEvent('lab', row[13], row[15], row[17], code, title, section, faculty, rowEvents, yearColor);
+
+            // Add the generated events directly to the specific year's database
+            if (rowEvents.length > 0) {
+                rowEvents.forEach(ev => {
+                    ev.extendedProps.year = targetYear; // Tag it with the year level
+                });
+                mockDatabase[targetYear].events = mockDatabase[targetYear].events.concat(rowEvents);
+                count += rowEvents.length;
+            }
+        }
+
+        if (count > 0) {
+            // Reload the currently active year's calendar view so you see updates immediately
             loadYearData(currentActiveYear);
             
-            if (!silent) alert(`Successfully imported ${importedEvents.length} entries.`);
-            return importedEvents.length;
+            if (!silent) alert(`Successfully imported ${count} CPE entries and sorted them by Year Level.`);
+            return count;
         }
         return 0;
     }
-    // --- HELPER: Converts Excel Time (e.g., "7:30 AM") to 24hr ("07:30") ---
-    function formatTime(timeStr) {
-        if (!timeStr || timeStr.toString().toUpperCase().includes('TBA')) return "00:00";
-        
-        // Clean up the string and remove spaces
-        const cleanTime = timeStr.toString().trim().toUpperCase();
-        
-        // Matches standard times like "7:30", "07:30", "7:30AM", "1:00 PM", "13:00"
-        const match = cleanTime.match(/(\d{1,2})[:.]?(\d{2})?\s*(AM|PM)?/);
-        if (!match) return "00:00";
-        
-        let hours = parseInt(match[1], 10);
-        let minutes = match[2] || "00";
-        let modifier = match[3];
 
-        // Convert to 24-hour time
-        if (modifier === 'PM' && hours < 12) hours += 12;
-        if (modifier === 'AM' && hours === 12) hours = 0;
+    function extractAndAddEvent(type, timeStr, dayStr, roomStr, code, title, section, faculty, importedEvents) {
+        if (!timeStr || !dayStr || String(timeStr).trim() === '' || String(dayStr).trim() === '') return;
+        const times = parseAdvancedTime(String(timeStr));
+        if (!times) return; 
+        const days = parseAdvancedDays(String(dayStr));
         
-        return `${hours.toString().padStart(2, '0')}:${minutes}`;
+        // Hash the color exactly like the React App
+        const color = hashColor(code + type);
+
+        days.forEach(date => {
+            importedEvents.push({
+                title: title,
+                start: `${date}T${times.start}:00`,
+                end: `${date}T${times.end}:00`,
+                backgroundColor: color,
+                borderColor: color,
+                extendedProps: {
+                    code: code,
+                    sectionCode: section,
+                    type: type,
+                    room: roomStr ? String(roomStr).trim() : 'TBA',
+                    faculty: faculty
+                }
+            });
+        });
+    }
+    // --- ADVANCED HELPERS FROM TYPESCRIPT LOGIC ---
+
+    function parseAdvancedTime(timeStr) {
+        if (!timeStr) return null;
+        
+        // Grab just the first part if it's duplicated (e.g. "09:00AM-10:30AM/09:00AM-10:30AM")
+        const part = String(timeStr).split('/')[0].trim();
+        
+        // Advanced Regex to catch standard time formats
+        const match = part.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (!match) return null;
+
+        let startH = parseInt(match[1]);
+        const startM = match[2]; // Keep as string for formatting
+        const startMeridiem = match[3].toUpperCase();
+        
+        let endH = parseInt(match[4]);
+        const endM = match[5]; // Keep as string for formatting
+        const endMeridiem = match[6].toUpperCase();
+
+        // Convert to 24-hour format
+        if (startMeridiem === 'PM' && startH !== 12) startH += 12;
+        if (startMeridiem === 'AM' && startH === 12) startH = 0;
+        if (endMeridiem === 'PM' && endH !== 12) endH += 12;
+        if (endMeridiem === 'AM' && endH === 12) endH = 0;
+
+        // Format as HH:mm for FullCalendar
+        const formatHHMM = (h, m) => `${h.toString().padStart(2, '0')}:${m}`;
+
+        return {
+            start: formatHHMM(startH, startM),
+            end: formatHHMM(endH, endM)
+        };
     }
 
-    // --- UPGRADED HELPER: Bulletproof Day Parser ---
-    function parseDays(dayString) {
-        if (!dayString || dayString.toString().toUpperCase().includes('TBA')) return [];
+    function parseAdvancedDays(daysStr) {
+        if (!daysStr) return [];
         
-        const str = dayString.toString().toUpperCase();
+        // Split by slashes or commas ("MON/WED", "TUE, THU")
+        const splitDays = String(daysStr).split(/[/,]/).map(d => d.trim().toUpperCase()).filter(Boolean);
+        
         let dates = [];
         
-        // Base week starts Monday, Feb 9, 2026 [cite: 201]
-        if (/(M|MON)/.test(str)) dates.push('2026-02-09');
-        
-        // Tuesday: Looks for 'T' but specifically ignores 'TH'
-        if (/(T(?!H)|TUE)/.test(str)) dates.push('2026-02-10'); 
-        
-        if (/(W|WED)/.test(str)) dates.push('2026-02-11');
-        
-        // Thursday: Looks for 'TH'
-        if (/(TH|THU)/.test(str)) dates.push('2026-02-12'); 
-        
-        if (/(F|FRI)/.test(str)) dates.push('2026-02-13');
-        
-        // Saturday: Looks for 'S' but ignores 'SU' for Sunday
-        if (/(S(?!U)|SAT)/.test(str)) dates.push('2026-02-14'); 
-        
-        // Remove duplicates just in case (e.g., "TTh" parsing twice)
+        // Map the extracted days to FullCalendar dates (Base week starting Feb 9, 2026)
+        splitDays.forEach(day => {
+            if (day === 'MON' || day === 'MONDAY' || day === 'M') dates.push('2026-02-09');
+            if (day === 'TUE' || day === 'TUESDAY' || day === 'T') dates.push('2026-02-10');
+            if (day === 'WED' || day === 'WEDNESDAY' || day === 'W') dates.push('2026-02-11');
+            if (day === 'THU' || day === 'THURSDAY' || day === 'TH') dates.push('2026-02-12');
+            if (day === 'FRI' || day === 'FRIDAY' || day === 'F') dates.push('2026-02-13');
+            if (day === 'SAT' || day === 'SATURDAY' || day === 'S') dates.push('2026-02-14');
+        });
+
+        // Return unique dates only
         return [...new Set(dates)];
     }
 })();
