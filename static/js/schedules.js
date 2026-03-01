@@ -400,7 +400,6 @@ if (dropZone) {
 
     // Expose public methods
     window.Schedules = {
-        
         init, 
         addEvent: openModal, 
         closeModal, 
@@ -408,7 +407,7 @@ if (dropZone) {
         onSubjectChange, 
         filterSubjects,
         triggerImport, 
-        handleImport,
+        handleImport,        // <--- This connects the HTML to the function
         closeImportModal
     };
     
@@ -427,90 +426,88 @@ if (dropZone) {
     }
 
     function handleImport(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+        const file = event.target.files[0];
+        if (!file) return;
 
-    // 1. Update UI to show File Name and Size
-    document.getElementById('dropZoneDefault').style.display = 'none';
-    document.getElementById('fileInfoDisplay').style.display = 'block';
-    document.getElementById('fileNameText').textContent = file.name;
-    document.getElementById('fileSizeText').textContent = (file.size / 1024).toFixed(1) + " KB";
+        // 1. Update UI to show File Name and Size
+        document.getElementById('dropZoneDefault').style.display = 'none';
+        document.getElementById('fileInfoDisplay').style.display = 'block';
+        document.getElementById('fileNameText').textContent = file.name;
+        document.getElementById('fileSizeText').textContent = (file.size / 1024).toFixed(1) + " KB";
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        
-        // 2. Process data and get the count
-        const count = processExcelData(jsonData, true); // Added 'true' to skip immediate alert
-
-        // 3. Show Success Banner
-        if (count > 0) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            // MAGIC FIX: Read as a raw 2D array of rows and columns instead of using headers
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
+            
+            // 2. Process data and get the count
+            const count = processExcelData(jsonData, true);
+            
+            // 3. Show Success/Error Banner & Update Button
             const banner = document.getElementById('importSuccessBanner');
             const msg = document.getElementById('successMessageText');
             const importBtn = document.querySelector('#importModal .btn-primary');
-            
-            msg.textContent = `Successfully parsed ${count} schedule entries. Ready to import.`;
-            banner.style.display = 'flex';
-            
-            // Update the main button text like in your screenshot
-            importBtn.innerHTML = `<i class='bx bx-upload'></i> Import ${count} Entries`;
-        }
-    };
-    reader.readAsArrayBuffer(file);
-}
 
-    function processExcelData(data) {
+            if (count > 0) {
+                msg.textContent = `Successfully parsed ${count} schedule entries.`;
+                banner.style.display = 'flex';
+                banner.style.backgroundColor = '#ecfdf5';
+                banner.style.borderColor = '#10b981';
+                banner.style.color = '#065f46';
+                
+                importBtn.innerHTML = `<i class='bx bx-check'></i> Finish Import`;
+                importBtn.onclick = function() {
+                    Schedules.closeImportModal();
+                };
+            } else {
+                msg.textContent = `Failed to process. Check if it's the right schedule format.`;
+                banner.style.display = 'flex';
+                banner.style.backgroundColor = '#fde8e8';
+                banner.style.borderColor = '#f8b4b4';
+                banner.style.color = '#c53030';
+            }
+
+            // 4. Reset the input so you can re-upload the same file if needed
+            event.target.value = '';
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function processExcelData(data, silent = false) {
         let importedEvents = [];
         const color = mockDatabase[currentActiveYear]?.color || '#54a0ff';
 
-        // 🛠️ DEBUGGING: This prints the very first row to your browser console
-        console.log("Extracted Data Format:", data[0]); 
+        console.log("Raw Array Data Loaded", data);
 
-        data.forEach(row => {
-            let isCpeClass = false;
+        data.forEach((row) => {
+            // Skip the header rows (rows that don't have a valid Class Code in column 2)
+            // In your CSV snippet, data starts where column 1 is "CARMEN" and column 2 is the code.
+            if (!row || row.length < 10 || row[1] === 'CAMPUS' || !row[2]) return;
 
-            // 1. Scan EVERY column in the row for 'CPE' or 'BSCPE'
-            for (const key in row) {
-                const cellValue = String(row[key]).toUpperCase();
-                if (cellValue.includes('CPE') || cellValue.includes('BSCPE')) {
-                    isCpeClass = true;
-                    break; // We found it, stop searching this row
-                }
-            }
+            // Map data by its strict column index from your file format
+            let code = row[2] ? row[2].toString().trim() : 'TBA';
+            let title = row[3] ? row[3].toString().trim() : 'Imported Class';
+            let section = row[11] ? row[11].toString().trim() : '';
+            let faculty = row[18] ? row[18].toString().trim() : 'TBA';
 
-            // 2. If it's a CPE class, capture it
-            if (isCpeClass) {
+            // Helper to process Lec or Lab
+            const addEvents = (type, timeStr, dayStr, roomStr) => {
+                if (!timeStr || !dayStr || timeStr.toString().trim() === '' || dayStr.toString().trim() === '') return;
                 
-                // We dynamically search the keys for words like 'room', 'time', 'day' 
-                // just in case your headers are named slightly differently.
-                let title = 'Imported Class';
-                let code = 'TBA';
-                let room = 'TBA';
-                let faculty = 'TBA';
-                let type = 'lecture';
-                let startTime = '07:30'; 
-                let endTime = '09:00';
-                let dayStr = 'M'; // Default to Monday if not found
+                // Some times look like "03:00PM-04:30PM/03:00PM-04:30PM", we just need the first part
+                let cleanTimeStr = timeStr.toString().split('/')[0];
+                let times = cleanTimeStr.split('-');
+                
+                let startTime = times[0] ? formatTime(times[0].trim()) : '07:30';
+                let endTime = times[1] ? formatTime(times[1].trim()) : '09:00';
 
-                for (const key in row) {
-                    const upperKey = key.toUpperCase();
-                    const val = String(row[key]);
-
-                    if (upperKey.includes('DESC') || upperKey.includes('TITLE')) title = val;
-                    if (upperKey.includes('SUBJ') || upperKey.includes('CODE')) code = val;
-                    if (upperKey.includes('ROOM')) room = val;
-                    if (upperKey.includes('FACULTY') || upperKey.includes('INSTRUCT')) faculty = val;
-                    if (upperKey.includes('TYPE')) type = val.toLowerCase().includes('lab') ? 'lab' : 'lecture';
-                    if (upperKey.includes('START') || upperKey.includes('TIME IN')) startTime = formatTime(val);
-                    if (upperKey.includes('END') || upperKey.includes('TIME OUT')) endTime = formatTime(val);
-                    if (upperKey.includes('DAY')) dayStr = val;
-                }
-
-                const days = parseDays(dayStr); 
+                // Pass "TUE/THU" into your existing parser, which will extract both days perfectly!
+                const days = parseDays(dayStr.toString().split('/')[0]); 
 
                 days.forEach(date => {
                     importedEvents.push({
@@ -521,54 +518,81 @@ if (dropZone) {
                         borderColor: color,
                         extendedProps: {
                             code: code,
+                            sectionCode: section,
                             type: type,
-                            room: room,
+                            room: roomStr ? String(roomStr).trim() : 'TBA',
                             faculty: faculty
                         }
                     });
                 });
-            }
+            };
+
+            // Column 12=Lec Time, 14=Lec Days, 16=Lec Room
+            addEvents('lecture', row[12], row[14], row[16]);
+            
+            // Column 13=Lab Time, 15=Lab Days, 17=Lab Room
+            addEvents('lab', row[13], row[15], row[17]);
         });
 
         if (importedEvents.length > 0) {
-        mockDatabase[currentActiveYear].events = mockDatabase[currentActiveYear].events.concat(importedEvents);
-        loadYearData(currentActiveYear);
-        if (!silent) alert(`Successfully imported ${importedEvents.length} entries.`);
-        return importedEvents.length;
+            if (!mockDatabase[currentActiveYear]) {
+                mockDatabase[currentActiveYear] = { color: color, events: [] };
+            }
+            
+            mockDatabase[currentActiveYear].events = mockDatabase[currentActiveYear].events.concat(importedEvents);
+            loadYearData(currentActiveYear);
+            
+            if (!silent) alert(`Successfully imported ${importedEvents.length} entries.`);
+            return importedEvents.length;
+        }
+        return 0;
     }
-    return 0;
-}
     // --- HELPER: Converts Excel Time (e.g., "7:30 AM") to 24hr ("07:30") ---
     function formatTime(timeStr) {
-        if (!timeStr) return "00:00";
-        // If already in 24-hour format (HH:mm)
-        if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr; 
+        if (!timeStr || timeStr.toString().toUpperCase().includes('TBA')) return "00:00";
         
-        const match = timeStr.toString().trim().match(/(\d+):(\d+)\s*(AM|PM|am|pm)?/);
+        // Clean up the string and remove spaces
+        const cleanTime = timeStr.toString().trim().toUpperCase();
+        
+        // Matches standard times like "7:30", "07:30", "7:30AM", "1:00 PM", "13:00"
+        const match = cleanTime.match(/(\d{1,2})[:.]?(\d{2})?\s*(AM|PM)?/);
         if (!match) return "00:00";
         
-        let [ , hours, minutes, modifier ] = match;
-        hours = parseInt(hours, 10);
-        
-        if (modifier && modifier.toUpperCase() === 'PM' && hours < 12) hours += 12;
-        if (modifier && modifier.toUpperCase() === 'AM' && hours === 12) hours = 0;
+        let hours = parseInt(match[1], 10);
+        let minutes = match[2] || "00";
+        let modifier = match[3];
+
+        // Convert to 24-hour time
+        if (modifier === 'PM' && hours < 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
         
         return `${hours.toString().padStart(2, '0')}:${minutes}`;
     }
 
-    // --- HELPER: Maps days like "M W F" or "TTh" to dates in your calendar week ---
+    // --- UPGRADED HELPER: Bulletproof Day Parser ---
     function parseDays(dayString) {
+        if (!dayString || dayString.toString().toUpperCase().includes('TBA')) return [];
+        
         const str = dayString.toString().toUpperCase();
         let dates = [];
         
-        // Base week starts Monday, Feb 9, 2026
-        if (str.includes('MON') || /\bM\b/.test(str) || str.startsWith('M')) dates.push('2026-02-09');
-        if (str.includes('TUE') || str.includes('TTH') || /\bT\b/.test(str) && !str.includes('TH')) dates.push('2026-02-10');
-        if (str.includes('WED') || /\bW\b/.test(str)) dates.push('2026-02-11');
-        if (str.includes('THU') || str.includes('TH')) dates.push('2026-02-12');
-        if (str.includes('FRI') || /\bF\b/.test(str)) dates.push('2026-02-13');
-        if (str.includes('SAT') || /\bS\b/.test(str)) dates.push('2026-02-14');
+        // Base week starts Monday, Feb 9, 2026 [cite: 201]
+        if (/(M|MON)/.test(str)) dates.push('2026-02-09');
         
-        return dates;
+        // Tuesday: Looks for 'T' but specifically ignores 'TH'
+        if (/(T(?!H)|TUE)/.test(str)) dates.push('2026-02-10'); 
+        
+        if (/(W|WED)/.test(str)) dates.push('2026-02-11');
+        
+        // Thursday: Looks for 'TH'
+        if (/(TH|THU)/.test(str)) dates.push('2026-02-12'); 
+        
+        if (/(F|FRI)/.test(str)) dates.push('2026-02-13');
+        
+        // Saturday: Looks for 'S' but ignores 'SU' for Sunday
+        if (/(S(?!U)|SAT)/.test(str)) dates.push('2026-02-14'); 
+        
+        // Remove duplicates just in case (e.g., "TTh" parsing twice)
+        return [...new Set(dates)];
     }
 })();

@@ -469,53 +469,43 @@ def get_pending_enrollment():
     return jsonify(output)
 
 
-@app.route('/api/enrollment/confirm', methods=['POST'])
+@app.route('/api/enrollment/confirm_bulk', methods=['POST'])
 @login_required
-def confirm_student_enrollment():
-    """
-    Promotes a student from 'Pending' -> 'Enlisting' (or 'Irregular').
-    - If Retained: Status = 'Irregular', Year Level = SAME.
-    - If Promoted: Status = 'Enlisting', Year Level = +1.
-    """
+def confirm_bulk_enrollment():
+    """Promotes multiple students at once."""
     data = request.get_json()
-    student_id = data.get('id')
+    student_ids = data.get('ids', [])
     
-    student = Student.query.get(student_id)
-    if not student:
-        return jsonify({'error': 'Student not found'}), 404
+    if not student_ids:
+        return jsonify({'error': 'No students selected'}), 400
 
-    # 1. Check for Failures (Retention Logic)
-    # We look for any failing grade (> 3.0) or Failed status
-    failed_enrollments = Enrollment.query.filter_by(student_id=student.id)\
-        .filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') )\
-        .all()
-    
-    is_retained = len(failed_enrollments) > 0
+    success_count = 0
+    for student_id in student_ids:
+        student = Student.query.get(student_id)
+        if not student:
+            continue
 
-    if is_retained:
-       
-        student.status = 'Enlisting' 
+        # 1. Check for Failures (Retention Logic)
+        failed_enrollments = Enrollment.query.filter_by(student_id=student.id)\
+            .filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') )\
+            .all()
         
+        is_retained = len(failed_enrollments) > 0
         student.status = 'Enlisting'
-        
-        # 2. Year Level DOES NOT CHANGE (Retained)
-        pass 
 
-    else:
-        # --- PROMOTED LOGIC ---
-        student.status = 'Enlisting'
+        if not is_retained:
+            # Bump Year Level if promoted
+            if student.year_level == '1st Year': student.year_level = '2nd Year'
+            elif student.year_level == '2nd Year': student.year_level = '3rd Year'
+            elif student.year_level == '3rd Year': student.year_level = '4th Year'
+            
+        success_count += 1
         
-        # Bump Year Level
-        if student.year_level == '1st Year': student.year_level = '2nd Year'
-        elif student.year_level == '2nd Year': student.year_level = '3rd Year'
-        elif student.year_level == '3rd Year': student.year_level = '4th Year'
-    
     db.session.commit()
     
     return jsonify({
         'success': True, 
-        'new_year': student.year_level,
-        'status': 'Retained' if is_retained else 'Promoted'
+        'count': success_count
     })
 
 @app.route('/api/enlistment/pending', methods=['GET'])

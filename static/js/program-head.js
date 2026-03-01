@@ -4,6 +4,13 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboardData(); // Fetch dynamic dashboard data
 });
 
+document.addEventListener('DOMContentLoaded', () => {
+    initSidebar();
+    renderCalendar();
+    loadDashboardData(); // Fetch dynamic dashboard data
+    loadStudentCounts(); // NEW: Fetch actual student counts from DB
+});
+
 function initSidebar() {
     const sidebar = document.getElementById('sidebar');
     const toggle = document.getElementById('sidebarToggle');
@@ -98,9 +105,38 @@ function loadDashboardData() {
 }
 
 // --- Stats Cycling ---
-const studentData = { "1st Year": 326, "2nd Year": 285, "3rd Year": 210, "4th Year": 145 };
-const years = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+// --- Dynamic Stats Cycling ---
+let studentData = { "Total": 0, "1st Year": 0, "2nd Year": 0, "3rd Year": 0, "4th Year": 0 };
+const years = ["Total", "1st Year", "2nd Year", "3rd Year", "4th Year"];
 let yrIdx = 0;
+
+function loadStudentCounts() {
+    fetch('/api/students')
+        .then(res => res.json())
+        .then(data => {
+            // Set the total count
+            studentData["Total Students"] = data.length;
+            
+            // Tally up students by their exact year level
+            data.forEach(student => {
+                if (studentData[student.year_level] !== undefined) {
+                    studentData[student.year_level]++;
+                }
+            });
+        })
+        .catch(err => console.error("Error loading student counts:", err));
+}
+
+function cycleYear() {
+    yrIdx = (yrIdx + 1) % years.length;
+    const label = document.getElementById('year-label');
+    const count = document.getElementById('student-count');
+    
+    if (label && count) {
+        label.innerText = years[yrIdx];
+        count.innerText = studentData[years[yrIdx]];
+    }
+}
 
 function cycleYear() {
     yrIdx = (yrIdx + 1) % years.length;

@@ -27,7 +27,7 @@ function loadEnlistmentData() {
                         <td class="student-name">${student.name}</td>
                         <td>${student.program}</td>
                         <td><span class="status-pill regular">Enlisting</span></td>
-                        <td><button class="btn-view-action">Select Subjects</button></td>
+                        <td><button class="btn-view-action">Enlist</button></td>
                     `;
                     tbody.appendChild(tr);
                     tbody.closest('.year-accordion').classList.remove('collapsed');

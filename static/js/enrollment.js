@@ -53,6 +53,9 @@ function loadEnrollmentData() {
                     });
 
                     row.innerHTML = `
+                        <td style="text-align: center;" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="student-cb" value="${student.id}" onchange="updateBulkEnrollButton()">
+                        </td>
                         <td>${student.id}</td>
                         <td class="student-name">${student.name}</td>
                         <td>${student.program}</td>
@@ -69,6 +72,89 @@ function loadEnrollmentData() {
         .catch(err => console.error("Error loading enrollment data:", err));
 }
 
+// --- BULK ENROLLMENT LOGIC ---
+function toggleAllCheckboxes(source) {
+    // Find the closest table body and check all visible checkboxes
+    const table = source.closest('table');
+    const checkboxes = table.querySelectorAll('tbody .student-cb');
+    checkboxes.forEach(cb => {
+        // Only check rows that aren't hidden by the search filter
+        if(cb.closest('tr').style.display !== 'none') {
+            cb.checked = source.checked;
+        }
+    });
+    updateBulkEnrollButton();
+}
+
+function updateBulkEnrollButton() {
+    const checked = document.querySelectorAll('.student-cb:checked');
+    const btn = document.getElementById('btn-bulk-enroll');
+    const countSpan = document.getElementById('bulk-count');
+    
+    // Safety check: Make sure the button actually exists on the page
+    if (!btn) return; 
+
+    if (checked.length > 0) {
+        btn.style.display = 'inline-flex';
+        // Safety check: Only update innerText if the span exists
+        if (countSpan) countSpan.innerText = checked.length;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+function confirmBulkEnrollment() {
+    const checked = document.querySelectorAll('.student-cb:checked');
+    if (checked.length === 0) return;
+
+    const ids = Array.from(checked).map(cb => cb.value);
+    
+    if (!confirm(`Are you sure you want to enroll ${ids.length} selected student(s)?`)) return;
+
+    const btn = document.getElementById('btn-bulk-enroll');
+    const originalText = btn.innerHTML; // Save the HTML with the span inside
+    
+    // Change to loading state
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Processing...";
+    btn.disabled = true;
+
+    fetch('/api/enrollment/confirm_bulk', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ ids: ids }) 
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            // 1. Restore the HTML immediately so the span exists again
+            btn.innerHTML = originalText;
+            
+            // 2. Hide the button explicitly since everyone was enrolled
+            btn.style.display = 'none';
+            
+            alert(`Successfully enrolled ${data.count} students!`);
+            
+            // 3. Uncheck master checkboxes
+            document.querySelectorAll('.select-all-cb').forEach(cb => cb.checked = false);
+            
+            // 4. Refresh tables
+            loadEnrollmentData(); 
+            if (typeof loadEnlistmentData === 'function') loadEnlistmentData();
+            if (typeof loadStudentJourney === 'function') loadStudentJourney();
+            
+        } else {
+            alert("Error: " + data.error);
+            btn.innerHTML = originalText; // Restore on error
+        }
+    })
+    .catch(err => {
+        alert("Server Error: " + err);
+        btn.innerHTML = originalText; // Restore on error
+    })
+    .finally(() => {
+        btn.disabled = false;
+    });
+}
 // --- CONFIRMATION MODAL & API CALL ---
 function openEnrollmentModal(event, data) {
     if (event) event.stopPropagation();
