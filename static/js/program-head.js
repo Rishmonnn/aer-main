@@ -1,8 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
-    initSidebar();
-    renderCalendar();
-    loadDashboardData(); // Fetch dynamic dashboard data
-});
+
 
 document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
@@ -138,15 +134,7 @@ function cycleYear() {
     }
 }
 
-function cycleYear() {
-    yrIdx = (yrIdx + 1) % years.length;
-    const label = document.getElementById('year-label');
-    const count = document.getElementById('student-count');
-    if (label && count) {
-        label.innerText = years[yrIdx];
-        count.innerText = studentData[years[yrIdx]];
-    }
-}
+
 
 // --- TAB NAVIGATION FIX ---
 function switchTab(evt, section) {
