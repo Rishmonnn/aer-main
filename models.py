@@ -34,6 +34,7 @@ class Student(db.Model):
     
     # --- ADD THIS LINE FOR DROPOUT TRACKING ---
     dropout_reason = db.Column(db.String(100), nullable=True) 
+    dropout_date = db.Column(db.String(50), nullable=True)
     
     # Relationships
     enrollments = db.relationship('Enrollment', backref='student', lazy=True)

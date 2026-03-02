@@ -325,20 +325,21 @@ function fetchDropHistory() {
             tbody.innerHTML = '';
             
             if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 30px; color: #94a3b8; font-style: italic;">No drop or transfer records found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 30px; color: #94a3b8; font-style: italic;">No drop or transfer records found.</td></tr>`;
                 return;
             }
             
             data.forEach(student => {
-                // Pick the correct pill color based on status
                 const pillClass = student.status === 'Dropped' ? 'status-dropped' : 'status-transferred';
                 
+                // I have darkened the text colors (#1e293b and #334155) and made the name bold for much better readability!
                 tbody.innerHTML += `
                     <tr>
-                        <td style="color: #64748b;">${student.id}</td>
-                        <td style="font-weight: 600; color: #0f172a;">${student.name}</td>
+                        <td style="color: #475569; font-weight: 500;">${student.id}</td>
+                        <td style="font-weight: 700; color: #1e293b;">${student.name}</td>
                         <td><span class="status-pill ${pillClass}">${student.status}</span></td>
-                        <td style="color: #475569;">${student.reason}</td>
+                        <td style="color: #334155; font-weight: 600;">${student.reason}</td>
+                        <td style="color: #64748b; font-size: 0.9em; white-space: nowrap;">${student.date}</td>
                     </tr>
                 `;
             });

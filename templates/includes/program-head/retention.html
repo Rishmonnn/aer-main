@@ -2,7 +2,6 @@
     <div class="module-header">RETENTION</div>
 
     <div class="retention-dashboard-grid">
-        
         <div class="col-counts">
             <div class="card-metric maroon small-card">
                 <h3>Total Students</h3>
@@ -18,30 +17,30 @@
             </div>
         </div>
 
-<div class="col-rates">
-    <div class="card-metric white rate-card">
-        <div class="metric-header">
-            <h3>Retention Rate</h3>
-            <i class='bx bxs-graduation'></i>
+        <div class="col-rates">
+            <div class="card-metric white rate-card">
+                <div class="metric-header">
+                    <h3>Retention Rate</h3>
+                    <i class='bx bxs-graduation'></i>
+                </div>
+                <span class="value" id="ret-rate-val">0%</span>
+                <span class="trend" id="ret-trend-container">
+                    <i class='bx' id="ret-trend-icon"></i> 
+                    <span id="ret-trend-val">0%</span> vs last year
+                </span>
+            </div>
+            <div class="card-metric white rate-card">
+                <div class="metric-header">
+                    <h3>Dropout Rate</h3>
+                    <i class='bx bxs-user-x'></i>
+                </div>
+                <span class="value" id="drop-rate-val">0%</span>
+                <span class="trend" id="drop-trend-container">
+                    <i class='bx' id="drop-trend-icon"></i> 
+                    <span id="drop-trend-val">0%</span> vs last year
+                </span>
+            </div>
         </div>
-        <span class="value" id="ret-rate-val">0%</span>
-        <span class="trend" id="ret-trend-container">
-            <i class='bx' id="ret-trend-icon"></i> 
-            <span id="ret-trend-val">0%</span> vs last year
-        </span>
-    </div>
-    <div class="card-metric white rate-card">
-        <div class="metric-header">
-            <h3>Dropout Rate</h3>
-            <i class='bx bxs-user-x'></i>
-        </div>
-        <span class="value" id="drop-rate-val">0%</span>
-        <span class="trend" id="drop-trend-container">
-            <i class='bx' id="drop-trend-icon"></i> 
-            <span id="drop-trend-val">0%</span> vs last year
-        </span>
-    </div>
-</div>
 
         <div class="col-chart">
             <div class="chart-card">
@@ -49,14 +48,7 @@
                 <p class="subtitle">Why students leave</p>
                 <div class="chart-wrapper">
                     <div class="legend-box">
-                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#ef5350"></span>Financial Issues</div><span class="legend-val">28%</span></div>
-                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#263238"></span>Academic Struggles</div><span class="legend-val">24%</span></div>
-                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#78909c"></span>Personal/Family</div><span class="legend-val">18%</span></div>
-                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#d81b60"></span>Wrong Program Fit</div><span class="legend-val">15%</span></div>
-                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#ab47bc"></span>Mental Health</div><span class="legend-val">10%</span></div>
-                        <div class="legend-item"><div class="legend-label"><span class="dot" style="background:#eeeeee"></span>Other</div><span class="legend-val">5%</span></div>
-                    </div>
-                    
+                        </div>
                     <div class="chart-container">
                         <div class="css-doughnut"></div>
                     </div>
@@ -65,7 +57,7 @@
         </div>
     </div>
 
-<div class="retention-bottom-grid">
+    <div class="retention-bottom-grid">
         
         <div class="left-analytics-stack">
             <div class="risk-cards-row">
@@ -136,39 +128,11 @@
                             <th>Student Name</th>
                             <th>Status</th>
                             <th>Reason</th>
-                        </tr>
+                            <th>Date</th> </tr>
                     </thead>
                     <tbody id="history-table-body">
                         </tbody>
                 </table>
-            </div>
-        </div>
-    </div>
-
-        <div class="population-card">
-            <h3>Department Population</h3>
-            <p class="subtitle">Number of students per year level</p>
-            <div class="pop-bars">
-                <div class="pop-row">
-                    <span class="label">1st year</span>
-                    <div class="progress-track"><div class="progress-fill red" id="pop-bar-1" style="width: 0%"></div></div>
-                    <span class="count" id="pop-count-1">0</span>
-                </div>
-                <div class="pop-row">
-                    <span class="label">2nd year</span>
-                    <div class="progress-track"><div class="progress-fill blue" id="pop-bar-2" style="width: 0%"></div></div>
-                    <span class="count" id="pop-count-2">0</span>
-                </div>
-                <div class="pop-row">
-                    <span class="label">3rd year</span>
-                    <div class="progress-track"><div class="progress-fill brown" id="pop-bar-3" style="width: 0%"></div></div>
-                    <span class="count" id="pop-count-3">0</span>
-                </div>
-                <div class="pop-row">
-                    <span class="label">4th year</span>
-                    <div class="progress-track"><div class="progress-fill green" id="pop-bar-4" style="width: 0%"></div></div>
-                    <span class="count" id="pop-count-4">0</span>
-                </div>
             </div>
         </div>
     </div>
@@ -181,8 +145,24 @@
             </div>
             <button id="btn-open-drop-modal" class="btn-advise" style="background: #ef5350; color: white; border: none; white-space: nowrap;">Drop / Transfer Student</button>
         </div>
+        
+        <table class="retention-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>NAME</th>
+                    <th>PROGRAM</th>
+                    <th>YEAR LEVEL</th>
+                    <th>STATUS</th>
+                    <th>ACTION</th>
+                </tr>
+            </thead>
+            <tbody id="retention-table-body">
+                </tbody>
+        </table>
+    </div>
 
-<div id="dropStudentModal" class="modal">
+    <div id="dropStudentModal" class="modal">
         <div class="modal-content">
             <div class="modal-top-bar"></div>
             <div class="modal-inner">
@@ -193,7 +173,7 @@
                         </div>
                         <h2>Process Exit</h2>
                     </div>
-                    </div>
+                </div>
                 <p class="modal-subtitle">Search for a student and officially record their departure reason.</p>
                 
                 <div class="form-group relative">
@@ -211,7 +191,7 @@
                         <option value="Dropped">Drop Out</option>
                         <option value="Transferred">Transfer to another school</option>
                     </select>
-                    </div>
+                </div>
 
                 <div class="form-group relative">
                     <label>Primary Reason</label>
@@ -223,7 +203,7 @@
                         <option value="Mental Health">Mental Health</option>
                         <option value="Other">Other</option>
                     </select>
-                    </div>
+                </div>
 
                 <div class="modal-actions">
                     <button id="btn-cancel-drop" class="btn-cancel">Cancel</button>
@@ -235,20 +215,4 @@
         </div>
     </div>
 
-        
-        <table class="retention-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>NAME</th>
-                    <th>PROGRAM</th>
-                    <th>YEAR LEVEL</th>
-                    <th>STATUS</th>
-                    <th>ACTION</th>
-                </tr>
-            </thead>
-            <tbody id="retention-table-body">
-                </tbody>
-        </table>
-    </div>
 </div>

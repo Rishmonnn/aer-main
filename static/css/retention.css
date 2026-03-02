@@ -200,6 +200,7 @@
     box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.05);
     transform: scale(0.95) translateY(15px); 
     animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    overflow: hidden;
 }
 
 @keyframes modalSlideUp {
@@ -274,11 +275,14 @@
 
 /* Live Search Suggestions Dropdown */
 .suggestions-box {
+    
     position: absolute; top: 100%; left: 0; right: 0; background: white; 
     border: 2px solid #e2e8f0; border-top: none; max-height: 200px; overflow-y: auto; 
     z-index: 20; display: none; border-radius: 0 0 10px 10px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
     margin-top: -5px; padding: 5px;
 }
+
+.relative { position: relative; }
 .suggestion-item { padding: 10px 15px; cursor: pointer; border-radius: 8px; transition: 0.1s; margin-bottom: 2px; }
 .suggestion-item:hover { background-color: #fff0f0; }
 .suggestion-item strong { color: #0f172a; display: block; margin-bottom: 2px; font-size: 0.95rem; }

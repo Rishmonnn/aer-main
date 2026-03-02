@@ -98,7 +98,6 @@
                 
                 // Reload the dropdowns based on the detected Year/Sem
                 if (typeof filterSubjects === 'function') filterSubjects();
-                if (typeof populateFaculty === 'function') populateFaculty();
                 
                 // 4. Smart Dropdown Selection with Fallbacks
                 setTimeout(() => {
@@ -272,12 +271,11 @@
                 year: e.extendedProps.year
             })));
         }
+
         for (let ev of eventsToCheck) {
-            // NEW: Skip the event we are currently editing so it doesn't conflict with itself
-            if (excludeEvent && ev.title === excludeEvent.title && ev.start === excludeEvent.startStr) {
-                continue; 
-            }}
-        for (let ev of eventsToCheck) {
+            if (excludeEvent && ev.title === excludeEvent.title && ev.extendedProps?.code === excludeEvent.extendedProps?.code) {
+        continue;
+    }
             // If time overlaps...
             if (newStart < ev.end && newEnd > ev.start) {
                 // 1. Room Conflict (Don't check if TBA)
@@ -298,14 +296,23 @@
     }
 
     function handleScheduleChange(info) {
-        const ev = info.event;
-        const options = { hour: 'numeric', minute: '2-digit', hour12: true };
-        const startStr = ev.start.toLocaleTimeString('en-US', options);
-        const endStr = ev.end.toLocaleTimeString('en-US', options);
-        const dayStr = ev.start.toLocaleDateString('en-US', { weekday: 'long' });
-
-        alert(`✅ Schedule Updated!\n\nSubject: ${ev.title}\nNew Time: ${dayStr}, ${startStr} - ${endStr}`);
+    const ev = info.event;
+    const yearKey = ev.extendedProps.year;
+    
+    // Find the event in the database and update its times
+    if (mockDatabase[yearKey]) {
+        let dbEvent = mockDatabase[yearKey].events.find(e => 
+            e.title === ev.title && e.extendedProps.code === ev.extendedProps.code
+        );
+        if (dbEvent) {
+            // Convert FullCalendar dates back to standard local strings
+            dbEvent.start = ev.start.toISOString().substring(0,19); 
+            dbEvent.end = ev.end.toISOString().substring(0,19);
+        }
     }
+    
+    alert(`✅ Schedule Updated!\n\nSubject: ${ev.title}`);
+}
 
     function showError(message) {
         const errorEl = document.getElementById('modalError');
@@ -386,7 +393,7 @@
             return;
         }
 
-        const conflict = isOverlapping(startDt, endDt, modalYear, room, faculty); // <-- Updated this line
+        const conflict = isOverlapping(startDt, endDt, modalYear, room, faculty, editingEvent);
         if (conflict) {
             showError(conflict);
             return; 
@@ -408,7 +415,15 @@
                 year: modalYear
             }
         };
-
+                    if (editingEvent) {
+    const oldYear = editingEvent.extendedProps.year;
+    if (mockDatabase[yearKey]) {
+    mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
+        !(e.title === editingEvent.title && e.extendedProps.code === editingEvent.extendedProps.code)
+    );
+}
+    editingEvent.remove(); // Remove from UI
+}
                     if (!mockDatabase[modalYear]) mockDatabase[modalYear] = { color: color, events: [] };
                     mockDatabase[modalYear].events.push(newEvent);
 
@@ -756,7 +771,6 @@
         }
         
         if (typeof filterSubjects === 'function') filterSubjects();
-        if (typeof populateFaculty === 'function') populateFaculty();
         
         // --- THE FIX: Smart Dropdown Selection with Fallbacks ---
         setTimeout(() => {

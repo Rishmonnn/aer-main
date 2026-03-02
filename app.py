@@ -427,6 +427,7 @@ def drop_student(student_id):
         
         student.status = new_status
         student.dropout_reason = data.get('reason', 'Other')
+        student.dropout_date = datetime.now().strftime("%b %d, %Y")
         
         # Remove them from their active classes
         active_enrollments = Enrollment.query.filter_by(student_id=student_id).filter(Enrollment.status.in_(['Enrolled', 'Pending'])).all()
@@ -452,7 +453,8 @@ def get_drop_history():
                 'id': s.id,
                 'name': s.name,
                 'status': s.status,
-                'reason': s.dropout_reason or 'Not Specified'
+                'reason': s.dropout_reason or 'Not Specified',
+                'date': s.dropout_date or 'N/A' # --- NEW: Send date to frontend ---
             })
         return jsonify(history)
     except Exception as e:
