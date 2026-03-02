@@ -17,6 +17,12 @@ function fetchRetentionData() {
             document.getElementById('ret-total-students').innerText = data.stats.total;
             document.getElementById('ret-regular').innerText = data.stats.regular;
             document.getElementById('ret-irregular').innerText = data.stats.irregular;
+            // 1. Update Rates
+            document.getElementById('ret-rate-val').innerText = data.stats.retention_rate + '%';
+            document.getElementById('drop-rate-val').innerText = data.stats.dropout_rate + '%';
+
+            // 2. Draw the Dynamic Doughnut Chart & Legend
+            renderDoughnutChart(data.reasons);
             
             // 2. Update Risk Counts
             document.getElementById('ret-critical-count').innerText = data.risks.critical_count;
@@ -80,3 +86,4 @@ function filterRetentionTable() {
         }
     });
 }
+

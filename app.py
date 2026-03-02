@@ -239,12 +239,39 @@ def get_retention_data():
         critical_risk_count = 0
         high_risk_count = 0
 
+        # --- NEW: Dropout Tracking ---
+        dropped_students = [s for s in students if s.status == 'Dropped']
+        dropout_count = len(dropped_students)
+        
+        # Calculate Rates (avoid division by zero)
+        dropout_rate = round((dropout_count / total_students * 100) if total_students > 0 else 0, 1)
+        retention_rate = round(100 - dropout_rate, 1)
+
+        # Tally up the reasons why they dropped out
+        reasons_tally = {}
+        for ds in dropped_students:
+            reason = ds.dropout_reason or "Other"
+            reasons_tally[reason] = reasons_tally.get(reason, 0) + 1
+        
+        # Convert tally to percentages for the frontend chart
+        reasons_data = []
+        for reason, count in reasons_tally.items():
+            pct = round((count / dropout_count) * 100) if dropout_count > 0 else 0
+            reasons_data.append({"reason": reason, "percentage": pct})
+            
+        # Sort so highest percentage appears first in the legend
+        reasons_data.sort(key=lambda x: x['percentage'], reverse=True)
+
         for s in students:
+            # Skip dropped students for regular population metrics
+            if s.status == 'Dropped':
+                continue
+
             # 1. Tally Population by Year Level
             if s.year_level in year_counts:
                 year_counts[s.year_level] += 1
             
-            # 2. Check for failing grades to determine Regular/Irregular and Risk Level
+            # 2. Check for failing grades
             failed_records = Enrollment.query.filter_by(student_id=s.id)\
                 .filter((Enrollment.grade > 3.0) | (Enrollment.status == 'Failed')).all()
             
@@ -252,17 +279,12 @@ def get_retention_data():
             
             if fail_count > 0:
                 irregular_count += 1
-                
-                # Determine Risk Level: 2 or more failures = Critical, 1 failure = High Risk
                 risk_level = "Critical Risk" if fail_count >= 2 else "High Risk"
                 risk_class = "critical" if fail_count >= 2 else "high"
                 
-                if fail_count >= 2:
-                    critical_risk_count += 1
-                else:
-                    high_risk_count += 1
+                if fail_count >= 2: critical_risk_count += 1
+                else: high_risk_count += 1
                     
-                # Add to At-Risk Table
                 at_risk_students.append({
                     'id': s.id,
                     'name': s.name,
@@ -279,7 +301,10 @@ def get_retention_data():
                 'total': total_students,
                 'regular': regular_count,
                 'irregular': irregular_count,
+                'retention_rate': retention_rate,
+                'dropout_rate': dropout_rate
             },
+            'reasons': reasons_data,
             'population': year_counts,
             'risks': {
                 'critical_count': critical_risk_count,

@@ -585,11 +585,16 @@
         // Reset the primary button back to "Import"
         const importBtn = document.querySelector('#importModal .btn-primary');
         if (importBtn) {
-            importBtn.disabled = false; // <-- NEW: Ensure button is clickable
+            importBtn.disabled = false;
             importBtn.innerHTML = `<i class='bx bx-upload'></i> Import`;
             importBtn.onclick = function(e) {
-                if (e) e.preventDefault(); // <-- NEW: Prevent form submission/page reload
-                document.getElementById('modalFileInput').click();
+                if (e) e.preventDefault(); 
+                
+                // --- THE FIX: Wipe browser memory of the last file right before opening the picker ---
+                const fileInput = document.getElementById('modalFileInput');
+                if (fileInput) fileInput.value = null; 
+                
+                fileInput.click();
             };
         }
     }
@@ -642,8 +647,11 @@
             const count = processExcelData(jsonData, true);
             
             if (count > 0) {
-                closeImportModal(); // Modal reset handles re-enabling the button automatically
-                alert(`Successfully imported ${count} schedule entries.`);
+                // Instantly close the modal upon success
+                closeImportModal();
+                
+                // --- THE FIX: Use the new professional popup ---
+                showToast(`Successfully imported ${count} CPE schedule entries.`);
             } else {
                 // Show Error Banner if formatting is wrong
                 const banner = document.getElementById('importSuccessBanner');
@@ -735,9 +743,12 @@
         }
 
         if (count > 0) {
-            updateSelectDropdowns();
+            updateSelectDropdowns(); 
             loadYearData(currentActiveYear);
-            if (!silent) alert(`Successfully imported ${count} CPE entries and sorted them by Year Level.`);
+            
+            // --- THE FIX: Use the new professional popup ---
+            if (!silent) showToast(`Successfully imported ${count} CPE entries and sorted them by Year Level.`);
+            
             return count;
         }
         return 0;
@@ -852,5 +863,52 @@
 
         // Return unique dates only
         return [...new Set(dates)];
+    }
+
+    function showToast(message) {
+        // Remove existing toast if user imports multiple times quickly
+        const existingToast = document.getElementById('custom-toast');
+        if (existingToast) existingToast.remove();
+
+        // Create the notification element
+        const toast = document.createElement('div');
+        toast.id = 'custom-toast';
+        toast.innerHTML = `<i class='bx bx-check-circle' style='font-size: 1.2rem; margin-right: 8px;'></i> ${message}`;
+        
+        // Professional Styling (Modern, clean, floating)
+        Object.assign(toast.style, {
+            position: 'fixed',
+            bottom: '30px',
+            right: '30px',
+            backgroundColor: '#10B981', // Emerald green success color
+            color: 'white',
+            padding: '14px 24px',
+            borderRadius: '8px',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            fontSize: '14px',
+            fontWeight: '500',
+            zIndex: '9999',
+            display: 'flex',
+            alignItems: 'center',
+            opacity: '0',
+            transform: 'translateY(20px)',
+            transition: 'opacity 0.3s ease, transform 0.3s ease'
+        });
+
+        document.body.appendChild(toast);
+
+        // Animate In
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateY(0)';
+        });
+
+        // Auto-remove after 3.5 seconds
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
+            setTimeout(() => toast.remove(), 300); // wait for fade out to finish before deleting
+        }, 3500);
     }
 })();
