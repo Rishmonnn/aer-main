@@ -227,7 +227,69 @@ def get_advising(): return jsonify([])
 @app.route('/api/retention', methods=['GET'])
 @login_required
 def get_retention_data(): 
-    return jsonify({'good': 45, 'warning': 12, 'probation': 8, 'critical': 3, 'students': []})
+    try:
+        students = Student.query.all()
+        total_students = len(students)
+        
+        regular_count = 0
+        irregular_count = 0
+        year_counts = {'1st Year': 0, '2nd Year': 0, '3rd Year': 0, '4th Year': 0}
+        
+        at_risk_students = []
+        critical_risk_count = 0
+        high_risk_count = 0
+
+        for s in students:
+            # 1. Tally Population by Year Level
+            if s.year_level in year_counts:
+                year_counts[s.year_level] += 1
+            
+            # 2. Check for failing grades to determine Regular/Irregular and Risk Level
+            failed_records = Enrollment.query.filter_by(student_id=s.id)\
+                .filter((Enrollment.grade > 3.0) | (Enrollment.status == 'Failed')).all()
+            
+            fail_count = len(failed_records)
+            
+            if fail_count > 0:
+                irregular_count += 1
+                
+                # Determine Risk Level: 2 or more failures = Critical, 1 failure = High Risk
+                risk_level = "Critical Risk" if fail_count >= 2 else "High Risk"
+                risk_class = "critical" if fail_count >= 2 else "high"
+                
+                if fail_count >= 2:
+                    critical_risk_count += 1
+                else:
+                    high_risk_count += 1
+                    
+                # Add to At-Risk Table
+                at_risk_students.append({
+                    'id': s.id,
+                    'name': s.name,
+                    'program': s.program,
+                    'year_level': s.year_level,
+                    'risk_level': risk_level,
+                    'risk_class': risk_class
+                })
+            else:
+                regular_count += 1
+
+        return jsonify({
+            'stats': {
+                'total': total_students,
+                'regular': regular_count,
+                'irregular': irregular_count,
+            },
+            'population': year_counts,
+            'risks': {
+                'critical_count': critical_risk_count,
+                'high_count': high_risk_count
+            },
+            'at_risk_students': at_risk_students
+        })
+    except Exception as e:
+        print(f"Error loading retention data: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/enlistment', methods=['GET'])
 @login_required
@@ -723,6 +785,42 @@ def get_registered_faculty():
         return jsonify(output)
     except Exception as e:
         print(f"ERROR IN GET_REGISTERED_FACULTY: {e}") 
+        return jsonify([])
+        
+@app.route('/api/subjects', methods=['GET'])
+@login_required
+def get_all_subjects():
+    """Returns the full course catalog for the scheduler."""
+    try:
+        subjects = Subject.query.all()
+        output = []
+        for sub in subjects:
+            # Safely extract just the number from "1st Year", "2nd Year"
+            year_num = "1"
+            if sub.year_level and sub.year_level[0].isdigit():
+                year_num = sub.year_level[0]
+                
+            # Convert "1st Semester" to "1"
+            sem_num = "1"
+            if sub.semester and "2nd" in sub.semester:
+                sem_num = "2"
+            elif sub.semester and "Summer" in sub.semester:
+                sem_num = "Summer"
+
+            # Approximation for schedule Builder: determine if it has lab based on type
+            is_lab = 1 if sub.type and 'Lab' in sub.type else 0
+            
+            output.append({
+                'year': year_num,
+                'sem': sem_num,
+                'code': sub.code,
+                'title': sub.description,
+                'lec': sub.units if not is_lab else 0,
+                'lab': sub.units if is_lab else 0
+            })
+        return jsonify(output)
+    except Exception as e:
+        print(f"Error fetching subjects: {e}")
         return jsonify([])
 
 # ==================== DASHBOARD APIs ====================

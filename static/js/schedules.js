@@ -1,20 +1,13 @@
 (function() {
     let calendarInstance = null;
     let currentActiveYear = "1"; 
-
+    let importedFaculty = new Set();
+    let importedSections = new Set();
+    
     // 1. FACULTY LIST (Fetched via API in init)
-
+    
     // 2. FULL CURRICULUM DATA
-    const curriculumData = [
-        { year: "1", sem: "1", code: "GEN 002", title: "Understanding the Self", lec: 3, lab: 0 },
-        { year: "1", sem: "1", code: "GEN 003", title: "Science, Technology and Society", lec: 3, lab: 0 },
-        { year: "1", sem: "1", code: "MAT 152", title: "Mathematics in the Modern World", lec: 3, lab: 0 },
-        { year: "1", sem: "1", code: "HIS 007", title: "Life and Works of Rizal", lec: 3, lab: 0 },
-        { year: "1", sem: "1", code: "MAT 171", title: "Calculus 1 for Engineers", lec: 4, lab: 0 },
-        { year: "1", sem: "1", code: "CPE 034", title: "Computer Engineering as a Discipline", lec: 1, lab: 0 },
-        { year: "1", sem: "1", code: "CPE 035", title: "Programming Logic and Design", lec: 0, lab: 2 },
-        { year: "1", sem: "1", code: "NST 021", title: "National Service Training Program 1", lec: 3, lab: 0 },
-    ];
+    let curriculumData = [];
 
     // 3. MOCK DATABASE
     const mockDatabase = {
@@ -41,40 +34,26 @@
 
     function init() {
         const calendarEl = document.getElementById('calendar');
-        if (!calendarEl) {
-            console.warn("Calendar element not found. Skipping init.");
-            return;
-        }
+        if (!calendarEl) return;
 
-        // Check if FullCalendar is loaded
         if (typeof FullCalendar === 'undefined') {
-            console.error("FullCalendar library is missing. Please check base.html includes.");
-            // Try again in 1 second in case of slow CDN
             setTimeout(init, 1000);
             return;
         }
 
-        // Destroy existing instance if it exists to prevent duplication
-        if (calendarInstance) {
-            calendarInstance.destroy();
-        }
+        if (calendarInstance) calendarInstance.destroy();
 
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGridWeek',
             initialDate: '2026-02-09',
-            headerToolbar: false, // Hides default toolbar
-            dayHeaderFormat: { weekday: 'short' }, // "Mon" -> CSS makes it "MON"
-            hiddenDays: [0], // Hide Sunday
-            
-            // Match React Time Range (7am to 9pm)
+            headerToolbar: false, 
+            dayHeaderFormat: { weekday: 'short' }, 
+            hiddenDays: [0], 
             slotMinTime: '07:00:00',
             slotMaxTime: '21:00:00',
             allDaySlot: false,
-            
-            // Match React Labels
-            slotLabelInterval: '01:00', // Only show labels every hour
-            slotLabelFormat: { hour: 'numeric', meridiem: 'lowercase' }, // e.g., "7am"
-            
+            slotLabelInterval: '01:00', 
+            slotLabelFormat: { hour: 'numeric', meridiem: 'lowercase' }, 
             height: 'auto',
             editable: true, 
             eventOverlap: false,
@@ -84,23 +63,46 @@
             eventDrop: handleScheduleChange,
             eventResize: handleScheduleChange,
             
+            // --- NEW: SUGGESTION 5 (Click to Edit/Delete) ---
+            eventClick: function(info) {
+                const ev = info.event;
+                const confirmDelete = confirm(`Class: ${ev.title}\nRoom: ${ev.extendedProps.room}\nInstructor: ${ev.extendedProps.faculty}\n\nWould you like to DELETE this class from the schedule?`);
+                
+                if (confirmDelete) {
+                    // Remove from UI
+                    ev.remove();
+                    // Remove from mockDatabase so it doesn't reappear on toggle
+                    const yearKey = ev.extendedProps.year;
+                    if (mockDatabase[yearKey]) {
+                        mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
+                            e.title !== ev.title || e.start !== ev.startStr
+                        );
+                    }
+                    updateKPIs(calendarInstance.getEvents());
+                    alert("Class removed.");
+                }
+            },
+            
             // Inject EXACT React HTML Structure into Events
             eventContent: function(arg) {
                 let props = arg.event.extendedProps;
                 let facultyShort = props.faculty ? props.faculty.split(',')[0] : 'TBA';
                 let room = props.room || 'TBA';
+                let timeText = arg.timeText; // <-- Get time explicitly from FullCalendar
                 
-                // Using the exact typography styles from course-data-magic
                 return {
                     html: `
                     <div style="padding: 4px 8px; color: white; height: 100%; overflow: hidden; display: flex; flex-direction: column;">
-                        <p style="font-size: 0.75rem; font-weight: 700; line-height: 1.25; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <p style="font-size: 0.75rem; font-weight: 700; line-height: 1.2; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             ${props.code}
                         </p>
-                        <p style="font-size: 0.75rem; line-height: 1.25; margin: 0; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <p style="font-size: 0.70rem; font-weight: 600; line-height: 1.2; margin: 0; opacity: 0.95;">
+                            ⏱ ${timeText}
+                        </p>
+                        <p style="font-size: 0.75rem; line-height: 1.2; margin: 2px 0 0 0; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             ${arg.event.title}
                         </p>
-                        <p style="font-size: 0.75rem; line-height: 1.25; margin: 2px 0 0 0; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: auto;">
+                        <p style="font-size: 0.70rem; line-height: 1.2; margin: 2px 0 0 0; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: auto;">
                             ${room} • ${facultyShort}
                         </p>
                     </div>`
@@ -115,54 +117,96 @@
             calendarInstance.updateSize();
         }, 200);
 
+        fetchCurriculumData();
         loadYearData(currentActiveYear);
-        filterSubjects();
         populateFaculty(); 
         setupEventListeners();
+    }
+
+    // --- NEW: SUGGESTION 3 (Fetch Curriculum) ---
+    function fetchCurriculumData() {
+        fetch('/api/subjects')
+            .then(res => res.json())
+            .then(data => {
+                if (data.length > 0) {
+                    curriculumData = data;
+                }
+                filterSubjects(); // Refresh dropdowns
+            })
+            .catch(err => console.error("Failed to load curriculum", err));
     }
 
     // --- POPULATE FACULTY (Connected to API) ---
     function populateFaculty() {
         const facultySelect = document.getElementById('facultySelect');
+        const filterSelects = document.querySelectorAll('.controls-group select');
+        let filterFaculty = filterSelects.length > 2 ? filterSelects[2] : null;
+
         if (!facultySelect) return;
         
         fetch('/api/instructors')
             .then(response => response.json())
             .then(data => {
+                // Merge Database Faculty with Imported Faculty
+                let combinedFaculty = new Set(importedFaculty);
+                data.forEach(fac => combinedFaculty.add(fac.name.toUpperCase()));
+
+                // 1. Populate Modal Dropdown
                 facultySelect.innerHTML = '<option value="">-- Select Instructor --</option>';
-                data.forEach(fac => {
-                    const option = document.createElement('option');
-                    option.value = fac.name;
-                    option.text = fac.name;
-                    facultySelect.appendChild(option);
+                Array.from(combinedFaculty).sort().forEach(fac => {
+                    facultySelect.innerHTML += `<option value="${fac}">${fac}</option>`;
                 });
+
+                // 2. Populate Dashboard Filter Dropdown
+                if (filterFaculty) {
+                    filterFaculty.innerHTML = '<option value="all">All Faculty</option>';
+                    Array.from(combinedFaculty).sort().forEach(fac => {
+                        filterFaculty.innerHTML += `<option value="${fac}">${fac}</option>`;
+                    });
+                }
             })
-            .catch(err => console.error("Error loading faculty for schedules:", err));
+            .catch(err => {
+                console.error("Error loading API faculty, falling back to Excel data only:", err);
+                
+                // Fallback: Just use Excel data if API fails
+                facultySelect.innerHTML = '<option value="">-- Select Instructor --</option>';
+                Array.from(importedFaculty).sort().forEach(fac => {
+                    facultySelect.innerHTML += `<option value="${fac}">${fac}</option>`;
+                });
+            });
     }
 
-    function isOverlapping(newStart, newEnd, targetYear) {
+    // --- NEW: SUGGESTION 2 (Smart Conflicts) ---
+    function isOverlapping(newStart, newEnd, targetYear, checkRoom, checkFaculty) {
         let eventsToCheck = [];
-        // If checking current active year, check the live calendar
-        if (targetYear === currentActiveYear && calendarInstance) {
-            eventsToCheck = calendarInstance.getEvents().map(e => ({
-                start: e.start,
-                end: e.end,
-                title: e.title
-            }));
-        } 
-        // If checking a background year, check the mockDatabase
-        else if (mockDatabase[targetYear]) {
-            eventsToCheck = mockDatabase[targetYear].events.map(e => ({
+        
+        // Always check ALL events across all years to prevent room/faculty double booking
+        for (let year in mockDatabase) {
+            eventsToCheck = eventsToCheck.concat(mockDatabase[year].events.map(e => ({
                 start: new Date(e.start),
                 end: new Date(e.end),
-                title: e.title
-            }));
+                title: e.title,
+                room: e.extendedProps.room,
+                faculty: e.extendedProps.faculty,
+                year: e.extendedProps.year
+            })));
         }
 
         for (let ev of eventsToCheck) {
-            // Overlap logic: (StartA < EndB) and (EndA > StartB)
+            // If time overlaps...
             if (newStart < ev.end && newEnd > ev.start) {
-                return ev.title;
+                // 1. Room Conflict (Don't check if TBA)
+                if (checkRoom && checkRoom !== 'TBA' && checkRoom.toUpperCase() === ev.room?.toUpperCase()) {
+                    return `Room Conflict: ${ev.room} is already booked for ${ev.title}.`;
+                }
+                // 2. Instructor Conflict (Don't check if TBA)
+                if (checkFaculty && checkFaculty !== 'TBA' && checkFaculty.toUpperCase() === ev.faculty?.toUpperCase()) {
+                    return `Instructor Conflict: ${ev.faculty} is already teaching ${ev.title}.`;
+                }
+                // 3. Student Conflict (Same Year Level shouldn't overlap)
+                if (targetYear === ev.year) {
+                    return `Student Conflict: Time overlaps with ${ev.title} for Year ${targetYear}.`;
+                }
             }
         }
         return false;
@@ -257,9 +301,9 @@
             return;
         }
 
-        const conflict = isOverlapping(startDt, endDt, modalYear);
+        const conflict = isOverlapping(startDt, endDt, modalYear, room, faculty); // <-- Updated this line
         if (conflict) {
-            showError(`CONFLICT: Time overlaps with "${conflict}".`);
+            showError(conflict);
             return; 
         }
 
@@ -310,8 +354,8 @@
         
         let allEventsToDisplay = [];
 
+        // 1. Get all events for the selected year (or all years)
         if (yearKey === 'all') {
-            // Loop through all years in the database and combine them
             for (let year in mockDatabase) {
                 const data = mockDatabase[year];
                 if (data && data.events && data.events.length > 0) {
@@ -324,7 +368,6 @@
                 }
             }
         } else {
-            // Load just the specific year
             const data = mockDatabase[yearKey];
             if (data && data.events && data.events.length > 0) {
                 allEventsToDisplay = data.events.map(ev => ({
@@ -335,16 +378,45 @@
             }
         }
 
-        // Display the events
+        // --- NEW: APPLY DASHBOARD FILTERS ---
+        // Find the top filter dropdowns (Assuming Section is index 1, Faculty is index 2)
+        const filterSelects = document.querySelectorAll('.controls-group select');
+        const sectionFilter = filterSelects.length > 1 ? filterSelects[1].value : 'all';
+        const facultyFilter = filterSelects.length > 2 ? filterSelects[2].value : 'all';
+
+        // Filter the events if a specific section or faculty is selected
+        if (sectionFilter !== 'all' || facultyFilter !== 'all') {
+            allEventsToDisplay = allEventsToDisplay.filter(ev => {
+                let matchSection = true;
+                let matchFaculty = true;
+
+                if (sectionFilter !== 'all') {
+                    // Make sure to handle potential undefined values gracefully
+                    const evSection = ev.extendedProps.sectionCode || "";
+                    matchSection = evSection.toUpperCase() === sectionFilter.toUpperCase();
+                }
+                
+                if (facultyFilter !== 'all') {
+                    const evFaculty = ev.extendedProps.faculty || "";
+                    matchFaculty = evFaculty.toUpperCase() === facultyFilter.toUpperCase();
+                }
+
+                return matchSection && matchFaculty;
+            });
+        }
+        // --- END OF FILTERING ---
+
+        // 3. Display the events
         if (allEventsToDisplay.length > 0) {
             calendarInstance.addEventSource(allEventsToDisplay);
-            updateKPIs(allEventsToDisplay);
-            toggleEmptyState(true); // Show calendar
+            updateKPIs(allEventsToDisplay); // KPIs will now reflect the filtered count!
+            toggleEmptyState(true); 
         } else {
             updateKPIs([]);
-            toggleEmptyState(false); // Show empty state
+            toggleEmptyState(false); 
         }
     }
+
     function toggleEmptyState(hasEvents) {
     const emptyState = document.getElementById('empty-state');
     const calendarWrapper = document.getElementById('calendar-wrapper');
@@ -390,32 +462,49 @@
 
     function setupEventListeners() {
         const dropZone = document.getElementById('dragDropZone');
-const fileInput = document.getElementById('modalFileInput');
+        const fileInput = document.getElementById('modalFileInput');
 
-if (dropZone) {
+        // --- NEW: Listen for Dropdown Changes ---
+        const filterSelects = document.querySelectorAll('.controls-group select');
+        
+        // Section Dropdown Listener
+        if (filterSelects.length > 1) {
+            filterSelects[1].addEventListener('change', function() {
+                loadYearData(currentActiveYear);
+            });
+        }
+        
+        // Faculty Dropdown Listener
+        if (filterSelects.length > 2) {
+            filterSelects[2].addEventListener('change', function() {
+                loadYearData(currentActiveYear);
+            });
+        }
+
+        if (dropZone) {
     // Prevent default browser behavior (which is to open the file in a new tab)
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
-    });
+            });
 
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            }
 
     // Add highlight effect when dragging over
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
-    });
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+        });
 
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
-    });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+        });
 
     // Handle dropped files
-    dropZone.addEventListener('drop', function(e) {
-        let dt = e.dataTransfer;
-        let files = dt.files;
+        dropZone.addEventListener('drop', function(e) {
+            let dt = e.dataTransfer;
+            let files = dt.files;
 
         if (files.length) {
             // Assign the dropped file to the hidden input
@@ -461,25 +550,84 @@ if (dropZone) {
     if(document.getElementById('calendar')) {
         init();
     }
+    let pendingFile = null;
+
     function triggerImport() {
         const modal = document.getElementById('importModal');
-        if (modal) modal.style.display = 'flex';
+        if (modal) {
+            resetImportModal(); // Ensure it's clean when opened
+            modal.style.display = 'flex';
+        }
     }
 
     function closeImportModal() {
         const modal = document.getElementById('importModal');
         if (modal) modal.style.display = 'none';
+        resetImportModal(); // Clean up state when closing
+    }
+
+    function resetImportModal() {
+        pendingFile = null;
+        
+        // Reset UI Elements
+        const dropZone = document.getElementById('dropZoneDefault');
+        if (dropZone) dropZone.style.display = ''; 
+        
+        const fileInfo = document.getElementById('fileInfoDisplay');
+        if (fileInfo) fileInfo.style.display = 'none';
+        
+        const banner = document.getElementById('importSuccessBanner');
+        if (banner) banner.style.display = 'none';
+        
+        const fileInput = document.getElementById('modalFileInput');
+        if (fileInput) fileInput.value = '';
+
+        // Reset the primary button back to "Import"
+        const importBtn = document.querySelector('#importModal .btn-primary');
+        if (importBtn) {
+            importBtn.disabled = false; // <-- NEW: Ensure button is clickable
+            importBtn.innerHTML = `<i class='bx bx-upload'></i> Import`;
+            importBtn.onclick = function(e) {
+                if (e) e.preventDefault(); // <-- NEW: Prevent form submission/page reload
+                document.getElementById('modalFileInput').click();
+            };
+        }
     }
 
     function handleImport(event) {
         const file = event.target.files[0];
         if (!file) return;
 
-        // 1. Update UI
+        pendingFile = file;
+
+        // 1. Update UI to show the selected file
         document.getElementById('dropZoneDefault').style.display = 'none';
         document.getElementById('fileInfoDisplay').style.display = 'block';
         document.getElementById('fileNameText').textContent = file.name;
         document.getElementById('fileSizeText').textContent = (file.size / 1024).toFixed(1) + " KB";
+        document.getElementById('importSuccessBanner').style.display = 'none';
+
+        // 2. Change the primary button to process the import on click
+        const importBtn = document.querySelector('#importModal .btn-primary');
+        if (importBtn) {
+            importBtn.disabled = false; // <-- NEW: Ensure it's clickable
+            importBtn.innerHTML = `<i class='bx bx-check-circle'></i> Finish Import`;
+            importBtn.onclick = function(e) {
+                if (e) e.preventDefault(); // <-- NEW: Prevent form submission/page reload
+                executeImport();
+            };
+        }
+    }
+
+    function executeImport() {
+        if (!pendingFile) return;
+
+        // --- NEW: Block double-clicks and show loading state ---
+        const importBtn = document.querySelector('#importModal .btn-primary');
+        if (importBtn) {
+            importBtn.innerHTML = `<i class='bx bx-loader bx-spin'></i> Processing...`;
+            importBtn.disabled = true; 
+        }
 
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -488,111 +636,139 @@ if (dropZone) {
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            // MAGIC FIX: Read as a raw 2D array, ensuring empty cells aren't skipped
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
             
-            // 2. Process data
+            // Process data quietly (silent = true)
             const count = processExcelData(jsonData, true);
             
-            // 3. Show Success/Error Banner
-            const banner = document.getElementById('importSuccessBanner');
-            const msg = document.getElementById('successMessageText');
-            const importBtn = document.querySelector('#importModal .btn-primary');
-
             if (count > 0) {
-                msg.textContent = `Successfully parsed ${count} schedule entries.`;
-                banner.style.display = 'flex';
-                banner.style.backgroundColor = '#ecfdf5';
-                banner.style.borderColor = '#10b981';
-                banner.style.color = '#065f46';
-                
-                importBtn.innerHTML = `<i class='bx bx-check'></i> Finish Import`;
-                importBtn.onclick = function() {
-                    Schedules.closeImportModal();
-                };
+                closeImportModal(); // Modal reset handles re-enabling the button automatically
+                alert(`Successfully imported ${count} schedule entries.`);
             } else {
+                // Show Error Banner if formatting is wrong
+                const banner = document.getElementById('importSuccessBanner');
+                const msg = document.getElementById('successMessageText');
+
                 msg.textContent = `Failed to process. Make sure the file matches the expected format.`;
                 banner.style.display = 'flex';
                 banner.style.backgroundColor = '#fde8e8';
                 banner.style.borderColor = '#f8b4b4';
                 banner.style.color = '#c53030';
+                
+                // --- NEW: Re-enable the button if it failed so they can try again ---
+                if (importBtn) {
+                    importBtn.disabled = false;
+                    importBtn.innerHTML = `<i class='bx bx-upload'></i> Try Again`;
+                    importBtn.onclick = function(e) {
+                        if (e) e.preventDefault();
+                        document.getElementById('modalFileInput').click();
+                    };
+                }
             }
-
-            // 4. Reset input
-            event.target.value = '';
         };
-        reader.readAsArrayBuffer(file);
+        reader.readAsArrayBuffer(pendingFile);
     }
 
+    // --- NEW: SUGGESTION 4 (Resilient Excel parsing) ---
     function processExcelData(data, silent = false) {
         let count = 0;
+        // 1. Dynamically find column indexes by scanning headers (Rows 0-2)
+        let colMap = { code: 2, title: 3, course: 4, section: 11, timeLec: 12, timeLab: 13, dayLec: 14, dayLab: 15, roomLec: 16, roomLab: 17, faculty: 18 };
+        
+        const headerRows = data.slice(0, 3);
+        headerRows.forEach(row => {
+            row.forEach((cell, index) => {
+                if (!cell) return;
+                let text = String(cell).toUpperCase();
+                if (text.includes("CODE")) colMap.code = index;
+                if (text === "COURSE") colMap.course = index;
+                if (text.includes("SECTION")) colMap.section = index;
+                if (text === "FACULTY") colMap.faculty = index;
+                if (text.includes("DESCRIPTIVE TITLE")) colMap.title = index;
+            });
+        });
 
-        // Loop starting from index 3 to skip headers
+        // Loop starting from index 3
         for (let i = 3; i < data.length; i++) {
             const row = data[i];
-            
-            // Skip empty or incomplete rows
             if (!row || row.length < 10) continue;
 
-            let campus = String(row[1] || '').trim();
-            let code = String(row[2] || '').trim();
-            let title = String(row[3] || '').trim();
-            let course = String(row[4] || '').trim();
-            let section = String(row[11] || '').trim();
-            let faculty = String(row[18] || '').trim();
+            let code = String(row[colMap.code] || '').trim();
+            let title = String(row[colMap.title] || '').trim();
+            let course = String(row[colMap.course] || '').trim();
+            let section = String(row[colMap.section] || '').trim();
+            let faculty = String(row[colMap.faculty] || '').trim();
 
-            if (!campus || !code || !title) continue;
+            if (!code || !title) continue;
 
-            // 1. Filter for CPE / BSCPE
+            // 1. Check if it's a CPE course FIRST
             const courseLower = course.toLowerCase();
             const isCPE = courseLower.includes('cpe') || courseLower.includes('bscpe') || courseLower.includes('computer engineering');
             if (!isCPE) continue; 
 
-            // 2. Extract Year Level from Course (e.g., "CPE-1" -> "1")
-            let targetYear = currentActiveYear; // Default fallback
-            const yearMatch = course.match(/-(\d)/); // Looks for the number after a hyphen
-            if (yearMatch) {
-                targetYear = yearMatch[1];
-            }
+            // 2. ONLY THEN capture the faculty and section for the dropdowns
+            if (faculty && faculty !== 'undefined') importedFaculty.add(faculty);
+            if (section && section !== 'undefined') importedSections.add(section);
 
-            // 3. Get the correct color for this specific year
-            let yearColor = '#54a0ff'; // 1st year default
+            let targetYear = currentActiveYear; 
+            const yearMatch = course.match(/-(\d)/); 
+            if (yearMatch) targetYear = yearMatch[1];
+
+            let yearColor = '#54a0ff'; 
             if (targetYear == "2") yearColor = '#2ecc71';
             if (targetYear == "3") yearColor = '#f39c12';
             if (targetYear == "4") yearColor = '#9b59b6';
 
-            // Ensure the mockDatabase exists for this year
-            if (!mockDatabase[targetYear]) {
-                mockDatabase[targetYear] = { color: yearColor, events: [] };
-            }
+            if (!mockDatabase[targetYear]) mockDatabase[targetYear] = { color: yearColor, events: [] };
 
-            // Create a temporary array just for this specific row's events
             let rowEvents = [];
 
-            // Extract LECTURE: Time (12), Days (14), Room (16)
-            extractAndAddEvent('lecture', row[12], row[14], row[16], code, title, section, faculty, rowEvents, yearColor);
+            // We fall back to standard indices for complex split headers (Time/Room) if strict mapping fails
+            extractAndAddEvent('lecture', row[colMap.timeLec], row[colMap.dayLec], row[colMap.roomLec], code, title, section, faculty, rowEvents, yearColor);
+            extractAndAddEvent('lab', row[colMap.timeLab], row[colMap.dayLab], row[colMap.roomLab], code, title, section, faculty, rowEvents, yearColor);
 
-            // Extract LAB: Time (13), Days (15), Room (17)
-            extractAndAddEvent('lab', row[13], row[15], row[17], code, title, section, faculty, rowEvents, yearColor);
-
-            // Add the generated events directly to the specific year's database
             if (rowEvents.length > 0) {
-                rowEvents.forEach(ev => {
-                    ev.extendedProps.year = targetYear; // Tag it with the year level
-                });
+                rowEvents.forEach(ev => ev.extendedProps.year = targetYear);
                 mockDatabase[targetYear].events = mockDatabase[targetYear].events.concat(rowEvents);
                 count += rowEvents.length;
             }
         }
 
         if (count > 0) {
-            // Reload the currently active year's calendar view so you see updates immediately
+            updateSelectDropdowns();
             loadYearData(currentActiveYear);
-            
             if (!silent) alert(`Successfully imported ${count} CPE entries and sorted them by Year Level.`);
             return count;
         }
         return 0;
+    }
+
+    // --- NEW HELPER FUNCTION ---
+    function updateSelectDropdowns() {
+        const sectionSelect = document.getElementById('modalSection');
+        
+        // Find the top filter dropdowns (Assuming Section is the 2nd one, Faculty is 3rd)
+        const filterSelects = document.querySelectorAll('.controls-group select');
+        let filterSection = filterSelects.length > 1 ? filterSelects[1] : null;
+
+        // Populate Modal Sections
+        if (sectionSelect && importedSections.size > 0) {
+            sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
+            Array.from(importedSections).sort().forEach(sec => {
+                sectionSelect.innerHTML += `<option value="${sec}">${sec}</option>`;
+            });
+        }
+
+        // Populate Dashboard Filter Sections
+        if (filterSection && importedSections.size > 0) {
+            filterSection.innerHTML = '<option value="all">All Sections</option>';
+            Array.from(importedSections).sort().forEach(sec => {
+                filterSection.innerHTML += `<option value="${sec}">${sec}</option>`;
+            });
+        }
+
+        // Trigger populateFaculty to merge and update the faculty dropdowns
+        populateFaculty();
     }
 
     function extractAndAddEvent(type, timeStr, dayStr, roomStr, code, title, section, faculty, importedEvents) {
@@ -630,7 +806,7 @@ if (dropZone) {
         const part = String(timeStr).split('/')[0].trim();
         
         // Advanced Regex to catch standard time formats
-        const match = part.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        const match = part.match(/(\d{1,2})[:]+(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2})[:]+(\d{2})\s*(AM|PM)/i);
         if (!match) return null;
 
         let startH = parseInt(match[1]);

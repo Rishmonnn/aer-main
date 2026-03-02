@@ -6,15 +6,15 @@
         <div class="col-counts">
             <div class="card-metric maroon small-card">
                 <h3>Total Students</h3>
-                <span class="value">5,909</span>
+                <span class="value" id="ret-total-students">0</span>
             </div>
             <div class="card-metric green small-card">
                 <h3>Regular</h3>
-                <span class="value">60</span>
+                <span class="value" id="ret-regular">0</span>
             </div>
             <div class="card-metric maroon small-card">
                 <h3>Irregular</h3>
-                <span class="value">100</span>
+                <span class="value" id="ret-irregular">0</span>
             </div>
         </div>
 
@@ -59,14 +59,14 @@
         </div>
     </div>
 
-    <div class="risk-analysis-grid">
+<div class="risk-analysis-grid">
         <div class="risk-card critical">
             <div class="risk-header">
                 <h3>Critical Risk</h3>
                 <i class='bx bx-error-circle'></i>
             </div>
             <div class="risk-body">
-                <span class="risk-count">2</span>
+                <span class="risk-count" id="ret-critical-count">0</span>
                 <p>Student with multiple failed subject, multiple absences</p>
             </div>
         </div>
@@ -77,7 +77,7 @@
                 <i class='bx bx-error'></i>
             </div>
             <div class="risk-body">
-                <span class="risk-count">4</span>
+                <span class="risk-count" id="ret-high-count">0</span>
                 <p>Student who is barely passing, frequent absences</p>
             </div>
         </div>
@@ -88,23 +88,23 @@
             <div class="pop-bars">
                 <div class="pop-row">
                     <span class="label">1st year</span>
-                    <div class="progress-track"><div class="progress-fill red" style="width: 70%"></div></div>
-                    <span class="count">70</span>
+                    <div class="progress-track"><div class="progress-fill red" id="pop-bar-1" style="width: 0%"></div></div>
+                    <span class="count" id="pop-count-1">0</span>
                 </div>
                 <div class="pop-row">
                     <span class="label">2nd year</span>
-                    <div class="progress-track"><div class="progress-fill blue" style="width: 85%"></div></div>
-                    <span class="count">85</span>
+                    <div class="progress-track"><div class="progress-fill blue" id="pop-bar-2" style="width: 0%"></div></div>
+                    <span class="count" id="pop-count-2">0</span>
                 </div>
                 <div class="pop-row">
                     <span class="label">3rd year</span>
-                    <div class="progress-track"><div class="progress-fill brown" style="width: 35%"></div></div>
-                    <span class="count">35</span>
+                    <div class="progress-track"><div class="progress-fill brown" id="pop-bar-3" style="width: 0%"></div></div>
+                    <span class="count" id="pop-count-3">0</span>
                 </div>
                 <div class="pop-row">
                     <span class="label">4th year</span>
-                    <div class="progress-track"><div class="progress-fill green" style="width: 15%"></div></div>
-                    <span class="count">11</span>
+                    <div class="progress-track"><div class="progress-fill green" id="pop-bar-4" style="width: 0%"></div></div>
+                    <span class="count" id="pop-count-4">0</span>
                 </div>
             </div>
         </div>
@@ -127,24 +127,8 @@
                     <th>ACTION</th>
                 </tr>
             </thead>
-            <tbody>
-                <tr>
-                    <td>2324-00001</td>
-                    <td class="std-name">Jupiter Mami</td>
-                    <td>BS in Computer Engineering</td>
-                    <td>2nd Year</td>
-                    <td><span class="risk-pill high">High Risk</span></td>
-                    <td><button class="btn-advise">ADVISE</button></td>
-                </tr>
-                <tr>
-                    <td>2324-00002</td>
-                    <td class="std-name">Juan Dela Cruz</td>
-                    <td>BS in Computer Engineering</td>
-                    <td>2nd Year</td>
-                    <td><span class="risk-pill high">High Risk</span></td>
-                    <td><button class="btn-advise">ADVISE</button></td>
-                </tr>
-            </tbody>
+            <tbody id="retention-table-body">
+                </tbody>
         </table>
     </div>
 </div>
