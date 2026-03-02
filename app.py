@@ -334,8 +334,71 @@ def get_enlistment(): return jsonify([])
 
 @app.route('/api/schedules', methods=['GET'])
 @login_required
-def get_schedules():
-    return jsonify([{'id': 1, 'title': 'Class Schedule A', 'times': 'MWF 9:00-10:30'}])
+def get_all_schedules():
+    """Fetches all schedules from the database formatted for FullCalendar."""
+    events = ScheduleEvent.query.all()
+    output = []
+    for ev in events:
+        output.append({
+            'id': ev.id,
+            'title': ev.title,
+            'start': ev.start_time,
+            'end': ev.end_time,
+            'backgroundColor': ev.color,
+            'borderColor': ev.color,
+            'extendedProps': {
+                'code': ev.subject_code,
+                'sectionCode': ev.section_code,
+                'faculty': ev.faculty_name,
+                'room': ev.room,
+                'type': ev.type,
+                'year': ev.year_level
+            }
+        })
+    return jsonify(output)
+
+@app.route('/api/schedules', methods=['POST'])
+@login_required
+def save_schedule():
+    """Saves a new class or updates an existing one in the database."""
+    data = request.get_json()
+    
+    try:
+        # If an ID is provided, update the existing event
+        event_id = data.get('id')
+        if event_id:
+            event = ScheduleEvent.query.get(event_id)
+        else:
+            event = ScheduleEvent()
+            db.session.add(event)
+            
+        event.title = data['title']
+        event.subject_code = data['extendedProps']['code']
+        event.section_code = data['extendedProps']['sectionCode']
+        event.faculty_name = data['extendedProps']['faculty']
+        event.room = data['extendedProps']['room']
+        event.type = data['extendedProps']['type']
+        event.year_level = str(data['extendedProps']['year'])
+        event.start_time = data['start']
+        event.end_time = data['end']
+        event.color = data['backgroundColor']
+        
+        db.session.commit()
+        return jsonify({'success': True, 'id': event.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/schedules/<int:event_id>', methods=['DELETE'])
+@login_required
+def delete_schedule(event_id):
+    """Deletes a schedule from the database."""
+    event = ScheduleEvent.query.get(event_id)
+    if event:
+        db.session.delete(event)
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'message': 'Event not found'}), 404
 
 
 @app.route('/api/students', methods=['GET'])

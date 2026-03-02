@@ -83,3 +83,20 @@ class Enrollment(db.Model):
     grade = db.Column(db.Float, nullable=True) # Final Grade
     status = db.Column(db.String(20), default='Enrolled') # Enrolled, Dropped, Passed, Failed
 # 6. CREATE ACCOUNT PANEL (The Link: Student <-> Section)
+
+# 7. SCHEDULE EVENTS (Powers the FullCalendar UI)
+class ScheduleEvent(db.Model):
+    __tablename__ = 'schedule_events'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)        # Descriptive Title
+    subject_code = db.Column(db.String(20), nullable=False)  # e.g., CPE 101
+    section_code = db.Column(db.String(50), nullable=False)  # e.g., 50123 or A
+    faculty_name = db.Column(db.String(100), nullable=True)  # Instructor
+    room = db.Column(db.String(50), nullable=True)           
+    type = db.Column(db.String(20), nullable=False)          # lecture or lab
+    year_level = db.Column(db.String(20), nullable=False)    # 1, 2, 3, or 4
+    
+    # FullCalendar exact timestamps (e.g., "2026-02-09T07:30:00")
+    start_time = db.Column(db.String(50), nullable=False)
+    end_time = db.Column(db.String(50), nullable=False)
+    color = db.Column(db.String(20), nullable=False)

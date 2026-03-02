@@ -12,10 +12,10 @@
 
     // 3. MOCK DATABASE
     const mockDatabase = {
-        "1": { color: '#54a0ff', events: [] },
-        "2": { color: '#2ecc71', events: [] },
-        "3": { color: '#f39c12', events: [] },
-        "4": { color: '#9b59b6', events: [] }
+        "1": { color: '#ef4444', events: [] }, // Professional Red
+        "2": { color: '#3b82f6', events: [] }, // Professional Blue
+        "3": { color: '#10b981', events: [] }, // Professional Green
+        "4": { color: '#8b5cf6', events: [] }  // Professional Purple
     };
 
     const COLOR_PALETTE = [
@@ -203,6 +203,23 @@
         setupEventListeners();
     }
 
+    fetch('/api/schedules')
+    .then(res => res.json())
+    .then(data => {
+        // Clear old mock data
+        for (let year in mockDatabase) mockDatabase[year].events = [];
+        
+        // Put database events into the mockDatabase structure
+        data.forEach(event => {
+            let year = event.extendedProps.year;
+            if (!mockDatabase[year]) mockDatabase[year] = { color: event.backgroundColor, events: [] };
+            mockDatabase[year].events.push(event);
+        });
+        
+        // Render the calendar
+        loadYearData(currentActiveYear);
+    });
+
     // --- NEW: SUGGESTION 3 (Fetch Curriculum) ---
     function fetchCurriculumData() {
         fetch('/api/subjects')
@@ -273,7 +290,7 @@
         }
 
         for (let ev of eventsToCheck) {
-            if (excludeEvent && ev.title === excludeEvent.title && ev.extendedProps?.code === excludeEvent.extendedProps?.code) {
+            if (excludeEvent && ev.title === excludeEvent.title && ev.start.getTime() === new Date(excludeEvent.startStr).getTime()) {
         continue;
     }
             // If time overlaps...
@@ -401,6 +418,8 @@
 
         const color = hashColor(subData.code + type);
         const newEvent = {
+    // If we are editing, keep the database ID
+            id: editingEvent ? editingEvent.id : null, 
             title: subData.title,
             start: `${date}T${start}:00`,
             end: `${date}T${end}:00`,
@@ -416,14 +435,15 @@
             }
         };
                     if (editingEvent) {
-    const oldYear = editingEvent.extendedProps.year;
-    if (mockDatabase[yearKey]) {
-    mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
-        !(e.title === editingEvent.title && e.extendedProps.code === editingEvent.extendedProps.code)
-    );
-}
-    editingEvent.remove(); // Remove from UI
-}
+                        const oldYear = editingEvent.extendedProps.year;
+                        // FIXED: Use oldYear
+                        if (mockDatabase[oldYear]) { 
+                            mockDatabase[oldYear].events = mockDatabase[oldYear].events.filter(e => 
+                                !(e.title === editingEvent.title && e.extendedProps.code === editingEvent.extendedProps.code)
+                            );
+                        }
+                        editingEvent.remove(); // Remove from UI
+                    }
                     if (!mockDatabase[modalYear]) mockDatabase[modalYear] = { color: color, events: [] };
                     mockDatabase[modalYear].events.push(newEvent);
 
@@ -1277,11 +1297,11 @@
             let targetYear = currentActiveYear; 
             const yearMatch = course.match(/-(\d)/); 
             if (yearMatch) targetYear = yearMatch[1];
-
-            let yearColor = '#54a0ff'; 
-            if (targetYear == "2") yearColor = '#2ecc71';
-            if (targetYear == "3") yearColor = '#f39c12';
-            if (targetYear == "4") yearColor = '#9b59b6';
+            
+            let yearColor = '#ef4444'; // Default Red for 1st Year
+            if (targetYear == "2") yearColor = '#3b82f6'; // Blue
+            if (targetYear == "3") yearColor = '#10b981'; // Green
+            if (targetYear == "4") yearColor = '#8b5cf6'; // Purple
 
             if (!mockDatabase[targetYear]) mockDatabase[targetYear] = { color: yearColor, events: [] };
 
@@ -1469,21 +1489,22 @@
     }
 
     function deleteClass() {
-        if (!editingEvent) return;
-        
-        const confirmDelete = confirm(`Are you sure you want to permanently delete ${editingEvent.title}?`);
-        if (confirmDelete) {
-            const yearKey = editingEvent.extendedProps.year;
-            if (mockDatabase[yearKey]) {
-                mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
-                    e.title !== editingEvent.title || e.start !== editingEvent.startStr
-                );
-            }
-            editingEvent.remove();
-            updateKPIs(calendarInstance.getEvents());
-            
-            if (typeof showToast === 'function') showToast("Class deleted successfully.");
-            closeModal();
+    if (!editingEvent) return;
+    
+    const confirmDelete = confirm(`Are you sure you want to permanently delete ${editingEvent.title}?`);
+    if (confirmDelete) {
+        const yearKey = editingEvent.extendedProps.year;
+        if (mockDatabase[yearKey]) {
+            // FIXED: Filter by Title and Subject Code instead of start time
+            mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
+                !(e.title === editingEvent.title && e.extendedProps.code === editingEvent.extendedProps.code)
+            );
         }
+        editingEvent.remove();
+        updateKPIs(calendarInstance.getEvents());
+        
+        if (typeof showToast === 'function') showToast("Class deleted successfully.");
+        closeModal();
     }
+}
 })();
