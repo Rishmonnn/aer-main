@@ -354,9 +354,12 @@ if (submitDropBtn) {
 // ==========================================
 // 4. ADVISING MODAL LOGIC
 // ==========================================
-const advisingModal = document.getElementById('advisingModal');
-let currentAdviseStudentId = null;
 
+function closeAdvisingModal() {
+    if (advisingModal) advisingModal.style.display = "none";
+    document.body.style.overflow = "";
+    currentAdviseStudentId = null;
+}
 function openAdvisingModal(studentId, studentName) {
     currentAdviseStudentId = studentId;
     document.getElementById('adv-student-id').innerText = studentId;
@@ -396,12 +399,6 @@ function openAdvisingModal(studentId, studentName) {
         .catch(err => {
             historyList.innerHTML = "<span style='color: #ef4444;'>Failed to load records.</span>";
         });
-}
-
-function closeAdvisingModal() {
-    if (advisingModal) advisingModal.style.display = "none";
-    document.body.style.overflow = "";
-    currentAdviseStudentId = null;
 }
 
 function submitAdvising() {

@@ -160,44 +160,6 @@ def get_inc_requests():
 # ==================== GENERIC/STUB APIs ====================
 
 @app.route('/api/advising/<string:student_id>', methods=['GET'])
-@login_required
-def get_student_advising(student_id):
-    """Fetches advising history for a specific student."""
-    records = AdvisingRecord.query.filter_by(student_id=student_id).order_by(AdvisingRecord.id.desc()).all()
-    return jsonify([{
-        'id': r.id,
-        'date': r.date,
-        'category': r.category or 'Uncategorized',  # <--- NEW
-        'notes': r.notes,
-        'action_plan': r.action_plan or 'None specified' # <--- NEW
-    } for r in records])
-
-@app.route('/api/advising/<string:student_id>', methods=['POST'])
-@login_required
-def add_advising_record(student_id):
-    """Saves a new advising session note."""
-    data = request.get_json()
-    notes = data.get('notes')
-    category = data.get('category')           # <--- NEW
-    action_plan = data.get('action_plan')     # <--- NEW
-    
-    if not notes:
-        return jsonify({'success': False, 'message': 'Notes are required'}), 400
-        
-    try:
-        record = AdvisingRecord(
-            student_id=student_id,
-            date=datetime.now().strftime("%b %d, %Y %I:%M %p"),
-            category=category,                # <--- NEW
-            notes=notes,
-            action_plan=action_plan           # <--- NEW
-        )
-        db.session.add(record)
-        db.session.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
 
 # --- NEW: Instructors API ---
 @app.route('/api/instructors', methods=['GET'])
