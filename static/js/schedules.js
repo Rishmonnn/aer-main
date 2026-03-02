@@ -605,7 +605,7 @@
 
         // --- NEW: ADVANCED EXCEL CELL STYLING (COLORS & BORDERS) ---
         const headerStyle = {
-            fill: { fgColor: { rgb: "#550000" } }, // Light professional blue background
+            fill: { fgColor: { rgb: "D9E1F2" } }, // Light professional blue background
             font: { bold: true, color: { rgb: "000000" }, name: "Arial", sz: 10 },
             alignment: { horizontal: "center", vertical: "center", wrapText: true },
             border: {
