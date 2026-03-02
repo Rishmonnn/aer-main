@@ -310,3 +310,57 @@ if (submitDropBtn) {
         .catch(err => console.error(err));
     }
 }
+
+// ==========================================
+// DROP & TRANSFER HISTORY LOGIC
+// ==========================================
+
+function fetchDropHistory() {
+    fetch('/api/retention/history')
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.getElementById('history-table-body');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 30px; color: #94a3b8; font-style: italic;">No drop or transfer records found.</td></tr>`;
+                return;
+            }
+            
+            data.forEach(student => {
+                // Pick the correct pill color based on status
+                const pillClass = student.status === 'Dropped' ? 'status-dropped' : 'status-transferred';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="color: #64748b;">${student.id}</td>
+                        <td style="font-weight: 600; color: #0f172a;">${student.name}</td>
+                        <td><span class="status-pill ${pillClass}">${student.status}</span></td>
+                        <td style="color: #475569;">${student.reason}</td>
+                    </tr>
+                `;
+            });
+        })
+        .catch(err => console.error("Error fetching history:", err));
+}
+
+// Search filter for the History Table
+function filterHistoryTable() {
+    let input = document.getElementById("historySearch");
+    let filter = input.value.toLowerCase();
+    let table = document.getElementById("dropHistoryTable");
+    let tr = table.getElementsByTagName("tr");
+
+    // Loop through all table rows, and hide those who don't match the search query
+    for (let i = 1; i < tr.length; i++) {
+        let text = tr[i].innerText.toLowerCase();
+        tr[i].style.display = text.includes(filter) ? "" : "none";
+    }
+}
+
+// Initialize history fetch when the page loads
+document.addEventListener("DOMContentLoaded", () => {
+    fetchDropHistory();
+});

@@ -439,6 +439,26 @@ def drop_student(student_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+    
+@app.route('/api/retention/history', methods=['GET'])
+@login_required
+def get_drop_history():
+    try:
+        # Fetch only students who are Dropped or Transferred
+        dropped_students = Student.query.filter(Student.status.in_(['Dropped', 'Transferred'])).all()
+        history = []
+        for s in dropped_students:
+            history.append({
+                'id': s.id,
+                'name': s.name,
+                'status': s.status,
+                'reason': s.dropout_reason or 'Not Specified'
+            })
+        return jsonify(history)
+    except Exception as e:
+        print(f"Error fetching drop history: {e}")
+        return jsonify([])
+    
 # ==================== STUDENT JOURNEY API ====================
 @app.route('/api/student_journey/<string:student_id>', methods=['GET'])
 @login_required

@@ -65,28 +65,85 @@
         </div>
     </div>
 
-<div class="risk-analysis-grid">
-        <div class="risk-card critical">
-            <div class="risk-header">
-                <h3>Critical Risk</h3>
-                <i class='bx bx-error-circle'></i>
+<div class="retention-bottom-grid">
+        
+        <div class="left-analytics-stack">
+            <div class="risk-cards-row">
+                <div class="risk-card critical">
+                    <div class="risk-header">
+                        <h3>Critical Risk</h3>
+                        <i class='bx bx-error-circle'></i>
+                    </div>
+                    <div class="risk-body">
+                        <span class="risk-count" id="ret-critical-count">0</span>
+                        <p>Student with multiple failed subject, multiple absences</p>
+                    </div>
+                </div>
+
+                <div class="risk-card high">
+                    <div class="risk-header">
+                        <h3>High Risk</h3>
+                        <i class='bx bx-error'></i>
+                    </div>
+                    <div class="risk-body">
+                        <span class="risk-count" id="ret-high-count">0</span>
+                        <p>Student who is barely passing, frequent absences</p>
+                    </div>
+                </div>
             </div>
-            <div class="risk-body">
-                <span class="risk-count" id="ret-critical-count">0</span>
-                <p>Student with multiple failed subject, multiple absences</p>
+
+            <div class="population-card">
+                <h3>Department Population</h3>
+                <p class="subtitle">Number of students per year level</p>
+                <div class="pop-bars">
+                    <div class="pop-row">
+                        <span class="label">1st year</span>
+                        <div class="progress-track"><div class="progress-fill red" id="pop-bar-1" style="width: 0%"></div></div>
+                        <span class="count" id="pop-count-1">0</span>
+                    </div>
+                    <div class="pop-row">
+                        <span class="label">2nd year</span>
+                        <div class="progress-track"><div class="progress-fill blue" id="pop-bar-2" style="width: 0%"></div></div>
+                        <span class="count" id="pop-count-2">0</span>
+                    </div>
+                    <div class="pop-row">
+                        <span class="label">3rd year</span>
+                        <div class="progress-track"><div class="progress-fill brown" id="pop-bar-3" style="width: 0%"></div></div>
+                        <span class="count" id="pop-count-3">0</span>
+                    </div>
+                    <div class="pop-row">
+                        <span class="label">4th year</span>
+                        <div class="progress-track"><div class="progress-fill green" id="pop-bar-4" style="width: 0%"></div></div>
+                        <span class="count" id="pop-count-4">0</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="risk-card high">
-            <div class="risk-header">
-                <h3>High Risk</h3>
-                <i class='bx bx-error'></i>
+        <div class="history-card">
+            <div class="history-header">
+                <h3>Drop & Transfer History</h3>
+                <div class="table-search">
+                    <i class='bx bx-search'></i>
+                    <input type="text" id="historySearch" placeholder="Search history by name or ID..." onkeyup="filterHistoryTable()">
+                </div>
             </div>
-            <div class="risk-body">
-                <span class="risk-count" id="ret-high-count">0</span>
-                <p>Student who is barely passing, frequent absences</p>
+            <div class="history-table-wrapper">
+                <table class="retention-table" id="dropHistoryTable">
+                    <thead>
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Student Name</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        </tbody>
+                </table>
             </div>
         </div>
+    </div>
 
         <div class="population-card">
             <h3>Department Population</h3>
@@ -177,7 +234,7 @@
             </div>
         </div>
     </div>
-    
+
         
         <table class="retention-table">
             <thead>

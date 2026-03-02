@@ -242,18 +242,23 @@
 .evt-title { font-size: 0.75rem; opacity: 0.9; line-height: 1.2; }
 .calendar-footer { display: flex; justify-content: center; gap: 30px; margin-top: 15px; font-size: 0.75rem; color: var(--muted-foreground); }
 
-/* --- Modal Styles --- */
 /* --- Professional Add/Edit Class Modal Styles --- */
 .modal-overlay {
     display: none;
     position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background: rgba(15, 23, 42, 0.4); /* Slate 900 with opacity */
-    backdrop-filter: blur(4px); /* Modern blur effect */
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
     z-index: 2000;
     justify-content: center;
-    align-items: center;
+    
+    /* --- THE FIX: Stops the modal from pushing off the TOP of your monitor --- */
+    align-items: flex-start;
+    padding: 40px 20px;
+    overflow-y: auto;
+    /* ------------------------------------------------------------------------ */
+    
     animation: fadeIn 0.2s ease-out;
 }
 
@@ -264,10 +269,12 @@
     width: 100%;
     max-width: 680px;
     
-    /* --- ADD THESE TWO LINES --- */
-    height: fit-content; 
-    max-height: 90vh; 
+    /* --- THIS IS THE FIX --- */
+    margin: auto;  /* Works with flex-start to perfectly center it safely */
+    /* ----------------------- */
     
+    height: fit-content; 
+    max-height: 90vh;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
     animation: modalSlideUp 0.3s ease-out;
     display: flex;
@@ -294,6 +301,7 @@
     justify-content: space-between;
     align-items: flex-start;
     border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
 }
 
 .header-text h3 { 
@@ -331,7 +339,7 @@
     flex: 0 1 auto; 
 }
 
-.form-row { display: flex; gap: 16px; }
+.form-row { display: flex; gap: 16px; flex-shrink: 0; }
 .three-col .form-group { flex: 1; }
 .four-col .form-group { flex: 1; }
 .form-group { display: flex; flex-direction: column; gap: 6px; }
@@ -383,6 +391,7 @@
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
+    flex-shrink: 0;
 }
 
 /* Add an extra style just for the delete button to look distinct */
@@ -425,30 +434,6 @@
     100% { transform: translateX(0); }
 }
 
-/* Modal Updates */
-.modal-content {
-    background: white;
-    padding: 0;
-    border-radius: 16px;
-    width: 650px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    display: flex;
-    flex-direction: column;
-}
-
-.three-col { display: flex; gap: 15px; }
-.three-col .form-group { flex: 1; }
-.four-col { display: flex; gap: 10px; }
-.four-col .form-group { flex: 1; }
-
-.form-control {
-    background-color: #fff;
-    border: 1px solid #ddd;
-    font-size: 0.9rem;
-    height: 38px;
-    border-radius: 6px;
-    padding: 5px 10px;
-}
 /* --- Empty State Styles --- */
 .empty-state {
     display: flex;
@@ -724,6 +709,7 @@
     align-items: center;
     transition: box-shadow 0.2s ease, transform 0.2s ease;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .unassigned-item:hover {

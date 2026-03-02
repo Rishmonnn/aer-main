@@ -134,7 +134,7 @@
 }
 
 /* Risk Grid */
-.risk-analysis-grid { display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 20px; }
+
 .risk-card { padding: 25px; border-radius: 12px; border: 1px solid transparent; }
 .risk-card.critical { background: #ffebeb; border-color: #ffb8b8; }
 .risk-card.high { background: #fff8e1; border-color: #ffe082; }
@@ -284,3 +284,61 @@
 .suggestion-item strong { color: #0f172a; display: block; margin-bottom: 2px; font-size: 0.95rem; }
 .suggestion-item span { color: #64748b; font-size: 0.8rem; }
 .suggestion-item:hover strong, .suggestion-item:hover span { color: #800020; }
+
+
+
+
+/* --- DROP HISTORY STATUS PILLS --- */
+.status-pill { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; letter-spacing: 0.5px; text-transform: uppercase; }
+.status-dropped { background: #fee2e2; color: #ef4444; border: 1px solid #f87171; }
+.status-transferred { background: #ffedd5; color: #f97316; border: 1px solid #fdba74; }
+
+/* ========================================= */
+/* --- BOTTOM GRID LAYOUT (Equal Heights) --- */
+/* ========================================= */
+.retention-bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr; /* History table gets slightly more width */
+    gap: 20px;
+    align-items: stretch; /* CRITICAL: Forces left and right columns to be the exact same height */
+    margin-bottom: 20px;
+}
+
+/* Left Stack */
+.left-analytics-stack { display: flex; flex-direction: column; gap: 20px; }
+.risk-cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* Let the population card stretch vertically to fill the remaining space */
+.population-card { 
+    flex-grow: 1; 
+    display: flex; 
+    flex-direction: column; 
+}
+.pop-bars { 
+    flex-grow: 1; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; /* Vertically centers the progress bars */
+    gap: 15px; 
+}
+
+/* Right Stack (History Card) */
+.history-card {
+    background: white; border-radius: 12px; border: 1px solid #e0e0e0;
+    display: flex; flex-direction: column; overflow: hidden;
+}
+.history-header { padding: 20px 25px; border-bottom: 1px solid #eee; background: #fafafa; }
+.history-header h3 { margin: 0 0 15px 0; font-size: 1.1rem; font-weight: 600; color: #333; }
+.history-header .table-search { margin-bottom: 0; background: white; width: 100%; border: 1px solid #dcdcdc; }
+.history-header .table-search input { width: 100%; padding-left: 10px; }
+
+/* The wrapper handles the scrolling so the outer card never changes height */
+.history-table-wrapper { 
+    flex-grow: 1; 
+    overflow-y: auto; 
+    max-height: 450px; 
+}
+/* Keeps the table headers locked at the top when scrolling down the history */
+.history-table-wrapper .retention-table th {
+    position: sticky; top: 0; z-index: 5; background: #e0e0e0;
+}
