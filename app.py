@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime # Make sure to import datetime
 
 # --- NEW: Import the Database and Models ---
-from models import db, User, Student, Subject, Section, Enrollment
+from models import db, User, Student, Subject, Section, Enrollment, ScheduleEvent
 
 app = Flask(__name__, 
     template_folder=os.path.join(os.path.dirname(__file__), 'templates'),
@@ -114,8 +114,8 @@ def program_head_dashboard():
     
     # --- GET ACTUAL DATA FROM DATABASE ---
     try:
-        # Count all students
-        total_students = Student.query.count()
+        # Count all active students (Ignore Dropped and Transferred)
+        total_students = Student.query.filter(Student.status.notin_(['Dropped', 'Transferred'])).count()
         # Count all faculty (case-insensitive check for 'faculty' role)
         total_faculty = User.query.filter(User.role.ilike('faculty')).count()
         # Set academic year (you can make this dynamic later if you have a Settings table)
@@ -229,7 +229,7 @@ def get_advising(): return jsonify([])
 def get_retention_data(): 
     try:
         students = Student.query.all()
-        total_students = len(students)
+        historical_total = len(students) # Everyone who ever enrolled
         
         regular_count = 0
         irregular_count = 0
@@ -239,21 +239,21 @@ def get_retention_data():
         critical_risk_count = 0
         high_risk_count = 0
 
-        # --- NEW: Dropout Tracking ---
-        dropped_students = [s for s in students if s.status == 'Dropped']
+        # --- UPDATED: Track both Dropped and Transferred ---
+        dropped_students = [s for s in students if s.status in ['Dropped', 'Transferred']]
         dropout_count = len(dropped_students)
         
-        # Calculate Rates (avoid division by zero)
-# Calculate Rates (avoid division by zero)
-        dropout_rate = round((dropout_count / total_students * 100) if total_students > 0 else 0, 1)
+        # --- NEW: Calculate ONLY Active Students ---
+        active_students = historical_total - dropout_count
+        
+        # Calculate Rates using historical total to avoid math errors
+        dropout_rate = round((dropout_count / historical_total * 100) if historical_total > 0 else 0, 1)
         retention_rate = round(100 - dropout_rate, 1)
 
-        # --- NEW: TREND CALCULATION ---
-        # For now, we use a baseline. Later, you can query this from a HistoricalStats table.
+        # TREND CALCULATION
         last_year_retention = 85.0
         last_year_dropout = 15.0
         
-        # Calculate the difference (Current - Past)
         retention_trend = round(retention_rate - last_year_retention, 1)
         dropout_trend = round(dropout_rate - last_year_dropout, 1)
 
@@ -263,18 +263,16 @@ def get_retention_data():
             reason = ds.dropout_reason or "Other"
             reasons_tally[reason] = reasons_tally.get(reason, 0) + 1
         
-        # Convert tally to percentages for the frontend chart
         reasons_data = []
         for reason, count in reasons_tally.items():
             pct = round((count / dropout_count) * 100) if dropout_count > 0 else 0
             reasons_data.append({"reason": reason, "percentage": pct})
             
-        # Sort so highest percentage appears first in the legend
         reasons_data.sort(key=lambda x: x['percentage'], reverse=True)
 
         for s in students:
-            # Skip dropped students for regular population metrics
-            if s.status == 'Dropped':
+            # Skip dropped/transferred students for population metrics
+            if s.status in ['Dropped', 'Transferred']:
                 continue
 
             # 1. Tally Population by Year Level
@@ -308,7 +306,7 @@ def get_retention_data():
 
         return jsonify({
             'stats': {
-                'total': total_students,
+                'total': active_students, # <--- NOW SENDS ONLY ACTIVE STUDENTS
                 'regular': regular_count,
                 'irregular': irregular_count,
                 'retention_rate': retention_rate,

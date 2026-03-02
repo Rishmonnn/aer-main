@@ -294,8 +294,17 @@
 
 /* --- DROP HISTORY STATUS PILLS --- */
 .status-pill { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; letter-spacing: 0.5px; text-transform: uppercase; }
-.status-dropped { background: #fee2e2; color: #ef4444; border: 1px solid #f87171; }
-.status-transferred { background: #ffedd5; color: #f97316; border: 1px solid #fdba74; }
+.status-dropped { 
+    background: #fee2e2 !important; 
+    color: #000000 !important; 
+    border: 1px solid #f87171 !important; 
+}
+
+.status-transferred { 
+    background: #ffedd5 !important; 
+    color: #000000 !important; 
+    border: 1px solid #fdba74 !important; 
+}
 
 /* ========================================= */
 /* --- BOTTOM GRID LAYOUT (Equal Heights) --- */
