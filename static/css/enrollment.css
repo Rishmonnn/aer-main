@@ -125,9 +125,14 @@
 
 /* --- Enhanced Modal Styles --- */
 .enhanced-modal { border-radius: 16px; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 25px 30px 15px; border-bottom: 1px solid #f0f0f0; }
-.modal-header h2 { font-size: 1.4rem; font-weight: 700; color: #1a1a1a; margin-bottom: 5px; }
-.modal-header p { font-size: 0.9rem; color: #666; margin: 0; }
+.modal-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    background: #90242d; /* Changed to the accent color */
+    padding: 25px 30px 20px; /* Adjusted bottom padding slightly for balance */
+    border-bottom: 1px solid #7a1d25; 
+}
 
 .btn-close-modal { background: #f1f5f9; border: none; height: 36px; width: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #64748b; cursor: pointer; transition: all 0.2s; }
 .btn-close-modal:hover { background: #e2e8f0; color: #0f172a; }

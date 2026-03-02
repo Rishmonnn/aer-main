@@ -606,6 +606,51 @@ def confirm_bulk_enrollment():
         'success': True, 
         'count': success_count
     })
+    
+    
+@app.route('/api/enrollment/confirm', methods=['POST'])
+@login_required
+def confirm_single_enrollment():
+    """Promotes a single student to Enlisting status."""
+    data = request.get_json()
+    student_id = data.get('id')
+    
+    if not student_id:
+        return jsonify({'success': False, 'error': 'No student ID provided'}), 400
+
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify({'success': False, 'error': 'Student not found'}), 404
+
+    try:
+        # 1. Check for Failures (Retention Logic)
+        failed_enrollments = Enrollment.query.filter_by(student_id=student.id)\
+            .filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') )\
+            .all()
+        
+        is_retained = len(failed_enrollments) > 0
+        
+        # 2. Update status to move them to the next step
+        student.status = 'Enlisting'
+
+        # 3. Bump Year Level if promoted
+        if not is_retained:
+            if student.year_level == '1st Year': student.year_level = '2nd Year'
+            elif student.year_level == '2nd Year': student.year_level = '3rd Year'
+            elif student.year_level == '3rd Year': student.year_level = '4th Year'
+            
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'status': 'Enlisting'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error confirming enrollment: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/enlistment/pending', methods=['GET'])
 @login_required

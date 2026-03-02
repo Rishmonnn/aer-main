@@ -16,7 +16,7 @@
                 <button class="btn-outline" onclick="Schedules.triggerImport()">
                     <i class='bx bx-upload'></i> Import
                 </button>
-                <button class="btn-outline">
+                <button class="btn-outline" onclick="Schedules.exportToExcel()">
                     <i class='bx bx-download'></i> Export
                 </button>
                 <button class="btn-primary" onclick="Schedules.addEvent()">
@@ -186,6 +186,9 @@
         </div>
 
         <div class="modal-footer">
+            <button type="button" id="btnDeleteClass" class="btn-secondary" style="display: none; background-color: #fee2e2; color: #991b1b; border-color: #fca5a5; margin-right: auto;" onclick="Schedules.deleteClass()">
+                <i class='bx bx-trash'></i> Delete
+            </button>
             <button class="btn-secondary" onclick="Schedules.closeModal()">Cancel</button>
             <button class="btn-primary" onclick="Schedules.saveClass()">Save Class</button>
         </div>

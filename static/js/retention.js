@@ -127,3 +127,61 @@ function updateTrendUI(containerId, iconId, textId, trendValue, isGoodWhenPositi
         icon.classList.add(isPositiveTrend ? 'bx-trending-up' : 'bx-trending-down');
     }
 }
+
+// --- DOUGHNUT CHART GENERATOR ---
+function renderDoughnutChart(reasons) {
+    const legendBox = document.querySelector('.legend-box');
+    const doughnut = document.querySelector('.css-doughnut');
+
+    // Safety check just in case the HTML elements are missing
+    if (!legendBox || !doughnut) return;
+
+    // The colors used in your original design
+    const colors = ['#ef5350', '#263238', '#78909c', '#d81b60', '#ab47bc', '#f59e0b', '#10b981'];
+
+    // 1. Clear the old hardcoded HTML legend
+    legendBox.innerHTML = ''; 
+
+    // 2. Handle the "Empty State" (If nobody has dropped out yet!)
+    if (!reasons || reasons.length === 0) {
+        doughnut.style.background = '#f1f5f9'; // Flat gray circle
+        legendBox.innerHTML = `
+            <div class="legend-item" style="justify-content: center;">
+                <span style="color:#64748b; font-style:italic; font-size: 0.9rem;">No dropouts recorded</span>
+            </div>
+        `;
+        return;
+    }
+
+    // 3. Build the new legend and the CSS chart
+    let gradientStops = [];
+    let currentPercentage = 0;
+
+    reasons.forEach((item, index) => {
+        // Pick a color from the array (loop back to start if we run out of colors)
+        const color = colors[index % colors.length];
+        const pct = item.percentage;
+
+        // Build the Legend Item HTML
+        const legendItem = document.createElement('div');
+        legendItem.className = 'legend-item';
+        legendItem.innerHTML = `
+            <div class="legend-label">
+                <span class="dot" style="background:${color}"></span>${item.reason}
+            </div>
+            <span class="legend-val">${pct}%</span>
+        `;
+        legendBox.appendChild(legendItem);
+
+        // Build the pie slice for the CSS Doughnut
+        // Example output: "#ef5350 0% 28%"
+        const start = currentPercentage;
+        const end = currentPercentage + pct;
+        gradientStops.push(`${color} ${start}% ${end}%`);
+        
+        currentPercentage = end; // Move the starting point for the next slice
+    });
+
+    // Apply the slices to the doughnut ring!
+    doughnut.style.background = `conic-gradient(${gradientStops.join(', ')})`;
+}

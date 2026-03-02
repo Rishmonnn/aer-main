@@ -3,6 +3,7 @@
     let currentActiveYear = "1"; 
     let importedFaculty = new Set();
     let importedSections = new Set();
+    let editingEvent = null;
     
     // 1. FACULTY LIST (Fetched via API in init)
     
@@ -66,21 +67,60 @@
             // --- NEW: SUGGESTION 5 (Click to Edit/Delete) ---
             eventClick: function(info) {
                 const ev = info.event;
-                const confirmDelete = confirm(`Class: ${ev.title}\nRoom: ${ev.extendedProps.room}\nInstructor: ${ev.extendedProps.faculty}\n\nWould you like to DELETE this class from the schedule?`);
+                editingEvent = ev; // Set global state
+                const props = ev.extendedProps;
                 
-                if (confirmDelete) {
-                    // Remove from UI
-                    ev.remove();
-                    // Remove from mockDatabase so it doesn't reappear on toggle
-                    const yearKey = ev.extendedProps.year;
-                    if (mockDatabase[yearKey]) {
-                        mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
-                            e.title !== ev.title || e.start !== ev.startStr
-                        );
+                // 1. Open the modal
+                const modal = document.getElementById('addClassModal');
+                if(modal) modal.style.display = 'flex';
+                hideError();
+                
+                // 2. Change Modal UI to "Edit Mode"
+                document.querySelector('#addClassModal .header-text h3').textContent = 'Edit Class';
+                document.querySelector('#addClassModal .header-text p').textContent = `Editing: ${ev.title}`;
+                const btnDelete = document.getElementById('btnDeleteClass');
+                if(btnDelete) btnDelete.style.display = 'inline-flex';
+                
+                // 3. Populate Year/Sem Triggers first
+                document.getElementById('modalYear').value = props.year || currentActiveYear;
+                
+                // Refresh dropdown lists based on year
+                filterSubjects();
+                populateFaculty();
+                
+                // 4. Safe timeout to allow dropdowns to render HTML options
+                setTimeout(() => {
+                    // Subject and Course Code
+                    const subjectSelect = document.getElementById('subjectSelect');
+                    if(subjectSelect) {
+                        subjectSelect.value = props.code || '';
+                        onSubjectChange(); // Automatically fills the Course Code readonly input
                     }
-                    updateKPIs(calendarInstance.getEvents());
-                    alert("Class removed.");
-                }
+                    
+                    // Simple text & select fields
+                    document.getElementById('sectionCode').value = props.sectionCode || '';
+                    document.getElementById('facultySelect').value = props.faculty || '';
+                    document.getElementById('typeSelect').value = props.type || 'lecture';
+                    document.getElementById('roomInput').value = props.room || '';
+                    
+                    // 5. Precisely extract and format the Time and Day
+                    if (ev.start) {
+                        // JavaScript getDay() returns 0 for Sunday, 1 for Monday, etc.
+                        let dayIndex = ev.start.getDay();
+                        document.getElementById('daySelect').value = dayIndex === 0 ? 7 : dayIndex; // Fallback to 7 if Sunday logic needed
+                        
+                        // Format Start Time (HH:MM)
+                        const startH = String(ev.start.getHours()).padStart(2, '0');
+                        const startM = String(ev.start.getMinutes()).padStart(2, '0');
+                        document.getElementById('startTime').value = `${startH}:${startM}`;
+                    }
+                    if (ev.end) {
+                        // Format End Time (HH:MM)
+                        const endH = String(ev.end.getHours()).padStart(2, '0');
+                        const endM = String(ev.end.getMinutes()).padStart(2, '0');
+                        document.getElementById('endTime').value = `${endH}:${endM}`;
+                    }
+                }, 50); // 50ms is instant to the human eye but gives the DOM time to breathe
             },
             
             // Inject EXACT React HTML Structure into Events
@@ -177,7 +217,7 @@
     }
 
     // --- NEW: SUGGESTION 2 (Smart Conflicts) ---
-    function isOverlapping(newStart, newEnd, targetYear, checkRoom, checkFaculty) {
+    function isOverlapping(newStart, newEnd, targetYear, checkRoom, checkFaculty, excludeEvent = null) {
         let eventsToCheck = [];
         
         // Always check ALL events across all years to prevent room/faculty double booking
@@ -191,7 +231,11 @@
                 year: e.extendedProps.year
             })));
         }
-
+        for (let ev of eventsToCheck) {
+            // NEW: Skip the event we are currently editing so it doesn't conflict with itself
+            if (excludeEvent && ev.title === excludeEvent.title && ev.start === excludeEvent.startStr) {
+                continue; 
+            }}
         for (let ev of eventsToCheck) {
             // If time overlaps...
             if (newStart < ev.end && newEnd > ev.start) {
@@ -324,18 +368,108 @@
             }
         };
 
-        if (!mockDatabase[modalYear]) mockDatabase[modalYear] = { color: color, events: [] };
-        mockDatabase[modalYear].events.push(newEvent);
+                    if (!mockDatabase[modalYear]) mockDatabase[modalYear] = { color: color, events: [] };
+                    mockDatabase[modalYear].events.push(newEvent);
 
-        if (modalYear === currentActiveYear) {
-    calendarInstance.addEvent(newEvent);
-    updateKPIs(calendarInstance.getEvents());
-    toggleEmptyState(true); // Ensure calendar is visible after adding
-} else {
-    alert(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
-}
+                    if (modalYear === currentActiveYear) {
+                calendarInstance.addEvent(newEvent);
+                updateKPIs(calendarInstance.getEvents());
+                toggleEmptyState(true); // Ensure calendar is visible after adding
+            } else {
+                alert(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
+            }
 
         Schedules.closeModal();
+    }
+
+    function exportToExcel() {
+        let exportData = [];
+
+        // Gather all events from the mockDatabase across all years
+        for (let year in mockDatabase) {
+            if (mockDatabase[year] && mockDatabase[year].events) {
+                mockDatabase[year].events.forEach(ev => {
+                    let props = ev.extendedProps;
+                    
+                    // Safely extract the time and day
+                    let startTime = "";
+                    let endTime = "";
+                    let dayOfWeek = "";
+                    
+                    // We need to parse the start/end strings to get readable times
+                    if (ev.start) {
+                        const startDt = new Date(ev.start);
+                        startTime = startDt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        dayOfWeek = days[startDt.getDay()];
+                    }
+                    if (ev.end) {
+                        const endDt = new Date(ev.end);
+                        endTime = endDt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    }
+
+                    exportData.push({
+                        "Year Level": props.year ? `${props.year} Year` : "N/A",
+                        "Course Code": props.code || "",
+                        "Descriptive Title": ev.title || "",
+                        "Section": props.sectionCode || "TBA",
+                        "Instructor": props.faculty || "TBA",
+                        "Room": props.room || "TBA",
+                        "Type": props.type ? props.type.toUpperCase() : "LECTURE",
+                        "Day": dayOfWeek,
+                        "Start Time": startTime,
+                        "End Time": endTime
+                    });
+                });
+            }
+        }
+
+        // Check if there is anything to export
+        if (exportData.length === 0) {
+            if (typeof showToast === 'function') {
+                showToast("No classes found to export.");
+            } else {
+                alert("No classes found to export.");
+            }
+            return;
+        }
+
+        // Sort data chronologically by Year Level, then by Course Code
+        exportData.sort((a, b) => {
+            if (a["Year Level"] === b["Year Level"]) {
+                return a["Course Code"].localeCompare(b["Course Code"]);
+            }
+            return a["Year Level"].localeCompare(b["Year Level"]);
+        });
+
+        // Convert the array of objects to an Excel worksheet
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        
+        // Make the Excel columns wide enough to read the data automatically
+        const colWidths = [
+            { wch: 12 }, // Year
+            { wch: 15 }, // Code
+            { wch: 35 }, // Title
+            { wch: 15 }, // Section
+            { wch: 25 }, // Instructor
+            { wch: 15 }, // Room
+            { wch: 12 }, // Type
+            { wch: 15 }, // Day
+            { wch: 15 }, // Start Time
+            { wch: 15 }  // End Time
+        ];
+        ws['!cols'] = colWidths;
+
+        // Create a new workbook and add the worksheet
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Class Schedules");
+
+        // Trigger the download
+        XLSX.writeFile(wb, "AERIS_Class_Schedules.xlsx");
+        
+        if (typeof showToast === 'function') {
+            showToast("Schedule exported successfully!");
+        }
     }
 
     function getNextDayOfWeek(dayIndex) {
@@ -451,9 +585,25 @@
 
     function openModal() { 
         hideError();
+        editingEvent = null; // <-- Reset editing state
+        
         const modal = document.getElementById('addClassModal');
         modal.style.display = 'flex';
+        
+        // Reset UI to "Add Mode"
+        document.querySelector('#addClassModal .header-text h3').textContent = 'Add New Class';
+        document.querySelector('#addClassModal .header-text p').textContent = 'Enter class details based on Curriculum';
+        const btnDelete = document.getElementById('btnDeleteClass');
+        if(btnDelete) btnDelete.style.display = 'none'; // Hide delete button
+        
+        // Clear all fields
         document.getElementById('modalYear').value = currentActiveYear;
+        document.getElementById('sectionCode').value = '';
+        document.getElementById('roomInput').value = '';
+        document.getElementById('startTime').value = '07:30';
+        document.getElementById('endTime').value = '09:00';
+        document.getElementById('courseCode').value = '';
+        
         filterSubjects();
         populateFaculty(); 
     }
@@ -538,7 +688,9 @@
         init, 
         addEvent: openModal, 
         closeModal, 
-        saveClass, 
+        saveClass,
+        deleteClass,
+        exportToExcel,
         onSubjectChange, 
         filterSubjects,
         triggerImport, 
@@ -925,5 +1077,24 @@
             toast.style.transform = 'translateY(20px)';
             setTimeout(() => toast.remove(), 300); // wait for fade out to finish before deleting
         }, 3500);
+    }
+
+    function deleteClass() {
+        if (!editingEvent) return;
+        
+        const confirmDelete = confirm(`Are you sure you want to permanently delete ${editingEvent.title}?`);
+        if (confirmDelete) {
+            const yearKey = editingEvent.extendedProps.year;
+            if (mockDatabase[yearKey]) {
+                mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
+                    e.title !== editingEvent.title || e.start !== editingEvent.startStr
+                );
+            }
+            editingEvent.remove();
+            updateKPIs(calendarInstance.getEvents());
+            
+            if (typeof showToast === 'function') showToast("Class deleted successfully.");
+            closeModal();
+        }
     }
 })();
