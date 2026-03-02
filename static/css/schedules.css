@@ -79,6 +79,36 @@
 /* Force icons to Tailwind w-4 h-4 (16px) */
 .btn-primary i, .btn-outline i { font-size: 16px; }
 
+/* Secondary Button Styling (Cancel Buttons) */
+.btn-secondary {
+    height: 36px; 
+    padding: 0 16px; 
+    border-radius: 6px; 
+    font-size: 0.875rem; 
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    /* Clean, neutral styling */
+    background-color: #f1f5f9; /* Light slate background */
+    color: #475569; /* Medium slate text */
+    border: 1px solid #e2e8f0; /* Subtle border */
+}
+
+.btn-secondary:hover {
+    background-color: #e2e8f0; /* Darker slate on hover */
+    color: #0f172a; /* Darker text on hover */
+    border-color: #cbd5e1;
+}
+
+.btn-secondary i {
+    font-size: 18px; /* Perfectly aligns the 'x' icon with the text */
+}
+
 /* Filter Dropdowns */
 .form-control-sm { 
     height: 32px; /* Tailwind h-8 */

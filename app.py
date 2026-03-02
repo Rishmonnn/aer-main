@@ -244,8 +244,18 @@ def get_retention_data():
         dropout_count = len(dropped_students)
         
         # Calculate Rates (avoid division by zero)
+# Calculate Rates (avoid division by zero)
         dropout_rate = round((dropout_count / total_students * 100) if total_students > 0 else 0, 1)
         retention_rate = round(100 - dropout_rate, 1)
+
+        # --- NEW: TREND CALCULATION ---
+        # For now, we use a baseline. Later, you can query this from a HistoricalStats table.
+        last_year_retention = 85.0
+        last_year_dropout = 15.0
+        
+        # Calculate the difference (Current - Past)
+        retention_trend = round(retention_rate - last_year_retention, 1)
+        dropout_trend = round(dropout_rate - last_year_dropout, 1)
 
         # Tally up the reasons why they dropped out
         reasons_tally = {}
@@ -302,7 +312,9 @@ def get_retention_data():
                 'regular': regular_count,
                 'irregular': irregular_count,
                 'retention_rate': retention_rate,
-                'dropout_rate': dropout_rate
+                'dropout_rate': dropout_rate,
+                'retention_trend': retention_trend, 
+                'dropout_trend': dropout_trend      
             },
             'reasons': reasons_data,
             'population': year_counts,

@@ -580,21 +580,36 @@
         if (banner) banner.style.display = 'none';
         
         const fileInput = document.getElementById('modalFileInput');
-        if (fileInput) fileInput.value = '';
+        if (fileInput) fileInput.value = ''; 
 
-        // Reset the primary button back to "Import"
+        // --- THE FIX: Unified function to safely trigger the file picker ---
+        function triggerFileSelect(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation(); // Stops the "double click" bug
+            }
+            if (fileInput) {
+                fileInput.value = null; // Wipe memory right before opening
+                fileInput.onchange = handleImport; // Force the event listener to attach
+                fileInput.click();
+            }
+        }
+
+        // Attach to the primary Import Button
         const importBtn = document.querySelector('#importModal .btn-primary');
         if (importBtn) {
             importBtn.disabled = false;
             importBtn.innerHTML = `<i class='bx bx-upload'></i> Import`;
-            importBtn.onclick = function(e) {
-                if (e) e.preventDefault(); 
-                
-                // --- THE FIX: Wipe browser memory of the last file right before opening the picker ---
-                const fileInput = document.getElementById('modalFileInput');
-                if (fileInput) fileInput.value = null; 
-                
-                fileInput.click();
+            importBtn.onclick = triggerFileSelect;
+        }
+
+        // Attach to the Drag & Drop Zone Area
+        if (dropZone) {
+            dropZone.onclick = function(e) {
+                // Ensure clicking the button inside the zone doesn't trigger this twice
+                if (e.target !== importBtn && !importBtn.contains(e.target)) {
+                    triggerFileSelect(e);
+                }
             };
         }
     }

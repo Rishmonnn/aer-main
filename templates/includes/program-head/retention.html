@@ -18,24 +18,30 @@
             </div>
         </div>
 
-        <div class="col-rates">
-            <div class="card-metric white rate-card">
-                <div class="metric-header">
-                    <h3>Retention Rate</h3>
-                    <i class='bx bxs-graduation'></i>
-                </div>
-                <span class="value">87.2%</span>
-                <span class="trend positive"><i class='bx bx-trending-up'></i> +2.8% vs last year</span>
-            </div>
-            <div class="card-metric white rate-card">
-                <div class="metric-header">
-                    <h3>Dropout Rate</h3>
-                    <i class='bx bxs-user-x'></i>
-                </div>
-                <span class="value">4.2%</span>
-                <span class="trend negative"><i class='bx bx-trending-down'></i> -1.1% vs last year</span>
-            </div>
+<div class="col-rates">
+    <div class="card-metric white rate-card">
+        <div class="metric-header">
+            <h3>Retention Rate</h3>
+            <i class='bx bxs-graduation'></i>
         </div>
+        <span class="value" id="ret-rate-val">0%</span>
+        <span class="trend" id="ret-trend-container">
+            <i class='bx' id="ret-trend-icon"></i> 
+            <span id="ret-trend-val">0%</span> vs last year
+        </span>
+    </div>
+    <div class="card-metric white rate-card">
+        <div class="metric-header">
+            <h3>Dropout Rate</h3>
+            <i class='bx bxs-user-x'></i>
+        </div>
+        <span class="value" id="drop-rate-val">0%</span>
+        <span class="trend" id="drop-trend-container">
+            <i class='bx' id="drop-trend-icon"></i> 
+            <span id="drop-trend-val">0%</span> vs last year
+        </span>
+    </div>
+</div>
 
         <div class="col-chart">
             <div class="chart-card">

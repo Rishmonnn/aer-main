@@ -32,6 +32,9 @@ class Student(db.Model):
     birthdate = db.Column(db.String(50), nullable=True)
     gender = db.Column(db.String(20), nullable=True)
     
+    # --- ADD THIS LINE FOR DROPOUT TRACKING ---
+    dropout_reason = db.Column(db.String(100), nullable=True) 
+    
     # Relationships
     enrollments = db.relationship('Enrollment', backref='student', lazy=True)
 
