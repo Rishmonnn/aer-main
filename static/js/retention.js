@@ -185,3 +185,128 @@ function renderDoughnutChart(reasons) {
     // Apply the slices to the doughnut ring!
     doughnut.style.background = `conic-gradient(${gradientStops.join(', ')})`;
 }
+
+
+// ==========================================
+// DROP / TRANSFER STUDENT MODAL LOGIC
+// ==========================================
+
+let allStudentsCache = [];
+let selectedStudentIdForDrop = null;
+
+const dropModal = document.getElementById('dropStudentModal');
+const openDropBtn = document.getElementById('btn-open-drop-modal');
+const closeDropBtn = document.getElementById('close-drop-modal');
+const cancelDropBtn = document.getElementById('btn-cancel-drop');
+const searchInput = document.getElementById('drop-student-search');
+const suggestionsBox = document.getElementById('drop-student-suggestions');
+const submitDropBtn = document.getElementById('btn-submit-drop');
+
+// Helper to safely close modal and restore scrolling
+function closeDropModal() {
+    dropModal.style.display = "none";
+    document.body.style.overflow = ""; // Restores background scrolling
+}
+
+// 1. Open Modal & Fetch Students
+if (openDropBtn) {
+    openDropBtn.onclick = () => {
+        // Use FLEX instead of block for perfect centering
+        dropModal.style.display = "flex"; 
+        
+        // Lock the background page from scrolling!
+        document.body.style.overflow = "hidden"; 
+        
+        searchInput.value = '';
+        selectedStudentIdForDrop = null;
+        suggestionsBox.style.display = 'none';
+
+        // Fetch all students to power the live search
+        fetch('/api/students')
+            .then(res => res.json())
+            .then(data => {
+                allStudentsCache = data.filter(s => s.status !== 'Dropped' && s.status !== 'Transferred');
+            });
+    }
+}
+
+// 2. Close Modal events
+if (closeDropBtn) closeDropBtn.onclick = closeDropModal;
+if (cancelDropBtn) cancelDropBtn.onclick = closeDropModal;
+
+window.addEventListener('click', (e) => { 
+    if(e.target == dropModal) closeDropModal(); 
+});
+
+// 3. Live Search Typing Logic
+if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase();
+        suggestionsBox.innerHTML = '';
+        selectedStudentIdForDrop = null; 
+        
+        if (!val) {
+            suggestionsBox.style.display = 'none';
+            return;
+        }
+        
+        const matches = allStudentsCache.filter(s => 
+            s.name.toLowerCase().includes(val) || s.id.toLowerCase().includes(val)
+        ).slice(0, 5); 
+        
+        if (matches.length > 0) {
+            suggestionsBox.style.display = 'block';
+            matches.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.innerHTML = `<strong>${m.name}</strong> <span style="color:#64748b; font-size:0.8rem;">(${m.id})</span>`;
+                div.onclick = () => {
+                    searchInput.value = `${m.name} (${m.id})`;
+                    selectedStudentIdForDrop = m.id;
+                    suggestionsBox.style.display = 'none';
+                };
+                suggestionsBox.appendChild(div);
+            });
+        } else {
+            suggestionsBox.style.display = 'none';
+        }
+    });
+}
+
+// 4. Submit the Form
+if (submitDropBtn) {
+    submitDropBtn.onclick = () => {
+        if (!selectedStudentIdForDrop) {
+            alert("Please select a valid student from the dropdown suggestions.");
+            return;
+        }
+        
+        const actionType = document.getElementById('drop-action-type').value;
+        const reason = document.getElementById('drop-reason').value;
+        
+        if(!confirm(`WARNING: Are you sure you want to mark this student as ${actionType}? This will drop them from all current classes.`)) return;
+        
+// Change button to spinning loading state
+        submitDropBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Processing...";
+        submitDropBtn.disabled = true;
+
+        fetch(`/api/students/drop/${selectedStudentIdForDrop}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason, status: actionType })
+        })
+        .then(res => res.json())
+        .then(data => {
+            // Put the checkmark back when done
+            submitDropBtn.innerHTML = "<i class='bx bx-check'></i> Confirm Action";
+            submitDropBtn.disabled = false;
+            if (data.success) {
+                closeDropModal(); // Use helper to close and unlock scrolling
+                fetchRetentionData(); 
+            } else {
+                alert("Error: " + data.message);
+            }
+        })
+        .catch(err => console.error(err));
+    }
+}

@@ -342,8 +342,8 @@ def get_schedules():
 @login_required
 def get_all_students():
     try:
-        # Query ALL students from the database
-        students = Student.query.all()
+        # --- NEW: Only fetch active students (Hide Dropped/Transferred) ---
+        students = Student.query.filter(Student.status.notin_(['Dropped', 'Transferred'])).all()
         student_list = []
         
         for s in students:
@@ -359,15 +359,17 @@ def get_all_students():
     except Exception as e:
         print(f"Error fetching students: {e}")
         return jsonify([])
+    
+    
 # --- 2. NEW ROUTE (Add this for Class Records) ---
 @app.route('/api/faculty/class-records/students', methods=['GET'])
 @login_required
 def get_class_record_students():
     try:
-        students = Student.query.all()
+        # --- NEW: Only fetch active students (Hide Dropped/Transferred) ---
+        students = Student.query.filter(Student.status.notin_(['Dropped', 'Transferred'])).all()
         student_list = []
         for s in students:
-            # Use getattr to prevent crashing if columns are missing in DB
             student_list.append({
                 'id': s.id,
                 'name': s.name,
@@ -408,6 +410,35 @@ def update_student_info(student_id):
 def not_found(error): return redirect(url_for('index')), 404
 
 
+# --- PUT THIS RIGHT BELOW /api/students/update/... ---
+
+@app.route('/api/students/drop/<string:student_id>', methods=['POST'])
+@login_required
+def drop_student(student_id):
+    data = request.get_json()
+    student = Student.query.get(student_id)
+    
+    if not student:
+        return jsonify({'success': False, 'message': 'Student not found'}), 404
+        
+    try:
+        # Get the status (Dropped or Transferred) from the frontend
+        new_status = data.get('status', 'Dropped')
+        
+        student.status = new_status
+        student.dropout_reason = data.get('reason', 'Other')
+        
+        # Remove them from their active classes
+        active_enrollments = Enrollment.query.filter_by(student_id=student_id).filter(Enrollment.status.in_(['Enrolled', 'Pending'])).all()
+        for enrollment in active_enrollments:
+            enrollment.status = 'Dropped'
+            
+        db.session.commit()
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 # ==================== STUDENT JOURNEY API ====================
 @app.route('/api/student_journey/<string:student_id>', methods=['GET'])
 @login_required

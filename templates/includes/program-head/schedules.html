@@ -1,4 +1,4 @@
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
 <div id="schedules" class="content-section">
     <div class="sched-container">
         <input type="file" id="importFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="Schedules.handleImport(event)">
@@ -63,7 +63,27 @@
                 <select class="form-control-sm"><option>All Faculty</option></select>
             </div>
         </div>
-
+        <div id="unassigned-faculty-alert" class="faculty-alert-container hidden">
+            <div class="faculty-alert-header" onclick="Schedules.toggleUnassignedAlert()">
+                <div class="alert-header-left">
+                    <div class="alert-icon-box">
+                        <i class='bx bx-error'></i>
+                    </div>
+                    <div class="alert-title-group">
+                        <h3 id="unassigned-title">0 Subjects Without Instructor</h3>
+                        <p>These classes need a faculty assignment before the schedule is finalized.</p>
+                    </div>
+                </div>
+                <div class="alert-header-right">
+                    <span class="alert-badge" id="unassigned-badge">0 Pending</span>
+                    <i class='bx bx-chevron-down' id="unassigned-toggle-icon"></i>
+                </div>
+            </div>
+            <div class="faculty-alert-body" id="unassigned-body">
+                <div class="unassigned-list" id="unassigned-list-container">
+                    </div>
+            </div>
+        </div>
         <div class="calendar-card">
     <div id="empty-state" class="empty-state" style="display: none;">
         <div class="empty-icon"><i class='bx bx-calendar'></i></div>

@@ -125,12 +125,12 @@
 
 /* --- Enhanced Modal Styles --- */
 .enhanced-modal { border-radius: 16px; }
-.modal-header { 
+.enhanced-modal .modal-header { 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
-    background: #90242d; /* Changed to the accent color */
-    padding: 25px 30px 20px; /* Adjusted bottom padding slightly for balance */
+    background: #90242d !important; /* Force it to override any other file */
+    padding: 25px 30px 20px; 
     border-bottom: 1px solid #7a1d25; 
 }
 

@@ -117,10 +117,67 @@
     </div>
 
     <div class="retention-table-container">
-        <div class="table-search">
-            <i class='bx bx-search'></i>
-            <input type="text" id="retentionSearch" placeholder="Search by name or by student number" onkeyup="filterRetentionTable()">
+        <div class="table-search" style="display: flex; gap: 10px;">
+            <div style="position: relative; flex-grow: 1; display: flex; align-items: center;">
+                <i class='bx bx-search' style="position: absolute; left: 15px;"></i>
+                <input type="text" id="retentionSearch" placeholder="Search by name or by student number" onkeyup="filterRetentionTable()" style="width: 100%; padding-left: 40px;">
+            </div>
+            <button id="btn-open-drop-modal" class="btn-advise" style="background: #ef5350; color: white; border: none; white-space: nowrap;">Drop / Transfer Student</button>
         </div>
+
+<div id="dropStudentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-top-bar"></div>
+            <div class="modal-inner">
+                <div class="modal-header">
+                    <div class="modal-title">
+                        <div class="icon-wrapper">
+                            <i class='bx bx-user-minus'></i>
+                        </div>
+                        <h2>Process Exit</h2>
+                    </div>
+                    </div>
+                <p class="modal-subtitle">Search for a student and officially record their departure reason.</p>
+                
+                <div class="form-group relative">
+                    <label>Student Name / ID</label>
+                    <div class="input-with-icon">
+                        <i class='bx bx-search'></i>
+                        <input type="text" id="drop-student-search" placeholder="Search by name or ID..." autocomplete="off">
+                    </div>
+                    <div id="drop-student-suggestions" class="suggestions-box"></div>
+                </div>
+
+                <div class="form-group relative">
+                    <label>Action Type</label>
+                    <select id="drop-action-type" class="custom-select">
+                        <option value="Dropped">Drop Out</option>
+                        <option value="Transferred">Transfer to another school</option>
+                    </select>
+                    </div>
+
+                <div class="form-group relative">
+                    <label>Primary Reason</label>
+                    <select id="drop-reason" class="custom-select">
+                        <option value="Financial Issues">Financial Issues</option>
+                        <option value="Academic Struggles">Academic Struggles</option>
+                        <option value="Personal/Family">Personal/Family</option>
+                        <option value="Wrong Program Fit">Wrong Program Fit</option>
+                        <option value="Mental Health">Mental Health</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    </div>
+
+                <div class="modal-actions">
+                    <button id="btn-cancel-drop" class="btn-cancel">Cancel</button>
+                    <button id="btn-submit-drop" class="btn-confirm">
+                        <i class='bx bx-check'></i> Confirm Action
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
         
         <table class="retention-table">
             <thead>

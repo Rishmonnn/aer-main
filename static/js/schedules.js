@@ -70,57 +70,98 @@
                 editingEvent = ev; // Set global state
                 const props = ev.extendedProps;
                 
-                // 1. Open the modal
+                // 1. Open the modal and hide errors
                 const modal = document.getElementById('addClassModal');
-                if(modal) modal.style.display = 'flex';
-                hideError();
+                if (modal) modal.style.display = 'flex';
+                
+                const errorBanner = document.getElementById('modalError');
+                if (errorBanner) errorBanner.style.display = 'none';
                 
                 // 2. Change Modal UI to "Edit Mode"
                 document.querySelector('#addClassModal .header-text h3').textContent = 'Edit Class';
                 document.querySelector('#addClassModal .header-text p').textContent = `Editing: ${ev.title}`;
-                const btnDelete = document.getElementById('btnDeleteClass');
-                if(btnDelete) btnDelete.style.display = 'inline-flex';
                 
-                // 3. Populate Year/Sem Triggers first
+                const btnDelete = document.getElementById('btnDeleteClass');
+                if (btnDelete) btnDelete.style.display = 'inline-flex';
+                
+                // 3. Auto-Detect Year & Semester FIRST
                 document.getElementById('modalYear').value = props.year || currentActiveYear;
                 
-                // Refresh dropdown lists based on year
-                filterSubjects();
-                populateFaculty();
+                if (props.code && typeof curriculumData !== 'undefined' && curriculumData.length > 0) {
+                    const cleanPropCode = props.code.trim().toUpperCase();
+                    const subjectData = curriculumData.find(s => s.code.trim().toUpperCase() === cleanPropCode);
+                    if (subjectData && subjectData.sem) {
+                        const semSelect = document.getElementById('modalSem');
+                        if (semSelect) semSelect.value = subjectData.sem;
+                    }
+                }
                 
-                // 4. Safe timeout to allow dropdowns to render HTML options
+                // Reload the dropdowns based on the detected Year/Sem
+                if (typeof filterSubjects === 'function') filterSubjects();
+                if (typeof populateFaculty === 'function') populateFaculty();
+                
+                // 4. Smart Dropdown Selection with Fallbacks
                 setTimeout(() => {
-                    // Subject and Course Code
+                    // Select Subject
                     const subjectSelect = document.getElementById('subjectSelect');
-                    if(subjectSelect) {
-                        subjectSelect.value = props.code || '';
-                        onSubjectChange(); // Automatically fills the Course Code readonly input
+                    if(subjectSelect && props.code) {
+                        const cleanCode = props.code.trim().toUpperCase();
+                        let found = Array.from(subjectSelect.options).find(opt => opt.value.trim().toUpperCase() === cleanCode);
+                        if (found) {
+                            subjectSelect.value = found.value;
+                        } else {
+                            subjectSelect.innerHTML += `<option value="${props.code}">${props.code}</option>`;
+                            subjectSelect.value = props.code;
+                        }
+                        if (typeof onSubjectChange === 'function') onSubjectChange(); 
                     }
                     
-                    // Simple text & select fields
-                    document.getElementById('sectionCode').value = props.sectionCode || '';
-                    document.getElementById('facultySelect').value = props.faculty || '';
+                    // Select Section
+                    const savedSection = (props.sectionCode || '').trim();
+                    const modalSection = document.getElementById('modalSection');
+                    if (modalSection && savedSection) {
+                        let secFound = Array.from(modalSection.options).find(opt => opt.value.trim().toUpperCase() === savedSection.toUpperCase());
+                        if (secFound) {
+                            modalSection.value = secFound.value;
+                        } else {
+                            modalSection.innerHTML += `<option value="${savedSection}">${savedSection}</option>`;
+                            modalSection.value = savedSection;
+                        }
+                    }
+                    document.getElementById('sectionCode').value = savedSection;
+
+                    // Select Faculty (Displays current instructor, or leaves blank if TBA)
+                    const facultySelect = document.getElementById('facultySelect');
+                    if (facultySelect && props.faculty && props.faculty.toUpperCase() !== 'TBA') {
+                        let facFound = Array.from(facultySelect.options).find(opt => opt.value.trim().toUpperCase() === props.faculty.trim().toUpperCase());
+                        if (facFound) {
+                            facultySelect.value = facFound.value;
+                        } else {
+                             facultySelect.innerHTML += `<option value="${props.faculty}">${props.faculty}</option>`;
+                             facultySelect.value = props.faculty;
+                        }
+                    } else if (facultySelect) {
+                        facultySelect.value = ''; // Leave blank if TBA
+                    }
+
+                    // Fill remaining fields
                     document.getElementById('typeSelect').value = props.type || 'lecture';
                     document.getElementById('roomInput').value = props.room || '';
                     
-                    // 5. Precisely extract and format the Time and Day
+                    // Format Time and Day precisely
                     if (ev.start) {
-                        // JavaScript getDay() returns 0 for Sunday, 1 for Monday, etc.
                         let dayIndex = ev.start.getDay();
-                        document.getElementById('daySelect').value = dayIndex === 0 ? 7 : dayIndex; // Fallback to 7 if Sunday logic needed
-                        
-                        // Format Start Time (HH:MM)
+                        document.getElementById('daySelect').value = dayIndex === 0 ? 7 : dayIndex;
                         const startH = String(ev.start.getHours()).padStart(2, '0');
                         const startM = String(ev.start.getMinutes()).padStart(2, '0');
                         document.getElementById('startTime').value = `${startH}:${startM}`;
                     }
                     if (ev.end) {
-                        // Format End Time (HH:MM)
                         const endH = String(ev.end.getHours()).padStart(2, '0');
                         const endM = String(ev.end.getMinutes()).padStart(2, '0');
                         document.getElementById('endTime').value = `${endH}:${endM}`;
                     }
-                }, 50); // 50ms is instant to the human eye but gives the DOM time to breathe
+                }, 50);
             },
             
             // Inject EXACT React HTML Structure into Events
@@ -382,94 +423,191 @@
         Schedules.closeModal();
     }
 
+    // --- UPDATED: EXPORT TO EXCEL (WITH CALCULATED HOURS & COLORS) ---
     function exportToExcel() {
-        let exportData = [];
+        let groupedData = {};
 
-        // Gather all events from the mockDatabase across all years
+        // 1. Group events and mathematically calculate the duration (hours)
         for (let year in mockDatabase) {
             if (mockDatabase[year] && mockDatabase[year].events) {
                 mockDatabase[year].events.forEach(ev => {
                     let props = ev.extendedProps;
-                    
-                    // Safely extract the time and day
-                    let startTime = "";
-                    let endTime = "";
-                    let dayOfWeek = "";
-                    
-                    // We need to parse the start/end strings to get readable times
-                    if (ev.start) {
-                        const startDt = new Date(ev.start);
-                        startTime = startDt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                        dayOfWeek = days[startDt.getDay()];
-                    }
-                    if (ev.end) {
-                        const endDt = new Date(ev.end);
-                        endTime = endDt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    let key = `${props.year}_${props.code}_${props.sectionCode}_${props.faculty}`;
+
+                    if (!groupedData[key]) {
+                        groupedData[key] = {
+                            campus: "CARMEN",
+                            code: props.code || "",
+                            title: ev.title || "",
+                            course: `BSCPE-${props.year}`, 
+                            section: props.sectionCode || "",
+                            faculty: props.faculty || "",
+                            lecTimes: new Set(), lecDays: new Set(), lecRooms: new Set(), lecHrs: 0,
+                            labTimes: new Set(), labDays: new Set(), labRooms: new Set(), labHrs: 0
+                        };
                     }
 
-                    exportData.push({
-                        "Year Level": props.year ? `${props.year} Year` : "N/A",
-                        "Course Code": props.code || "",
-                        "Descriptive Title": ev.title || "",
-                        "Section": props.sectionCode || "TBA",
-                        "Instructor": props.faculty || "TBA",
-                        "Room": props.room || "TBA",
-                        "Type": props.type ? props.type.toUpperCase() : "LECTURE",
-                        "Day": dayOfWeek,
-                        "Start Time": startTime,
-                        "End Time": endTime
-                    });
+                    let timeStr = "";
+                    let dayStr = "";
+                    let durationHrs = 0; // Will hold the calculated hours
+
+                    if (ev.start && ev.end) {
+                        const startDt = new Date(ev.start);
+                        const endDt = new Date(ev.end);
+                        
+                        // Calculate difference in exact hours (e.g., 1.5 for 1 hr 30 mins)
+                        durationHrs = (endDt - startDt) / (1000 * 60 * 60);
+                        
+                        // Strict format to "09:00AM"
+                        const formatTime = (dt) => {
+                            let hours = dt.getHours();
+                            let minutes = dt.getMinutes();
+                            const ampm = hours >= 12 ? 'PM' : 'AM';
+                            hours = hours % 12;
+                            hours = hours ? hours : 12;
+                            minutes = minutes < 10 ? '0' + minutes : minutes;
+                            return `${hours < 10 ? '0' + hours : hours}:${minutes}${ampm}`;
+                        };
+                        
+                        timeStr = `${formatTime(startDt)}-${formatTime(endDt)}`;
+                        const daysShort = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+                        dayStr = daysShort[startDt.getDay()];
+                    }
+
+                    // Distribute data and append hours
+                    if (props.type === 'lecture' || props.type === 'Lec') {
+                        if (timeStr) groupedData[key].lecTimes.add(timeStr);
+                        if (dayStr) groupedData[key].lecDays.add(dayStr);
+                        if (props.room) groupedData[key].lecRooms.add(props.room);
+                        groupedData[key].lecHrs += durationHrs; // Add calculated time
+                    } else {
+                        if (timeStr) groupedData[key].labTimes.add(timeStr);
+                        if (dayStr) groupedData[key].labDays.add(dayStr);
+                        if (props.room) groupedData[key].labRooms.add(props.room);
+                        groupedData[key].labHrs += durationHrs; // Add calculated time
+                    }
                 });
             }
         }
 
-        // Check if there is anything to export
-        if (exportData.length === 0) {
-            if (typeof showToast === 'function') {
-                showToast("No classes found to export.");
-            } else {
-                alert("No classes found to export.");
+        // 2. Build the EXACT layout matching the CSV Template
+        let aoa = [
+            ["", "", "", "", "", "", "", "", "", "", "", "", "Time", "", "Days", "", "Room", "", "Faculty"],
+            ["", "CAMPUS", "Code", "Descriptive Title", "Course", "Units", "", "", "Teaching Hours", "", "", "Section", "FACE TO FACE", "", "FACE TO FACE", "", "", "", ""],
+            ["", "", "", "", "", "Lec", "Lab", "Total", "Lec", "Lab", "Total", "", "Lec", "LAB", "Lec", "LAB", "Lec", "Lab", ""],
+            [] // Empty row 4 just like the template
+        ];
+
+        // 3. Process grouped data into rows
+        Object.values(groupedData).forEach(row => {
+            let lecDayFormat = Array.from(row.lecDays).join('/');
+            let labDayFormat = Array.from(row.labDays).join('/');
+            
+            let lecTimeFormat = Array.from(row.lecTimes).join('/');
+            if (row.lecDays.size > 1 && row.lecTimes.size === 1) {
+               lecTimeFormat = Array.from(row.lecDays).map(() => Array.from(row.lecTimes)[0]).join('/');
             }
+            
+            let labTimeFormat = Array.from(row.labTimes).join('/');
+            if (row.labDays.size > 1 && row.labTimes.size === 1) {
+               labTimeFormat = Array.from(row.labDays).map(() => Array.from(row.labTimes)[0]).join('/');
+            }
+
+            let lecRoomFormat = Array.from(row.lecRooms).join('/');
+            let labRoomFormat = Array.from(row.labRooms).join('/');
+
+            // Calculate Units & Totals (Will default to 0 if none)
+            let lecU = row.lecHrs || 0;
+            let labU = row.labHrs || 0;
+            let totalU = lecU + labU;
+
+            aoa.push([
+                "", // Col 0 (Empty)
+                row.campus, 
+                row.code, 
+                row.title, 
+                row.course, 
+                lecU, labU, totalU,   // Calculated Units
+                lecU, labU, totalU,   // Calculated Teaching Hours
+                row.section, 
+                lecTimeFormat, 
+                labTimeFormat, 
+                lecDayFormat, 
+                labDayFormat, 
+                lecRoomFormat, 
+                labRoomFormat, 
+                row.faculty 
+            ]);
+        });
+
+        // Abort if calendar is empty
+        if (aoa.length <= 4) {
+            if (typeof showToast === 'function') showToast("No classes found to export.");
+            else alert("No classes found to export.");
             return;
         }
 
-        // Sort data chronologically by Year Level, then by Course Code
-        exportData.sort((a, b) => {
-            if (a["Year Level"] === b["Year Level"]) {
-                return a["Course Code"].localeCompare(b["Course Code"]);
-            }
-            return a["Year Level"].localeCompare(b["Year Level"]);
-        });
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-        // Convert the array of objects to an Excel worksheet
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        
-        // Make the Excel columns wide enough to read the data automatically
-        const colWidths = [
-            { wch: 12 }, // Year
-            { wch: 15 }, // Code
-            { wch: 35 }, // Title
-            { wch: 15 }, // Section
-            { wch: 25 }, // Instructor
-            { wch: 15 }, // Room
-            { wch: 12 }, // Type
-            { wch: 15 }, // Day
-            { wch: 15 }, // Start Time
-            { wch: 15 }  // End Time
+        // Apply column merges
+        ws['!merges'] = [
+            { s: {r:0, c:12}, e: {r:0, c:13} }, // Time
+            { s: {r:0, c:14}, e: {r:0, c:15} }, // Days
+            { s: {r:0, c:16}, e: {r:0, c:17} }, // Room
+            { s: {r:1, c:12}, e: {r:1, c:13} }, // FACE TO FACE (Time)
+            { s: {r:1, c:14}, e: {r:1, c:15} }, // FACE TO FACE (Days)
+            { s: {r:1, c:5}, e: {r:1, c:7} },   // Units
+            { s: {r:1, c:8}, e: {r:1, c:10} }   // Teaching Hours
         ];
-        ws['!cols'] = colWidths;
 
-        // Create a new workbook and add the worksheet
+        // Ensure columns are perfectly spaced out
+        ws['!cols'] = [
+            { wch: 3 }, { wch: 10 }, { wch: 12 }, { wch: 40 }, { wch: 10 }, 
+            { wch: 5 }, { wch: 5 }, { wch: 6 }, { wch: 5 }, { wch: 5 }, { wch: 6 }, 
+            { wch: 18 }, { wch: 35 }, { wch: 35 }, { wch: 12 }, { wch: 12 }, 
+            { wch: 15 }, { wch: 15 }, { wch: 30 }
+        ];
+
+        // --- NEW: ADVANCED EXCEL CELL STYLING (COLORS & BORDERS) ---
+        const headerStyle = {
+            fill: { fgColor: { rgb: "#550000" } }, // Light professional blue background
+            font: { bold: true, color: { rgb: "000000" }, name: "Arial", sz: 10 },
+            alignment: { horizontal: "center", vertical: "center", wrapText: true },
+            border: {
+                top: { style: "thin", color: { rgb: "000000" } },
+                bottom: { style: "thin", color: { rgb: "000000" } },
+                left: { style: "thin", color: { rgb: "000000" } },
+                right: { style: "thin", color: { rgb: "000000" } }
+            }
+        };
+
+        const dataStyle = {
+            alignment: { horizontal: "center", vertical: "center" },
+            font: { name: "Arial", sz: 10 }
+        };
+
+        // Loop through the entire sheet to apply colors and alignment
+        let range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = range.s.r; R <= range.e.r; R++) {
+            for (let C = range.s.c; C <= range.e.c; C++) {
+                let cellAddress = XLSX.utils.encode_cell({r: R, c: C});
+                if (!ws[cellAddress]) continue;
+
+                // First 3 rows get Header colors, everything else gets normal alignment
+                if (R <= 2) {
+                    ws[cellAddress].s = headerStyle;
+                } else {
+                    ws[cellAddress].s = dataStyle;
+                }
+            }
+        }
+
+        // Generate and download
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Class Schedules");
-
-        // Trigger the download
         XLSX.writeFile(wb, "AERIS_Class_Schedules.xlsx");
         
-        if (typeof showToast === 'function') {
-            showToast("Schedule exported successfully!");
-        }
+        if (typeof showToast === 'function') showToast("Schedule exported successfully with hours calculated!");
     }
 
     function getNextDayOfWeek(dayIndex) {
@@ -549,6 +687,139 @@
             updateKPIs([]);
             toggleEmptyState(false); 
         }
+        updateUnassignedAlert();
+    }
+
+    function jumpToUnassigned(year, code, section) {
+        // 1. Ensure the calendar is showing the correct year
+        if (currentActiveYear !== year && currentActiveYear !== 'all') {
+            // Update the toggle UI visually
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.year === String(year)) btn.classList.add('active');
+            });
+            
+            // Reset Dashboard dropdown filters so the class doesn't stay hidden
+            const filterSelects = document.querySelectorAll('.controls-group select');
+            if (filterSelects.length > 1) filterSelects[1].value = 'all'; // Reset Section
+            if (filterSelects.length > 2) filterSelects[2].value = 'all'; // Reset Faculty
+            
+            loadYearData(year); // Reload calendar with correct year
+        }
+
+        // 2. Find the exact event object in the calendar
+        const events = calendarInstance.getEvents();
+        const targetEvent = events.find(ev => 
+            ev.extendedProps.code === code && 
+            ev.extendedProps.sectionCode === section &&
+            (!ev.extendedProps.faculty || ev.extendedProps.faculty.toUpperCase() === 'TBA')
+        );
+
+        if (!targetEvent) return;
+
+        // 3. Jump the calendar UI to the exact date of the class
+        if (targetEvent.start) {
+            calendarInstance.gotoDate(targetEvent.start);
+        }
+
+        // 4. Collapse the alert panel so it gets out of the way
+        const container = document.getElementById('unassigned-faculty-alert');
+        if (container) container.classList.remove('expanded');
+
+        // 5. Open the Edit Modal automatically
+        editingEvent = targetEvent; 
+        const props = targetEvent.extendedProps;
+        
+        const modal = document.getElementById('addClassModal');
+        if (modal) modal.style.display = 'flex';
+        
+        const errorBanner = document.getElementById('modalError');
+        if (errorBanner) errorBanner.style.display = 'none';
+        
+        // Update Modal Headers
+        document.querySelector('#addClassModal .header-text h3').textContent = 'Assign Instructor';
+        document.querySelector('#addClassModal .header-text p').textContent = `Resolving unassigned faculty for: ${targetEvent.title}`;
+        
+        const btnDelete = document.getElementById('btnDeleteClass');
+        if (btnDelete) btnDelete.style.display = 'inline-flex';
+        
+        // --- THE FIX: Auto-Detect Year & Semester FIRST ---
+        document.getElementById('modalYear').value = props.year || currentActiveYear;
+        
+        if (props.code && typeof curriculumData !== 'undefined' && curriculumData.length > 0) {
+            const cleanPropCode = props.code.trim().toUpperCase();
+            const subjectData = curriculumData.find(s => s.code.trim().toUpperCase() === cleanPropCode);
+            if (subjectData && subjectData.sem) {
+                const semSelect = document.getElementById('modalSem');
+                if (semSelect) semSelect.value = subjectData.sem;
+            }
+        }
+        
+        if (typeof filterSubjects === 'function') filterSubjects();
+        if (typeof populateFaculty === 'function') populateFaculty();
+        
+        // --- THE FIX: Smart Dropdown Selection with Fallbacks ---
+        setTimeout(() => {
+            // Select Subject
+            const subjectSelect = document.getElementById('subjectSelect');
+            if(subjectSelect && props.code) {
+                const cleanCode = props.code.trim().toUpperCase();
+                let found = Array.from(subjectSelect.options).find(opt => opt.value.trim().toUpperCase() === cleanCode);
+                if (found) {
+                    subjectSelect.value = found.value;
+                } else {
+                    subjectSelect.innerHTML += `<option value="${props.code}">${props.code}</option>`;
+                    subjectSelect.value = props.code;
+                }
+                if (typeof onSubjectChange === 'function') onSubjectChange(); 
+            }
+            
+            // Select Section
+            const savedSection = (props.sectionCode || '').trim();
+            const modalSection = document.getElementById('modalSection');
+            if (modalSection && savedSection) {
+                let secFound = Array.from(modalSection.options).find(opt => opt.value.trim().toUpperCase() === savedSection.toUpperCase());
+                if (secFound) {
+                    modalSection.value = secFound.value;
+                } else {
+                    modalSection.innerHTML += `<option value="${savedSection}">${savedSection}</option>`;
+                    modalSection.value = savedSection;
+                }
+            }
+            document.getElementById('sectionCode').value = savedSection;
+
+            // Select Faculty (Even though it's unassigned, this ensures any existing TBA text is handled)
+            const facultySelect = document.getElementById('facultySelect');
+            if (facultySelect && props.faculty && props.faculty.toUpperCase() !== 'TBA') {
+                let facFound = Array.from(facultySelect.options).find(opt => opt.value.trim().toUpperCase() === props.faculty.trim().toUpperCase());
+                if (facFound) {
+                    facultySelect.value = facFound.value;
+                } else {
+                     facultySelect.innerHTML += `<option value="${props.faculty}">${props.faculty}</option>`;
+                     facultySelect.value = props.faculty;
+                }
+            } else if (facultySelect) {
+                facultySelect.value = ''; // Leave blank if TBA so they can immediately select one
+            }
+
+            // Fill remaining fields
+            document.getElementById('typeSelect').value = props.type || 'lecture';
+            document.getElementById('roomInput').value = props.room || '';
+            
+            // Format Time and Day
+            if (targetEvent.start) {
+                let dayIndex = targetEvent.start.getDay();
+                document.getElementById('daySelect').value = dayIndex === 0 ? 7 : dayIndex;
+                const startH = String(targetEvent.start.getHours()).padStart(2, '0');
+                const startM = String(targetEvent.start.getMinutes()).padStart(2, '0');
+                document.getElementById('startTime').value = `${startH}:${startM}`;
+            }
+            if (targetEvent.end) {
+                const endH = String(targetEvent.end.getHours()).padStart(2, '0');
+                const endM = String(targetEvent.end.getMinutes()).padStart(2, '0');
+                document.getElementById('endTime').value = `${endH}:${endM}`;
+            }
+        }, 50);
     }
 
     function toggleEmptyState(hasEvents) {
@@ -682,6 +953,108 @@
         
     }
 
+    // --- NEW: Dynamic Alert Card Logic ---
+    function toggleUnassignedAlert() {
+        const container = document.getElementById('unassigned-faculty-alert');
+        if (container) container.classList.toggle('expanded');
+    }
+
+    function updateUnassignedAlert() {
+        let pendingSubjects = {};
+
+        // 1. Scan the database to group unassigned classes
+        for (let year in mockDatabase) {
+            if (mockDatabase[year] && mockDatabase[year].events) {
+                mockDatabase[year].events.forEach(ev => {
+                    let props = ev.extendedProps;
+                    
+                    // Filter: Class has no assigned faculty
+                    if (!props.faculty || props.faculty.toUpperCase() === 'TBA') {
+                        let key = `${props.year}_${props.code}_${props.sectionCode}`;
+                        
+                        if (!pendingSubjects[key]) {
+                            pendingSubjects[key] = {
+                                year: props.year || currentActiveYear,
+                                code: props.code || "Unknown",
+                                title: ev.title || "Unknown Subject",
+                                section: props.sectionCode || "TBA",
+                                lecture: null,
+                                lab: null
+                            };
+                        }
+
+                        // Format Time logic exactly to HH:MM AM/PM
+                        let timeStr = "";
+                        if (ev.start && ev.end) {
+                            const startDt = new Date(ev.start);
+                            const endDt = new Date(ev.end);
+                            const formatTime = (dt) => {
+                                let hours = dt.getHours();
+                                let minutes = dt.getMinutes();
+                                const ampm = hours >= 12 ? 'PM' : 'AM';
+                                hours = hours % 12;
+                                hours = hours ? hours : 12;
+                                minutes = minutes < 10 ? '0' + minutes : minutes;
+                                return `${hours < 10 ? '0' + hours : hours}:${minutes}${ampm}`;
+                            };
+                            timeStr = `${formatTime(startDt)}–${formatTime(endDt)}`;
+                        }
+
+                        if (props.type === 'lecture' || props.type === 'Lec') {
+                            pendingSubjects[key].lecture = timeStr;
+                        } else {
+                            pendingSubjects[key].lab = timeStr;
+                        }
+                    }
+                });
+            }
+        }
+
+        const subjectsWithoutInstructor = Object.values(pendingSubjects);
+        const container = document.getElementById('unassigned-faculty-alert');
+        const listContainer = document.getElementById('unassigned-list-container');
+        const titleEl = document.getElementById('unassigned-title');
+        const badgeEl = document.getElementById('unassigned-badge');
+
+        if (!container || !listContainer || !titleEl || !badgeEl) return;
+
+        const count = subjectsWithoutInstructor.length;
+
+        // 2. Hide component if no pending assignments exist
+        if (count === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+
+        // 3. Render Component Data
+        container.classList.remove('hidden');
+        titleEl.textContent = `${count} Subject${count > 1 ? 's' : ''} Without Instructor`;
+        badgeEl.textContent = `${count} Pending`;
+
+        listContainer.innerHTML = '';
+        subjectsWithoutInstructor.forEach(sub => {
+            let detailsText = `Section: ${sub.section}`;
+            if (sub.lecture) detailsText += ` • Lec: ${sub.lecture}`;
+            if (sub.lab) detailsText += ` • Lab: ${sub.lab}`;
+
+            const itemHtml = `
+                <div class="unassigned-item" onclick="Schedules.jumpToUnassigned('${sub.year}', '${sub.code}', '${sub.section}')">
+                    <div class="unassigned-item-left">
+                        <div class="unassigned-item-icon">
+                            <i class='bx bx-user-x'></i>
+                        </div>
+                        <div class="unassigned-item-details">
+                            <h4>${sub.code} — ${sub.title}</h4>
+                            <p>${detailsText}</p>
+                        </div>
+                    </div>
+                    <div class="unassigned-status-badge">No Instructor</div>
+                </div>
+            `;
+            listContainer.insertAdjacentHTML('beforeend', itemHtml);
+        });
+    }
+
     // Expose public methods
     window.Schedules = {
         
@@ -695,7 +1068,9 @@
         filterSubjects,
         triggerImport, 
         handleImport,
-        closeImportModal
+        closeImportModal,
+        toggleUnassignedAlert,
+        jumpToUnassigned
     };
     
     // Auto-init if the calendar div exists immediately (for safety)
