@@ -71,7 +71,7 @@ function fetchRetentionData() {
                                 <td>${student.program}</td>
                                 <td>${student.year_level}</td>
                                 <td><span class="risk-pill ${student.risk_class}">${student.risk_level}</span></td>
-                                <td><button class="btn-advise">ADVISE</button></td>
+                                <td><button class="btn-advise" onclick="openAdvisingModal('${student.id}', \`${student.name}\`)">ADVISE</button></td>
                             </tr>
                         `;
                     });
@@ -349,4 +349,102 @@ if (submitDropBtn) {
         })
         .catch(err => console.error(err));
     }
+}
+
+// ==========================================
+// 4. ADVISING MODAL LOGIC
+// ==========================================
+const advisingModal = document.getElementById('advisingModal');
+let currentAdviseStudentId = null;
+
+function openAdvisingModal(studentId, studentName) {
+    currentAdviseStudentId = studentId;
+    document.getElementById('adv-student-id').innerText = studentId;
+    document.getElementById('adv-student-name').innerText = studentName;
+    
+    // Clear the form fields
+    document.getElementById('adv-notes').value = '';
+    document.getElementById('adv-action-plan').value = '';
+    document.getElementById('adv-category').selectedIndex = 0;
+    
+    if (advisingModal) advisingModal.style.display = "flex";
+    document.body.style.overflow = "hidden";
+    
+    // Fetch previous records
+    const historyList = document.getElementById('adv-history-list');
+    historyList.innerHTML = "Loading history...";
+    
+    fetch(`/api/advising/${studentId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.length === 0) {
+                historyList.innerHTML = "<em>No previous advising records found.</em>";
+            } else {
+                // Formatting the new structured data
+                historyList.innerHTML = data.map(r => 
+                    `<div style="margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-weight: 600; color: #0f172a;">${r.date}</span>
+                            <span style="background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #475569;">${r.category}</span>
+                        </div>
+                        <div style="color: #334155; margin-bottom: 4px;"><strong>Notes:</strong> ${r.notes}</div>
+                        <div style="color: #059669; font-style: italic;"><strong>Action Plan:</strong> ${r.action_plan}</div>
+                    </div>`
+                ).join('');
+            }
+        })
+        .catch(err => {
+            historyList.innerHTML = "<span style='color: #ef4444;'>Failed to load records.</span>";
+        });
+}
+
+function closeAdvisingModal() {
+    if (advisingModal) advisingModal.style.display = "none";
+    document.body.style.overflow = "";
+    currentAdviseStudentId = null;
+}
+
+function submitAdvising() {
+    if (!currentAdviseStudentId) return;
+    
+    // Grab all field values
+    const notes = document.getElementById('adv-notes').value.trim();
+    const category = document.getElementById('adv-category').value;
+    const actionPlan = document.getElementById('adv-action-plan').value.trim();
+    
+    if (!notes) {
+        alert("Please enter discussion notes.");
+        return;
+    }
+    
+    const btn = document.getElementById('btn-submit-adv');
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Saving...";
+    btn.disabled = true;
+    
+    fetch(`/api/advising/${currentAdviseStudentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            notes: notes,
+            category: category,
+            action_plan: actionPlan
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.innerHTML = "<i class='bx bx-save'></i> Save Record";
+        btn.disabled = false;
+        
+        if (data.success) {
+            closeAdvisingModal();
+        } else {
+            alert("Error: " + data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        btn.innerHTML = "<i class='bx bx-save'></i> Save Record";
+        btn.disabled = false;
+        alert("An error occurred while saving.");
+    });
 }

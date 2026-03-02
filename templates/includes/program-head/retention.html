@@ -217,4 +217,55 @@
         </div>
     </div>
 
+<   div id="advisingModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;"> <div class="modal-top-bar" style="background: #3b82f6;"></div>
+            <div class="modal-inner">
+                <div class="modal-header">
+                    <div class="modal-title">
+                        <div class="icon-wrapper" style="background: #eff6ff; color: #3b82f6;">
+                            <i class='bx bx-message-dots'></i>
+                        </div>
+                        <h2>Student Advising</h2>
+                    </div>
+                </div>
+                <p class="modal-subtitle">Log an advising session for <strong id="adv-student-name"></strong> (<span id="adv-student-id"></span>).</p>
+                
+                <div class="advising-history" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; background: #f8fafc;">
+                    <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 14px; color: #475569;">Past Records</h4>
+                    <div id="adv-history-list" style="font-size: 13px; color: #64748b;">Loading...</div>
+                </div>
+
+                <div class="form-group relative" style="margin-bottom: 15px;">
+                    <label style="font-weight: 600; font-size: 13px; color: #334155;">Session Category</label>
+                    <select id="adv-category" class="custom-select" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <option value="Academic Struggle">Academic Struggle</option>
+                        <option value="Excessive Absences">Excessive Absences</option>
+                        <option value="Financial Hardship">Financial Hardship</option>
+                        <option value="Behavioral Issue">Behavioral Issue</option>
+                        <option value="Career Guidance">Career Guidance</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group relative" style="margin-bottom: 15px;">
+                    <label style="font-weight: 600; font-size: 13px; color: #334155;">Discussion Notes</label>
+                    <textarea id="adv-notes" rows="3" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit;" placeholder="Main points discussed during the session..."></textarea>
+                </div>
+
+                <div class="form-group relative" style="margin-bottom: 15px;">
+                    <label style="font-weight: 600; font-size: 13px; color: #334155;">Agreed Action Plan</label>
+                    <textarea id="adv-action-plan" rows="2" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit;" placeholder="e.g., Student will attend remedial math classes twice a week."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button id="btn-cancel-adv" class="btn-cancel" onclick="closeAdvisingModal()">Cancel</button>
+                    <button id="btn-submit-adv" class="btn-confirm" style="background: #3b82f6;" onclick="submitAdvising()">
+                        <i class='bx bx-save'></i> Save Record
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 </div>

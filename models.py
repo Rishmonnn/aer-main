@@ -100,3 +100,20 @@ class ScheduleEvent(db.Model):
     start_time = db.Column(db.String(50), nullable=False)
     end_time = db.Column(db.String(50), nullable=False)
     color = db.Column(db.String(20), nullable=False)
+
+# models.py (Add to the bottom of the file)
+
+# 8. ADVISING RECORDS
+class AdvisingRecord(db.Model):
+    __tablename__ = 'advising_records'
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.String(20), db.ForeignKey('students.id'), nullable=False)
+    date = db.Column(db.String(50), nullable=False)
+    
+    # --- NEW: Structured Data ---
+    category = db.Column(db.String(50), nullable=True) 
+    notes = db.Column(db.Text, nullable=False)
+    action_plan = db.Column(db.Text, nullable=True) 
+    
+    # Relationship to link records easily
+    student = db.relationship('Student', backref='advising_records', lazy=True)
