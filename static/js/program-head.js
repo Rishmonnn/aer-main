@@ -110,15 +110,26 @@ function loadStudentCounts() {
     fetch('/api/students')
         .then(res => res.json())
         .then(data => {
-            // Set the total count
-            studentData["Total Students"] = data.length;
+            // 1. Filter out dropped/transferred students so the count is perfectly accurate
+            const activeStudents = data.filter(s => s.status !== 'Dropped' && s.status !== 'Transferred');
             
-            // Tally up students by their exact year level
-            data.forEach(student => {
+            // 2. Set the exact total count (matching the "Total" key!)
+            studentData["Total"] = activeStudents.length;
+            
+            // 3. Tally up active students by their exact year level
+            activeStudents.forEach(student => {
                 if (studentData[student.year_level] !== undefined) {
                     studentData[student.year_level]++;
                 }
             });
+
+            // 4. Immediately sync the visible total on the dashboard
+            const countElement = document.getElementById('student-count');
+            if (countElement && yrIdx === 0) {
+                countElement.innerText = studentData["Total"];
+                // Update the HTML backup attribute just in case
+                countElement.setAttribute('data-total', studentData["Total"]); 
+            }
         })
         .catch(err => console.error("Error loading student counts:", err));
 }
@@ -129,12 +140,18 @@ function cycleYear() {
     const count = document.getElementById('student-count');
     
     if (label && count) {
-        label.innerText = years[yrIdx];
-        count.innerText = studentData[years[yrIdx]];
+        // Change the label text (make it look nice for the total)
+        label.innerText = years[yrIdx] === "Total" ? "All Years" : years[yrIdx];
+        
+        // If it's Total, use the tallied database number. If that fails, fallback to the HTML data-total attribute
+        if (years[yrIdx] === "Total") {
+            count.innerText = studentData["Total"] || count.getAttribute('data-total') || 0;
+        } else {
+            // Otherwise, show the specific year level count
+            count.innerText = studentData[years[yrIdx]] || 0;
+        }
     }
 }
-
-
 
 // --- TAB NAVIGATION FIX ---
 function switchTab(evt, section) {
