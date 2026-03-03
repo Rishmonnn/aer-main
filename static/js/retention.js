@@ -526,3 +526,62 @@ function submitAdvising() {
         alert("An error occurred while saving.");
     });
 }
+
+
+// ==========================================
+// 5. AI ADVISOR GENERATOR LOGIC
+// ==========================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    const aiBtn = document.getElementById('btn-generate-ai');
+    
+    if(aiBtn) {
+        aiBtn.addEventListener('click', async () => {
+            // 1. Ensure a student is selected via the Advising Modal
+            if (!currentAdviseStudentId) {
+                alert("Please select a student to advise first.");
+                return;
+            }
+            
+            // 2. Grab current context
+            const category = document.getElementById('adv-category').value;
+            const notes = document.getElementById('adv-notes').value;
+            const actionPlanInput = document.getElementById('adv-action-plan');
+
+            // 3. Set UI to Loading State
+            const originalText = aiBtn.innerHTML;
+            aiBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Generating...";
+            aiBtn.disabled = true;
+            actionPlanInput.value = "Consulting AI Advisor... Please wait.";
+
+            try {
+                // 4. Call the Flask backend AI API endpoint
+                const response = await fetch(`/api/advising/generate-plan/${currentAdviseStudentId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ category: category, notes: notes })
+                });
+
+                const data = await response.json();
+
+                // 5. Populate the text area
+                if(data.success) {
+                    actionPlanInput.value = data.action_plan;
+                } else {
+                    actionPlanInput.value = "";
+                    alert(data.message || "Could not generate plan.");
+                }
+            } catch (error) {
+                console.error("AI Error:", error);
+                actionPlanInput.value = "";
+                alert("An error occurred while connecting to the AI.");
+            } finally {
+                // 6. Restore the Magic Button state
+                aiBtn.innerHTML = originalText;
+                aiBtn.disabled = false;
+            }
+        });
+    }
+});

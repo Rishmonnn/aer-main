@@ -5,9 +5,16 @@ from config import get_config
 import random
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime # Make sure to import datetime
-
-# Change your models import to include AdvisingRecord
 from models import db, User, Student, Subject, Section, Enrollment, ScheduleEvent, AdvisingRecord
+
+from dotenv import load_dotenv
+import google.generativeai as genai
+
+# Load the environment variables from the .env file BEFORE configuring the API
+load_dotenv()
+
+# Configure the Gemini API
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 app = Flask(__name__, 
     template_folder=os.path.join(os.path.dirname(__file__), 'templates'),
@@ -1196,6 +1203,70 @@ def get_dashboard_activities():
     except Exception as e:
         print(f"Error fetching dashboard data: {e}")
         return jsonify({'activities': [], 'actions': []}), 500
+    
+    
+@app.route('/api/advising/generate-plan/<string:student_id>', methods=['POST'])
+@login_required
+def generate_action_plan(student_id):
+    # 1. Get the current context the advisor typed in so far
+    data = request.get_json()
+    category = data.get('category', 'Uncategorized Issue')
+    notes = data.get('notes', 'No specific notes provided.')
+
+    # 2. Fetch Student Data
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify({'error': 'Student not found'}), 404
+
+    # 3. Gather Academic History (Failures & Risk Level)
+    # Using the same logic you already use in your retention API
+    failed_records = Enrollment.query.filter_by(student_id=student_id)\
+        .filter((Enrollment.grade > 3.0) | (Enrollment.status == 'Failed')).all()
+    
+    fail_count = len(failed_records)
+    risk_level = "Regular/Low Risk"
+    if fail_count >= 2:
+        risk_level = "Critical Risk"
+    elif fail_count == 1:
+        risk_level = "High Risk"
+        
+    failed_subjects = [f.section.subject_code for f in failed_records if f.section]
+    failed_str = ", ".join(failed_subjects) if failed_subjects else "None"
+
+    # 4. Construct the Prompt
+    prompt = f"""
+    You are an empathetic and professional academic advisor for a university engineering department. 
+    A student needs an action plan based on the following context:
+    
+    - Program: {student.program}
+    - Year Level: {student.year_level}
+    - Academic Risk Level: {risk_level}
+    - Failed Subjects: {failed_str}
+    - Current Issue Category: {category}
+    - Advisor's Observation Notes: {notes}
+
+    Generate a brief, empathetic, 3-step actionable recovery plan for this student. 
+    Make the steps concrete and achievable. Do not include any introductory or concluding text.
+    Format the response exactly like this:
+    Step 1: [Actionable advice]
+    Step 2: [Actionable advice]
+    Step 3: [Actionable advice]
+    """
+
+    try:
+        # 5. Call the Gemini API
+        # Using gemini-1.5-flash as it is the fastest and most cost-effective for text tasks
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        response = model.generate_content(prompt)
+        
+        return jsonify({
+            'success': True, 
+            'action_plan': response.text.strip()
+        })
+    except Exception as e:
+        print(f"AI Generation Error: {e}")
+        # --- CHANGED: Now it sends the REAL error to your browser ---
+        return jsonify({'success': False, 'message': f"System Error: {str(e)}"}), 500
 
 
 if __name__ == '__main__':

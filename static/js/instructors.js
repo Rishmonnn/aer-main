@@ -45,43 +45,40 @@ document.addEventListener('DOMContentLoaded', function() {
         return parseInt(hours, 10) * 60 + parseInt(minutes, 10);
     }
 
-    function getTeacherSchedule(teacherId) {
-        const subjects = [
-            { code: 'CPE 101', desc: 'Intro to CPE' }, 
-            { code: 'CPE 102', desc: 'Programming Logic' },
-            { code: 'MATH 101', desc: 'Calculus I' }, 
-            { code: 'PHYS 101', desc: 'Engineering Physics' },
-            { code: 'CPE 301', desc: 'Computer Networks' }, 
-            { code: 'CPE 402', desc: 'Software Design' }
-        ];
-        const rooms = ['Room 301', 'Comp Lab 1', 'Comp Lab 2', 'AVR', 'Room 405'];
-        const scheduleOptions = [
-            { start: '7:30 AM', end: '1:00 PM' }, { start: '9:00 AM', end: '12:00 PM' },
-            { start: '1:00 PM', end: '4:00 PM' }, { start: '7:30 AM', end: '9:00 AM' },
-            { start: '4:00 PM', end: '7:00 PM' }
-        ];
-        const daysLong = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        
-        let schedule = [];
-        const numClasses = 3 + (teacherId % 3); 
-        
-        for(let i=0; i<numClasses; i++) {
-            const timeOpt = scheduleOptions[(teacherId + i) % scheduleOptions.length];
-            const dayIndex = (teacherId + i) % 6;
-            const subjectObj = subjects[(teacherId + i) % subjects.length];
-            const duration = parseTime(timeOpt.end) - parseTime(timeOpt.start);
-            const isLab = duration > 180 || Math.random() > 0.6;
-            const type = isLab ? 'Lab' : 'Lec';
+    function getTeacherSchedule(teacher) {
+        // If we have real imported events, map them to the grid format
+        if (teacher.rawEvents && teacher.rawEvents.length > 0) {
+            const daysLong = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            return teacher.rawEvents.map(ev => {
+                const props = ev.extendedProps || ev;
+                const startDt = new Date(ev.start);
+                const endDt = new Date(ev.end);
+                
+                const formatTime = (dt) => {
+                    let h = dt.getHours();
+                    let m = dt.getMinutes();
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    h = h % 12 || 12;
+                    m = m < 10 ? '0' + m : m;
+                    return `${h}:${m} ${ampm}`;
+                };
 
-            schedule.push({
-                subjectCode: subjectObj.code, subjectDesc: subjectObj.desc,
-                room: rooms[(teacherId + i) % rooms.length],
-                startTime: timeOpt.start, endTime: timeOpt.end,
-                dayIndex: dayIndex, dayLong: daysLong[dayIndex],
-                type: type 
+                return {
+                    subjectCode: props.code,
+                    subjectDesc: ev.title || props.title || '',
+                    room: props.room,
+                    startTime: formatTime(startDt),
+                    endTime: formatTime(endDt),
+                    dayIndex: startDt.getDay() === 0 ? 6 : startDt.getDay() - 1, // Mon=0, Sat=5
+                    dayLong: daysLong[startDt.getDay()],
+                    type: props.type === 'lecture' || props.type === 'Lec' ? 'Lec' : 'Lab'
+                };
             });
         }
-        return schedule;
+        
+        // --- Fallback to your mock data if no import has happened yet ---
+        return []; 
     }
 
     function buildGridStructure() {
@@ -128,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <span style="font-size:0.7rem; margin-left:8px; opacity:0.7;">(L: ${teacher.lec} | Lab: ${teacher.lab})</span>
         `;
         
-        const schedule = getTeacherSchedule(teacher.id);
+        const schedule = getTeacherSchedule(teacher);
         buildGridStructure();
         
         schedule.forEach(cls => {
@@ -320,6 +317,66 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
     }
+
+    // --- NEW: CATCH IMPORTED EXCEL DATA ---
+    window.updateInstructorsFromImport = function(allEvents) {
+        const facultyMap = {};
+
+        allEvents.forEach(ev => {
+            const props = ev.extendedProps || ev;
+            const facultyName = props.faculty;
+            
+            // Skip unassigned classes
+            if (!facultyName || facultyName.toUpperCase() === 'TBA') return;
+
+            if (!facultyMap[facultyName]) {
+                facultyMap[facultyName] = {
+                    id: facultyName, // Use name as ID for imported data
+                    name: facultyName,
+                    department: "Computer Engineering",
+                    classes: 0,
+                    lec: 0,
+                    lab: 0,
+                    classSet: new Set(),
+                    rawEvents: []
+                };
+            }
+
+            const fac = facultyMap[facultyName];
+            fac.rawEvents.push(ev);
+            fac.classSet.add(props.code + "_" + props.sectionCode); // Track unique classes
+
+            // Calculate exact hours
+            const startDt = new Date(ev.start);
+            const endDt = new Date(ev.end);
+            const durationHrs = (endDt - startDt) / (1000 * 60 * 60);
+
+            if (props.type === 'lecture' || props.type === 'Lec') {
+                fac.lec += durationHrs;
+            } else {
+                fac.lab += durationHrs;
+            }
+        });
+
+        // Update the main facultyData array
+        Object.values(facultyMap).forEach(fac => {
+            fac.classes = fac.classSet.size;
+            
+            // Check if teacher already exists in the API data
+            const existingIndex = facultyData.findIndex(f => f.name.toUpperCase() === fac.name.toUpperCase());
+            if (existingIndex > -1) {
+                facultyData[existingIndex].classes = fac.classes;
+                facultyData[existingIndex].lec = fac.lec;
+                facultyData[existingIndex].lab = fac.lab;
+                facultyData[existingIndex].rawEvents = fac.rawEvents;
+            } else {
+                facultyData.push(fac);
+            }
+        });
+
+        // Re-render the UI with the newly calculated loads
+        renderFaculty(facultyData);
+    };
 
     // --- FETCH DATA FROM SERVER ---
     fetch('/api/instructors')

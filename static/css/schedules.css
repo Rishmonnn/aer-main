@@ -777,3 +777,104 @@
     }
 }
 
+/* --- PROFESSIONAL CONFIRM MODAL --- */
+.aeris-confirm-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.aeris-confirm-card {
+    background-color: var(--card);
+    width: 100%;
+    max-width: 420px;
+    border-radius: var(--radius);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    padding: 24px;
+    animation: scaleUp 0.2s ease-out;
+}
+
+.aeris-confirm-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.aeris-confirm-icon {
+    background-color: #e0e7ff;
+    color: #4f46e5;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.aeris-confirm-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+.aeris-confirm-body p {
+    margin: 0 0 24px 0;
+    font-size: 0.95rem;
+    color: var(--muted-foreground);
+    line-height: 1.5;
+    padding-left: 64px; /* Perfectly indents text under the title */
+}
+
+.aeris-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.aeris-confirm-actions button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.aeris-confirm-actions .btn-secondary {
+    background-color: var(--muted);
+    color: var(--foreground);
+}
+
+.aeris-confirm-actions .btn-secondary:hover {
+    background-color: #e2e8f0;
+}
+
+.aeris-confirm-actions .btn-primary {
+    background-color: var(--primary);
+    color: white;
+}
+
+.aeris-confirm-actions .btn-primary:hover {
+    opacity: 0.9;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}

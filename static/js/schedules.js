@@ -239,37 +239,90 @@
         const filterSelects = document.querySelectorAll('.controls-group select');
         let filterFaculty = filterSelects.length > 2 ? filterSelects[2] : null;
 
-        if (!facultySelect) return;
-        
+        // Get the year currently selected in the Add/Edit Modal
+        const modalYearSelect = document.getElementById('modalYear');
+        const modalYear = modalYearSelect ? modalYearSelect.value : currentActiveYear;
+
+        // HELPER: Scans the database to find faculty actively teaching in a specific year
+        const getActiveFacultyForYear = (targetYear) => {
+            let active = new Set();
+            if (targetYear === 'all') {
+                for (let y in mockDatabase) {
+                    if (mockDatabase[y] && mockDatabase[y].events) {
+                        mockDatabase[y].events.forEach(e => {
+                            if (e.extendedProps.faculty && e.extendedProps.faculty.toUpperCase() !== 'TBA') {
+                                active.add(e.extendedProps.faculty.toUpperCase());
+                            }
+                        });
+                    }
+                }
+            } else if (mockDatabase[targetYear] && mockDatabase[targetYear].events) {
+                mockDatabase[targetYear].events.forEach(e => {
+                    if (e.extendedProps.faculty && e.extendedProps.faculty.toUpperCase() !== 'TBA') {
+                        active.add(e.extendedProps.faculty.toUpperCase());
+                    }
+                });
+            }
+            return active;
+        };
+
+        const renderDropdowns = (allFacultySet) => {
+            const dashboardActiveFaculty = getActiveFacultyForYear(currentActiveYear);
+            const modalActiveFaculty = getActiveFacultyForYear(modalYear);
+
+            // 1. Populate Modal Dropdown (Grouped by Modal Year)
+            if (facultySelect) {
+                facultySelect.innerHTML = '<option value="">-- Select Instructor --</option>';
+                
+                let activeOptions = '';
+                let otherOptions = '';
+
+                // Sort and split faculty into two distinct groups
+                Array.from(allFacultySet).sort().forEach(fac => {
+                    if (modalActiveFaculty.has(fac)) { 
+                        activeOptions += `<option value="${fac}">${fac}</option>`;
+                    } else {
+                        otherOptions += `<option value="${fac}">${fac}</option>`;
+                    }
+                });
+
+                // Append the groups to the dropdown
+                if (activeOptions) {
+                    facultySelect.innerHTML += `<optgroup label="Active in Year ${modalYear}">${activeOptions}</optgroup>`;
+                }
+                if (otherOptions) {
+                    facultySelect.innerHTML += `<optgroup label="Other Instructors">${otherOptions}</optgroup>`;
+                }
+            }
+
+            // 2. Populate Dashboard Filter Dropdown (Strictly Filtered by Dashboard Year)
+            if (filterFaculty) {
+                filterFaculty.innerHTML = '<option value="all">All Faculty</option>';
+                Array.from(allFacultySet).sort().forEach(fac => {
+                    // Show if viewing 'all' years, or if they actively teach in the selected dashboard tab
+                    if (currentActiveYear === 'all' || dashboardActiveFaculty.has(fac)) {
+                        filterFaculty.innerHTML += `<option value="${fac}">${fac}</option>`;
+                    }
+                });
+            }
+        };
+
+        if (!facultySelect && !filterFaculty) return;
+
         fetch('/api/instructors')
             .then(response => response.json())
             .then(data => {
                 // Merge Database Faculty with Imported Faculty
                 let combinedFaculty = new Set(importedFaculty);
                 data.forEach(fac => combinedFaculty.add(fac.name.toUpperCase()));
-
-                // 1. Populate Modal Dropdown
-                facultySelect.innerHTML = '<option value="">-- Select Instructor --</option>';
-                Array.from(combinedFaculty).sort().forEach(fac => {
-                    facultySelect.innerHTML += `<option value="${fac}">${fac}</option>`;
-                });
-
-                // 2. Populate Dashboard Filter Dropdown
-                if (filterFaculty) {
-                    filterFaculty.innerHTML = '<option value="all">All Faculty</option>';
-                    Array.from(combinedFaculty).sort().forEach(fac => {
-                        filterFaculty.innerHTML += `<option value="${fac}">${fac}</option>`;
-                    });
-                }
+                
+                renderDropdowns(combinedFaculty);
             })
             .catch(err => {
                 console.error("Error loading API faculty, falling back to Excel data only:", err);
                 
                 // Fallback: Just use Excel data if API fails
-                facultySelect.innerHTML = '<option value="">-- Select Instructor --</option>';
-                Array.from(importedFaculty).sort().forEach(fac => {
-                    facultySelect.innerHTML += `<option value="${fac}">${fac}</option>`;
-                });
+                renderDropdowns(importedFaculty);
             });
     }
 
@@ -313,23 +366,70 @@
     }
 
     function handleScheduleChange(info) {
-    const ev = info.event;
-    const yearKey = ev.extendedProps.year;
-    
-    // Find the event in the database and update its times
-    if (mockDatabase[yearKey]) {
-        let dbEvent = mockDatabase[yearKey].events.find(e => 
-            e.title === ev.title && e.extendedProps.code === ev.extendedProps.code
+        const ev = info.event;
+        
+        showCustomConfirm(
+            "Save Schedule Changes",
+            `Do you want to save the new schedule for ${ev.title}?`,
+            "Save Changes",
+            "Discard",
+            () => { 
+                const yearKey = ev.extendedProps.year;
+                
+                if (mockDatabase[yearKey]) {
+                    // FIX: Match the type (Lec/Lab) too, so they don't overwrite each other
+                    let dbEvent = mockDatabase[yearKey].events.find(e => 
+                        e.title === ev.title && 
+                        e.extendedProps.code === ev.extendedProps.code &&
+                        e.extendedProps.type === ev.extendedProps.type
+                    );
+                    
+                    if (dbEvent) {
+                        // FIX: Format date strictly to local time to prevent the UTC timezone shift pushing classes into Sunday
+                        const formatLocal = (d) => {
+                            const pad = (n) => String(n).padStart(2, '0');
+                            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+                        };
+                        
+                        dbEvent.start = formatLocal(ev.start);
+                        if (ev.end) dbEvent.end = formatLocal(ev.end);
+                    }
+                }
+                
+                if (typeof showToast === 'function') showToast(`Schedule updated for ${ev.title}`);
+            },
+            () => { 
+                info.revert();
+            }
         );
-        if (dbEvent) {
-            // Convert FullCalendar dates back to standard local strings
-            dbEvent.start = ev.start.toISOString().substring(0,19); 
-            dbEvent.end = ev.end.toISOString().substring(0,19);
-        }
     }
-    
-    alert(`✅ Schedule Updated!\n\nSubject: ${ev.title}`);
-}
+
+    function deleteClass() {
+        if (!editingEvent) return;
+        
+        showCustomConfirm(
+            "Delete Class",
+            `Are you sure you want to permanently delete ${editingEvent.title}?`,
+            "Delete",
+            "Cancel",
+            () => { // <-- Runs if they click Delete
+                const yearKey = editingEvent.extendedProps.year;
+                
+                if (mockDatabase[yearKey]) {
+                    mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
+                        !(e.title === editingEvent.title && e.extendedProps.code === editingEvent.extendedProps.code)
+                    );
+                }
+                
+                editingEvent.remove();
+                updateKPIs(calendarInstance.getEvents());
+                
+                if (typeof showToast === 'function') showToast("Class deleted successfully.");
+                closeModal();
+            },
+            null // Do nothing if cancelled
+        );
+    }
 
     function showError(message) {
         const errorEl = document.getElementById('modalError');
@@ -413,18 +513,17 @@
         const conflict = isOverlapping(startDt, endDt, modalYear, room, faculty, editingEvent);
         if (conflict) {
             showError(conflict);
-            return; 
+            return;
         }
+        const yearColor = mockDatabase[modalYear] ? mockDatabase[modalYear].color : '#3b82f6'; 
 
-        const color = hashColor(subData.code + type);
         const newEvent = {
-    // If we are editing, keep the database ID
             id: editingEvent ? editingEvent.id : null, 
             title: subData.title,
             start: `${date}T${start}:00`,
             end: `${date}T${end}:00`,
-            backgroundColor: color,
-            borderColor: color,
+            backgroundColor: yearColor, // Now uses correct Year color instantly
+            borderColor: yearColor,     // Now uses correct Year color instantly
             extendedProps: {
                 code: subData.code,
                 sectionCode: sectionCode,
@@ -434,26 +533,34 @@
                 year: modalYear
             }
         };
-                    if (editingEvent) {
-                        const oldYear = editingEvent.extendedProps.year;
-                        // FIXED: Use oldYear
-                        if (mockDatabase[oldYear]) { 
-                            mockDatabase[oldYear].events = mockDatabase[oldYear].events.filter(e => 
-                                !(e.title === editingEvent.title && e.extendedProps.code === editingEvent.extendedProps.code)
-                            );
-                        }
-                        editingEvent.remove(); // Remove from UI
-                    }
-                    if (!mockDatabase[modalYear]) mockDatabase[modalYear] = { color: color, events: [] };
-                    mockDatabase[modalYear].events.push(newEvent);
 
-                    if (modalYear === currentActiveYear) {
-                calendarInstance.addEvent(newEvent);
-                updateKPIs(calendarInstance.getEvents());
-                toggleEmptyState(true); // Ensure calendar is visible after adding
+        if (editingEvent) {
+            const oldYear = editingEvent.extendedProps.year;
+            if (mockDatabase[oldYear]) { 
+                // FIX 2: Added e.extendedProps.type to ensure editing a Lecture doesn't delete the Lab!
+                mockDatabase[oldYear].events = mockDatabase[oldYear].events.filter(e => 
+                    !(e.title === editingEvent.title && 
+                      e.extendedProps.code === editingEvent.extendedProps.code &&
+                      e.extendedProps.type === editingEvent.extendedProps.type)
+                );
+            }
+            editingEvent.remove();
+        }
+        
+        if (!mockDatabase[modalYear]) mockDatabase[modalYear] = { color: yearColor, events: [] };
+        mockDatabase[modalYear].events.push(newEvent);
+
+        if (modalYear === currentActiveYear) {
+            calendarInstance.addEvent(newEvent);
+            updateKPIs(calendarInstance.getEvents());
+            toggleEmptyState(true); 
+        } else {
+            if (typeof showToast === 'function') {
+                showToast(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
             } else {
                 alert(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
             }
+        }
 
         Schedules.closeModal();
     }
@@ -910,7 +1017,7 @@
         document.getElementById('courseCode').value = '';
         
         filterSubjects();
-        populateFaculty(); 
+        updateSelectDropdowns(); 
     }
     
     function closeModal() { document.getElementById('addClassModal').style.display = 'none'; }
@@ -933,6 +1040,14 @@
         if (filterSelects.length > 2) {
             filterSelects[2].addEventListener('change', function() {
                 loadYearData(currentActiveYear);
+            });
+        }
+
+        const modalYearSelect = document.getElementById('modalYear');
+        if (modalYearSelect) {
+            modalYearSelect.addEventListener('change', function() {
+                if (typeof filterSubjects === 'function') filterSubjects();
+                if (typeof updateSelectDropdowns === 'function') updateSelectDropdowns(); 
             });
         }
 
@@ -979,6 +1094,7 @@
                     btn.classList.add('active');
                     const year = btn.getAttribute('data-year');
                     loadYearData(year);
+                    updateSelectDropdowns();
                     const semText = document.querySelector('.sched-select').value === "1st Semester" ? "1st Sem" : "2nd Sem";
                     document.getElementById('sched-subtitle').textContent = `${year}${getOrdinal(year)} Year • Section 1 • ${semText}`;
                 }
@@ -1319,12 +1435,22 @@
         }
 
         if (count > 0) {
-            updateSelectDropdowns(); 
+            updateSelectDropdowns();
             loadYearData(currentActiveYear);
             
-            // --- THE FIX: Use the new professional popup ---
+            // --- NEW: SEND DATA TO INSTRUCTOR MODULE ---
+            if (typeof window.updateInstructorsFromImport === 'function') {
+                let allEvents = [];
+                for (let year in mockDatabase) {
+                    if (mockDatabase[year] && mockDatabase[year].events) {
+                        allEvents = allEvents.concat(mockDatabase[year].events);
+                    }
+                }
+                window.updateInstructorsFromImport(allEvents);
+            }
+            // ------------------------------------------
+
             if (!silent) showToast(`Successfully imported ${count} CPE entries and sorted them by Year Level.`);
-            
             return count;
         }
         return 0;
@@ -1332,31 +1458,41 @@
 
     // --- NEW HELPER FUNCTION ---
     function updateSelectDropdowns() {
-        const sectionSelect = document.getElementById('modalSection');
-        
-        // Find the top filter dropdowns (Assuming Section is the 2nd one, Faculty is 3rd)
-        const filterSelects = document.querySelectorAll('.controls-group select');
-        let filterSection = filterSelects.length > 1 ? filterSelects[1] : null;
+    const sectionSelect = document.getElementById('modalSection');
+    const filterSelects = document.querySelectorAll('.controls-group select');
+    let filterSection = filterSelects.length > 1 ? filterSelects[1] : null;
 
-        // Populate Modal Sections
-        if (sectionSelect && importedSections.size > 0) {
-            sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
-            Array.from(importedSections).sort().forEach(sec => {
+    // Get the year currently selected in the Add/Edit Modal
+    const modalYearSelect = document.getElementById('modalYear');
+    const modalYear = modalYearSelect ? modalYearSelect.value : currentActiveYear;
+
+    // 1. Populate Modal Sections (Filtered by modalYear)
+    if (sectionSelect && importedSections.size > 0) {
+        sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
+        Array.from(importedSections).sort().forEach(sec => {
+            const secYear = getYearFromSection(sec);
+            // Show if it matches the modal's year, or if the format didn't have a year (safety fallback)
+            if (secYear === String(modalYear) || !secYear) {
                 sectionSelect.innerHTML += `<option value="${sec}">${sec}</option>`;
-            });
-        }
-
-        // Populate Dashboard Filter Sections
-        if (filterSection && importedSections.size > 0) {
-            filterSection.innerHTML = '<option value="all">All Sections</option>';
-            Array.from(importedSections).sort().forEach(sec => {
-                filterSection.innerHTML += `<option value="${sec}">${sec}</option>`;
-            });
-        }
-
-        // Trigger populateFaculty to merge and update the faculty dropdowns
-        populateFaculty();
+            }
+        });
     }
+
+    // 2. Populate Dashboard Filter Sections (Filtered by currentActiveYear)
+    if (filterSection && importedSections.size > 0) {
+        filterSection.innerHTML = '<option value="all">All Sections</option>';
+        Array.from(importedSections).sort().forEach(sec => {
+            const secYear = getYearFromSection(sec);
+            // Show all if viewing 'all' years, otherwise filter by the active dashboard tab
+            if (currentActiveYear === 'all' || secYear === String(currentActiveYear) || !secYear) {
+                filterSection.innerHTML += `<option value="${sec}">${sec}</option>`;
+            }
+        });
+    }
+
+    // Trigger populateFaculty to merge and update the faculty dropdowns
+    populateFaculty();
+}
 
     function extractAndAddEvent(type, timeStr, dayStr, roomStr, code, title, section, faculty, importedEvents) {
         if (!timeStr || !dayStr || String(timeStr).trim() === '' || String(dayStr).trim() === '') return;
@@ -1384,7 +1520,20 @@
             });
         });
     }
-    // --- ADVANCED HELPERS FROM TYPESCRIPT LOGIC ---
+
+    function getYearFromSection(sectionCode) {
+    if (!sectionCode) return null;
+    
+    // Split the format: COC-FA2-CPE2-01
+    const parts = String(sectionCode).trim().split('-');
+    
+    if (parts.length >= 3) {
+        const programYear = parts[2]; // Target the "CPE2" or "ESM3" part
+        const match = programYear.match(/\d/); // Find the first digit in that string
+        if (match) return match[0];
+    }
+    return null; // Fallback if format is unexpected
+}
 
     function parseAdvancedTime(timeStr) {
         if (!timeStr) return null;
@@ -1441,6 +1590,63 @@
         return [...new Set(dates)];
     }
 
+    function showCustomConfirm(title, message, confirmText, cancelText, onConfirm, onCancel) {
+        let modal = document.getElementById('aerisConfirmModal');
+        
+        // Inject the HTML if it doesn't exist yet
+        if (!modal) {
+            const html = `
+            <div id="aerisConfirmModal" class="aeris-confirm-overlay">
+                <div class="aeris-confirm-card">
+                    <div class="aeris-confirm-header">
+                        <div class="aeris-confirm-icon">
+                            <i class='bx bx-question-mark'></i>
+                        </div>
+                        <h3 id="aerisConfirmTitle">Confirm Action</h3>
+                    </div>
+                    <div class="aeris-confirm-body">
+                        <p id="aerisConfirmMessage">Are you sure?</p>
+                    </div>
+                    <div class="aeris-confirm-actions">
+                        <button id="aerisConfirmCancel" class="btn-secondary">Cancel</button>
+                        <button id="aerisConfirmOk" class="btn-primary">Confirm</button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+            modal = document.getElementById('aerisConfirmModal');
+        }
+
+        // Update Text
+        document.getElementById('aerisConfirmTitle').textContent = title;
+        document.getElementById('aerisConfirmMessage').textContent = message;
+        document.getElementById('aerisConfirmOk').textContent = confirmText || 'Confirm';
+        document.getElementById('aerisConfirmCancel').textContent = cancelText || 'Cancel';
+
+        // Show Modal
+        modal.style.display = 'flex';
+
+        const btnOk = document.getElementById('aerisConfirmOk');
+        const btnCancel = document.getElementById('aerisConfirmCancel');
+
+        // Clone and replace buttons to strip out any old event listeners from previous popups
+        const newBtnOk = btnOk.cloneNode(true);
+        const newBtnCancel = btnCancel.cloneNode(true);
+        btnOk.parentNode.replaceChild(newBtnOk, btnOk);
+        btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+
+        // Attach new click events
+        newBtnOk.addEventListener('click', () => {
+            modal.style.display = 'none';
+            if (onConfirm) onConfirm();
+        });
+
+        newBtnCancel.addEventListener('click', () => {
+            modal.style.display = 'none';
+            if (onCancel) onCancel();
+        });
+    }
+
     function showToast(message) {
         // Remove existing toast if user imports multiple times quickly
         const existingToast = document.getElementById('custom-toast');
@@ -1489,22 +1695,32 @@
     }
 
     function deleteClass() {
-    if (!editingEvent) return;
-    
-    const confirmDelete = confirm(`Are you sure you want to permanently delete ${editingEvent.title}?`);
-    if (confirmDelete) {
-        const yearKey = editingEvent.extendedProps.year;
-        if (mockDatabase[yearKey]) {
-            // FIXED: Filter by Title and Subject Code instead of start time
-            mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
-                !(e.title === editingEvent.title && e.extendedProps.code === editingEvent.extendedProps.code)
-            );
-        }
-        editingEvent.remove();
-        updateKPIs(calendarInstance.getEvents());
+        if (!editingEvent) return;
         
-        if (typeof showToast === 'function') showToast("Class deleted successfully.");
-        closeModal();
+        showCustomConfirm(
+            "Delete Class",
+            `Are you sure you want to permanently delete ${editingEvent.title}?`,
+            "Delete",
+            "Cancel",
+            () => { 
+                const yearKey = editingEvent.extendedProps.year;
+                
+                if (mockDatabase[yearKey]) {
+                    // FIX: Added extendedProps.type check here too!
+                    mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
+                        !(e.title === editingEvent.title && 
+                          e.extendedProps.code === editingEvent.extendedProps.code &&
+                          e.extendedProps.type === editingEvent.extendedProps.type)
+                    );
+                }
+                
+                editingEvent.remove();
+                updateKPIs(calendarInstance.getEvents());
+                
+                if (typeof showToast === 'function') showToast("Class deleted successfully.");
+                closeModal();
+            },
+            null 
+        );
     }
-}
 })();

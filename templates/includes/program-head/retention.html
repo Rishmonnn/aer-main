@@ -317,6 +317,38 @@
             justify-content: flex-end;
             gap: 12px;
         }
+
+        /* --- NEW: AI Generate Button Styling --- */
+        .btn-ai-generate {
+            background: linear-gradient(135deg, #6f42c1, #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(111, 66, 193, 0.2);
+        }
+        .btn-ai-generate:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(111, 66, 193, 0.3);
+        }
+        .btn-ai-generate:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(111, 66, 193, 0.2);
+        }
+        .btn-ai-generate:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
     </style>
 
     <div id="advisingModal" class="modal" style="display: none;">
@@ -372,7 +404,12 @@
                         <textarea id="adv-notes" class="adv-input" placeholder="Summarize the main points discussed during the session..."></textarea>
                     </div>
                     <div class="adv-input-group">
-                        <label>Agreed Action Plan</label>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label style="margin-bottom: 0;">Agreed Action Plan</label>
+                            <button type="button" id="btn-generate-ai" class="btn-ai-generate">
+                                <i class='bx bx-sparkles'></i> Auto-Generate Plan
+                            </button>
+                        </div>
                         <textarea id="adv-action-plan" class="adv-input" placeholder="What specific steps did the student agree to take? (e.g., Attend peer tutoring on Fridays)"></textarea>
                     </div>
                 </div>
