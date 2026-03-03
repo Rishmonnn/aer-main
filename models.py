@@ -110,10 +110,14 @@ class AdvisingRecord(db.Model):
     student_id = db.Column(db.String(20), db.ForeignKey('students.id'), nullable=False)
     date = db.Column(db.String(50), nullable=False)
     
-    # --- NEW: Structured Data ---
+    # --- Structured Data ---
     category = db.Column(db.String(50), nullable=True) 
     notes = db.Column(db.Text, nullable=False)
     action_plan = db.Column(db.Text, nullable=True) 
+    
+    # --- NEW: Follow-up & Status ---
+    status = db.Column(db.String(20), default='Open')
+    follow_up_date = db.Column(db.String(50), nullable=True)
     
     # Relationship to link records easily
     student = db.relationship('Student', backref='advising_records', lazy=True)

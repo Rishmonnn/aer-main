@@ -47,8 +47,7 @@
                 <h3>Dropout Reasons</h3>
                 <p class="subtitle">Why students leave</p>
                 <div class="chart-wrapper">
-                    <div class="legend-box">
-                        </div>
+                    <div class="legend-box"></div>
                     <div class="chart-container">
                         <div class="css-doughnut"></div>
                     </div>
@@ -128,7 +127,8 @@
                             <th>Student Name</th>
                             <th>Status</th>
                             <th>Reason</th>
-                            <th>Date</th> </tr>
+                            <th>Date</th> 
+                        </tr>
                     </thead>
                     <tbody id="history-table-body">
                         </tbody>
@@ -203,7 +203,6 @@
                         <option value="Mental Health">Mental Health</option>
                         <option value="Transferred School">Transferred to another school</option>
                         <option value="Other">Other</option>
-                        
                     </select>
                 </div>
 
@@ -217,55 +216,175 @@
         </div>
     </div>
 
+    <style>
+        /* Modern Modal Styling */
+        #advisingModal .modal-content {
+            max-width: 950px; 
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            border: none;
+            padding: 0; 
+            background: #ffffff;
+        }
+        .adv-header-banner {
+            /* USING THE SYSTEM RED ACCENT GRADIENT */
+            background: linear-gradient(135deg, #5a0000, var(--primary-red, #8B0000));
+            padding: 20px 30px; 
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            color: white;
+        }
+        .adv-header-icon {
+            background: rgba(255, 255, 255, 0.15);
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.3);
+        }
+        .adv-header-text h2 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: 0.5px; }
+        .adv-header-text p { margin: 4px 0 0 0; font-size: 0.9rem; color: #ffe4e4; }
+        
+        .adv-body { padding: 25px 30px; } 
+        
+        .adv-history-container {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 280px; 
+            overflow-y: auto;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .adv-history-container::-webkit-scrollbar { width: 6px; }
+        .adv-history-container::-webkit-scrollbar-track { background: transparent; }
+        .adv-history-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        
+        .adv-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        /* Grid Layouts */
+        .adv-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 15px; } 
+        .adv-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 15px; } 
+        
+        /* Clean Inputs */
+        .adv-input-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+        .adv-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            color: #0f172a;
+            transition: all 0.2s ease;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        .adv-input:focus {
+            outline: none;
+            /* USING THE RED ACCENT ON FOCUS */
+            border-color: var(--primary-red, #8B0000);
+            box-shadow: 0 0 0 4px rgba(139, 0, 0, 0.15);
+        }
+        textarea.adv-input { resize: vertical; min-height: 90px; } 
+        
+        .adv-footer {
+            padding-top: 15px; 
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+    </style>
+
     <div id="advisingModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 600px;"> <div class="modal-top-bar" style="background: #3b82f6;"></div>
-            <div class="modal-inner">
-                <div class="modal-header">
-                    <div class="modal-title">
-                        <div class="icon-wrapper" style="background: #eff6ff; color: #3b82f6;">
-                            <i class='bx bx-message-dots'></i>
-                        </div>
-                        <h2>Student Advising</h2>
-                    </div>
+        <div class="modal-content"> 
+            
+            <div class="adv-header-banner">
+                <div class="adv-header-icon">
+                    <i class='bx bx-message-square-detail'></i>
                 </div>
-                <p class="modal-subtitle">Log an advising session for <strong id="adv-student-name"></strong> (<span id="adv-student-id"></span>).</p>
-                
-                <div class="advising-history" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; background: #f8fafc;">
-                    <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 14px; color: #475569;">Past Records</h4>
+                <div class="adv-header-text">
+                    <h2>Student Advising & Intervention</h2>
+                    <p>Session log for <strong id="adv-student-name" style="color: white;">-</strong> (<span id="adv-student-id">-</span>)</p>
+                </div>
+            </div>
+
+            <div class="adv-body">
+                <div class="adv-section-title"><i class='bx bx-history'></i> Past Advising Records</div>
+                <div class="adv-history-container">
                     <div id="adv-history-list" style="font-size: 13px; color: #64748b;">Loading...</div>
                 </div>
 
-                <div class="form-group relative" style="margin-bottom: 15px;">
-                    <label style="font-weight: 600; font-size: 13px; color: #334155;">Session Category</label>
-                    <select id="adv-category" class="custom-select" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
-                        <option value="Academic Struggle">Academic Struggle</option>
-                        <option value="Excessive Absences">Excessive Absences</option>
-                        <option value="Financial Hardship">Financial Hardship</option>
-                        <option value="Behavioral Issue">Behavioral Issue</option>
-                        <option value="Career Guidance">Career Guidance</option>
-                        <option value="Other">Other</option>
-                    </select>
+                <div class="adv-section-title"><i class='bx bx-edit'></i> New Session Details</div>
+                
+                <div class="adv-grid-3">
+                    <div class="adv-input-group">
+                        <label>Session Category</label>
+                        <select id="adv-category" class="adv-input">
+                            <option value="Academic Struggle">Academic Struggle</option>
+                            <option value="Excessive Absences">Excessive Absences</option>
+                            <option value="Financial Hardship">Financial Hardship</option>
+                            <option value="Behavioral Issue">Behavioral Issue</option>
+                            <option value="Career Guidance">Career Guidance</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="adv-input-group">
+                        <label>Case Status</label>
+                        <select id="adv-status" class="adv-input">
+                            <option value="Open">Open</option>
+                            <option value="Monitoring">Monitoring</option>
+                            <option value="Resolved">Resolved</option>
+                        </select>
+                    </div>
+                    <div class="adv-input-group">
+                        <label>Follow-up Date (Optional)</label>
+                        <input type="date" id="adv-followup" class="adv-input" style="color: #475569;">
+                    </div>
                 </div>
 
-                <div class="form-group relative" style="margin-bottom: 15px;">
-                    <label style="font-weight: 600; font-size: 13px; color: #334155;">Discussion Notes</label>
-                    <textarea id="adv-notes" rows="3" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit;" placeholder="Main points discussed during the session..."></textarea>
+                <div class="adv-grid-2">
+                    <div class="adv-input-group">
+                        <label>Discussion Notes</label>
+                        <textarea id="adv-notes" class="adv-input" placeholder="Summarize the main points discussed during the session..."></textarea>
+                    </div>
+                    <div class="adv-input-group">
+                        <label>Agreed Action Plan</label>
+                        <textarea id="adv-action-plan" class="adv-input" placeholder="What specific steps did the student agree to take? (e.g., Attend peer tutoring on Fridays)"></textarea>
+                    </div>
                 </div>
 
-                <div class="form-group relative" style="margin-bottom: 15px;">
-                    <label style="font-weight: 600; font-size: 13px; color: #334155;">Agreed Action Plan</label>
-                    <textarea id="adv-action-plan" rows="2" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit;" placeholder="e.g., Student will attend remedial math classes twice a week."></textarea>
-                </div>
-
-                <div class="modal-actions">
-                    <button id="btn-cancel-adv" class="btn-cancel" onclick="closeAdvisingModal()">Cancel</button>
-                    <button id="btn-submit-adv" class="btn-confirm" style="background: #3b82f6;" onclick="submitAdvising()">
+                <div class="adv-footer">
+                    <button id="btn-cancel-adv" class="btn-cancel" onclick="closeAdvisingModal()" style="padding: 10px 20px; border-radius: 8px;">Cancel</button>
+                    <button id="btn-submit-adv" class="btn-confirm" style="background: var(--primary-red, #8B0000); padding: 10px 20px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 8px;" onclick="submitAdvising()">
                         <i class='bx bx-save'></i> Save Record
                     </button>
                 </div>
             </div>
         </div>
     </div>
-
 
 </div>

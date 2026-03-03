@@ -160,6 +160,52 @@ def get_inc_requests():
 # ==================== GENERIC/STUB APIs ====================
 
 @app.route('/api/advising/<string:student_id>', methods=['GET'])
+@login_required
+def get_student_advising(student_id):
+    """Fetches advising history for a specific student."""
+    records = AdvisingRecord.query.filter_by(student_id=student_id).order_by(AdvisingRecord.id.desc()).all()
+    return jsonify([{
+        'id': r.id,
+        'date': r.date,
+        'category': r.category or 'Uncategorized',
+        'notes': r.notes,
+        'action_plan': r.action_plan or 'None specified',
+        'status': r.status or 'Open',                     # <--- NEW
+        'follow_up_date': r.follow_up_date or 'None'      # <--- NEW
+    } for r in records])
+
+@app.route('/api/advising/<string:student_id>', methods=['POST'])
+@login_required
+def add_advising_record(student_id):
+    """Saves a new advising session note."""
+    data = request.get_json()
+    notes = data.get('notes')
+    category = data.get('category')
+    action_plan = data.get('action_plan')
+    status = data.get('status', 'Open')                   # <--- NEW
+    follow_up_date = data.get('follow_up_date')           # <--- NEW
+    
+    if not notes:
+        return jsonify({'success': False, 'message': 'Notes are required'}), 400
+        
+    try:
+        record = AdvisingRecord(
+            student_id=student_id,
+            date=datetime.now().strftime("%b %d, %Y %I:%M %p"),
+            category=category,
+            notes=notes,
+            action_plan=action_plan,
+            status=status,                                # <--- NEW
+            follow_up_date=follow_up_date                 # <--- NEW
+        )
+        db.session.add(record)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# --- NEW: Instructors API ---
 
 # --- NEW: Instructors API ---
 @app.route('/api/instructors', methods=['GET'])
@@ -327,6 +373,31 @@ def get_retention_data():
     except Exception as e:
         print(f"Error loading retention data: {e}")
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/advising/record/<int:record_id>', methods=['PUT'])
+@login_required
+def update_advising_record(record_id):
+    """Updates an existing advising session record."""
+    data = request.get_json()
+    record = AdvisingRecord.query.get(record_id)
+    
+    if not record:
+        return jsonify({'success': False, 'message': 'Record not found'}), 404
+        
+    try:
+        # Overwrite the old data with the newly submitted data
+        record.category = data.get('category', record.category)
+        record.notes = data.get('notes', record.notes)
+        record.action_plan = data.get('action_plan', record.action_plan)
+        record.status = data.get('status', record.status)
+        record.follow_up_date = data.get('follow_up_date', record.follow_up_date)
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    
 
 @app.route('/api/enlistment', methods=['GET'])
 @login_required
@@ -619,12 +690,25 @@ def get_student_journey_data(student_id):
         # Assign subjects to the grades dictionary
         grades_data[key] = data['subjects']
 
-  # 5. Determine Regular/Irregular Status Dynamically
-    # Check if the student has any failed grades in their history
+  # # 5. Determine Regular/Irregular Status Dynamically
     failed_records = Enrollment.query.filter_by(student_id=student_id)\
         .filter((Enrollment.grade > 3.0) | (Enrollment.status == 'Failed')).all()
     
     academic_status = 'Irregular' if len(failed_records) > 0 else 'Regular'
+
+    # --- NEW: Fetch Advising History for this Student ---
+    advising_records = AdvisingRecord.query.filter_by(student_id=student_id).order_by(AdvisingRecord.id.desc()).all()
+    advising_list = []
+    for r in advising_records:
+        advising_list.append({
+            'id': r.id,
+            'date': r.date,
+            'category': r.category or 'Uncategorized',
+            'status': r.status or 'Open',
+            'notes': r.notes,
+            'action_plan': r.action_plan or 'None specified',
+            'follow_up_date': r.follow_up_date or 'None'
+        })
 
     # Final JSON Structure
     return jsonify({
@@ -633,7 +717,7 @@ def get_student_journey_data(student_id):
             'name': student.name,
             'program': student.program,
             'year_level': student.year_level,
-            'status': academic_status, # <--- Now strictly sends Regular or Irregular
+            'status': academic_status,
             'email': student.email if student.email else 'N/A',
             'contact_number': getattr(student, 'contact_number', 'N/A'),
             'address': getattr(student, 'address', 'N/A'),
@@ -646,7 +730,8 @@ def get_student_journey_data(student_id):
             'total': TOTAL_CURRICULUM_UNITS
         },
         'semesters': semesters_list,
-        'grades': grades_data
+        'grades': grades_data,
+        'advising_records': advising_list  # <--- NEW: Send it to the frontend
     })
     
     

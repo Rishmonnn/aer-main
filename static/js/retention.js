@@ -355,59 +355,133 @@ if (submitDropBtn) {
 // 4. ADVISING MODAL LOGIC
 // ==========================================
 
+const advisingModal = document.getElementById('advisingModal');
+let currentAdviseStudentId = null;
+let editingRecordId = null;      // NEW: Tracks if we are editing an old record
+let currentAdvisingHistory = []; // NEW: Stores the records locally
+
 function closeAdvisingModal() {
     if (advisingModal) advisingModal.style.display = "none";
     document.body.style.overflow = "";
     currentAdviseStudentId = null;
+    editingRecordId = null;
 }
+
 function openAdvisingModal(studentId, studentName) {
     currentAdviseStudentId = studentId;
+    
     document.getElementById('adv-student-id').innerText = studentId;
     document.getElementById('adv-student-name').innerText = studentName;
     
-    // Clear the form fields
-    document.getElementById('adv-notes').value = '';
-    document.getElementById('adv-action-plan').value = '';
-    document.getElementById('adv-category').selectedIndex = 0;
+    resetAdvisingForm(); // Ensure the form starts blank
     
     if (advisingModal) advisingModal.style.display = "flex";
     document.body.style.overflow = "hidden";
     
-    // Fetch previous records
+    fetchAdvisingHistory(studentId);
+}
+
+function resetAdvisingForm() {
+    editingRecordId = null;
+    document.getElementById('adv-notes').value = '';
+    document.getElementById('adv-action-plan').value = '';
+    document.getElementById('adv-category').selectedIndex = 0;
+    document.getElementById('adv-status').value = 'Open';
+    document.getElementById('adv-followup').value = '';
+    
+    // Reset button appearance
+    const btn = document.getElementById('btn-submit-adv');
+    btn.innerHTML = "<i class='bx bx-save'></i> Save New Record";
+    btn.style.background = "var(--primary-red, #8B0000)"; 
+}
+
+function fetchAdvisingHistory(studentId) {
     const historyList = document.getElementById('adv-history-list');
-    historyList.innerHTML = "Loading history...";
+    historyList.innerHTML = "<div style='text-align:center; padding: 20px;'><i class='bx bx-loader-alt bx-spin' style='font-size: 24px; color: #3b82f6;'></i></div>";
     
     fetch(`/api/advising/${studentId}`)
         .then(res => res.json())
         .then(data => {
+            currentAdvisingHistory = data; 
+            
             if (data.length === 0) {
-                historyList.innerHTML = "<em>No previous advising records found.</em>";
+                historyList.innerHTML = "<div style='text-align:center; color:#94a3b8; padding: 30px 0;'><i class='bx bx-folder-open' style='font-size: 32px; display: block; margin-bottom: 10px;'></i><em>No previous advising records found.</em></div>";
             } else {
-                // Formatting the new structured data
-                historyList.innerHTML = data.map(r => 
-                    `<div style="margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <span style="font-weight: 600; color: #0f172a;">${r.date}</span>
-                            <span style="background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #475569;">${r.category}</span>
+                historyList.innerHTML = data.map(r => {
+                    // Dynamic Colors
+                    let statusColor = r.status === 'Resolved' ? '#10b981' : (r.status === 'Monitoring' ? '#f59e0b' : '#ef4444');
+                    let statusBg = r.status === 'Resolved' ? '#d1fae5' : (r.status === 'Monitoring' ? '#fef3c7' : '#fee2e2');
+                    
+                    let followUpText = r.follow_up_date && r.follow_up_date !== 'None' ? 
+                        `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #cbd5e1; font-size: 12px; color: #475569; display: flex; align-items: center; gap: 6px;">
+                            <i class='bx bx-calendar-event' style="color: #3b82f6; font-size: 16px;"></i> 
+                            <strong>Scheduled Follow-up:</strong> ${r.follow_up_date}
+                        </div>` : '';
+
+                    // Sleek Card UI Output
+                    return `
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 5px solid ${statusColor}; position: relative;">
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <span style="font-weight: 700; color: #0f172a; font-size: 14px;">${r.date}</span>
+                                <span style="background: ${statusBg}; color: ${statusColor}; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.3px;">${r.status}</span>
+                                <span style="background: #f1f5f9; color: #475569; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">${r.category}</span>
+                            </div>
+                            <button onclick="editPastRecord(${r.id})" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; padding: 5px 12px; transition: 0.2s; display: flex; align-items: center; gap: 4px;">
+                                <i class='bx bx-edit-alt'></i> Edit
+                            </button>
                         </div>
-                        <div style="color: #334155; margin-bottom: 4px;"><strong>Notes:</strong> ${r.notes}</div>
-                        <div style="color: #059669; font-style: italic;"><strong>Action Plan:</strong> ${r.action_plan}</div>
-                    </div>`
-                ).join('');
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 13px;">
+                            <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #f1f5f9;">
+                                <strong style="color: #64748b; display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Discussion Notes</strong>
+                                <span style="color: #334155; line-height: 1.5;">${r.notes}</span>
+                            </div>
+                            <div style="background: #f0fdf4; padding: 12px; border-radius: 8px; border: 1px solid #dcfce3;">
+                                <strong style="color: #166534; display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Agreed Action Plan</strong>
+                                <span style="color: #15803d; line-height: 1.5;">${r.action_plan}</span>
+                            </div>
+                        </div>
+                        
+                        ${followUpText}
+                    </div>`;
+                }).join('');
             }
         })
         .catch(err => {
-            historyList.innerHTML = "<span style='color: #ef4444;'>Failed to load records.</span>";
+            historyList.innerHTML = "<div style='color: #ef4444; text-align: center; padding: 20px;'><i class='bx bx-error-circle' style='font-size: 24px; display: block; margin-bottom: 5px;'></i>Failed to load records.</div>";
         });
+}
+
+function editPastRecord(recordId) {
+    // Find the record the user clicked on
+    const record = currentAdvisingHistory.find(r => r.id === recordId);
+    if (!record) return;
+    
+    editingRecordId = recordId; // Set the flag so the system knows we are updating
+    
+    // Auto-fill the inputs with the old data
+    document.getElementById('adv-category').value = record.category || 'Other';
+    document.getElementById('adv-status').value = record.status || 'Open';
+    document.getElementById('adv-followup').value = (record.follow_up_date && record.follow_up_date !== 'None') ? record.follow_up_date : '';
+    document.getElementById('adv-notes').value = record.notes || '';
+    document.getElementById('adv-action-plan').value = record.action_plan || '';
+    
+    // Change the main button to look like an "Update" button
+    const btn = document.getElementById('btn-submit-adv');
+    btn.innerHTML = "<i class='bx bx-refresh'></i> Update Record";
+    btn.style.background = "#f59e0b"; // Turns yellow to clearly indicate Edit Mode
 }
 
 function submitAdvising() {
     if (!currentAdviseStudentId) return;
     
-    // Grab all field values
     const notes = document.getElementById('adv-notes').value.trim();
     const category = document.getElementById('adv-category').value;
     const actionPlan = document.getElementById('adv-action-plan').value.trim();
+    const status = document.getElementById('adv-status').value;
+    const followUp = document.getElementById('adv-followup').value;
     
     if (!notes) {
         alert("Please enter discussion notes.");
@@ -415,32 +489,39 @@ function submitAdvising() {
     }
     
     const btn = document.getElementById('btn-submit-adv');
-    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Saving...";
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Processing...";
     btn.disabled = true;
     
-    fetch(`/api/advising/${currentAdviseStudentId}`, {
-        method: 'POST',
+    // Smart Routing: Sends PUT if editing, POST if new
+    const url = editingRecordId ? `/api/advising/record/${editingRecordId}` : `/api/advising/${currentAdviseStudentId}`;
+    const method = editingRecordId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             notes: notes,
             category: category,
-            action_plan: actionPlan
+            action_plan: actionPlan,
+            status: status,
+            follow_up_date: followUp
         })
     })
     .then(res => res.json())
     .then(data => {
-        btn.innerHTML = "<i class='bx bx-save'></i> Save Record";
         btn.disabled = false;
         
         if (data.success) {
-            closeAdvisingModal();
+            // Instantly refresh the list and clear the form so you can see your update!
+            resetAdvisingForm();
+            fetchAdvisingHistory(currentAdviseStudentId);
         } else {
             alert("Error: " + data.message);
         }
     })
     .catch(err => {
         console.error(err);
-        btn.innerHTML = "<i class='bx bx-save'></i> Save Record";
+        btn.innerHTML = editingRecordId ? "<i class='bx bx-refresh'></i> Update Record" : "<i class='bx bx-save'></i> Save New Record";
         btn.disabled = false;
         alert("An error occurred while saving.");
     });

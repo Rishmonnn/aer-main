@@ -137,6 +137,33 @@ if (data.student_info) {
                     semBody.appendChild(tr);
                 });
             }
+
+            // C. Render Advising History
+            const advContainer = document.getElementById('journey-advising-list');
+            advContainer.innerHTML = '';
+            
+            if (!data.advising_records || data.advising_records.length === 0) {
+                advContainer.innerHTML = '<p style="text-align:center; color:#64748b; font-style:italic; margin: 10px 0;">No prior advising records or interventions found for this student.</p>';
+            } else {
+                advContainer.innerHTML = data.advising_records.map(r => {
+                    let statusColor = r.status === 'Resolved' ? '#10b981' : (r.status === 'Monitoring' ? '#f59e0b' : '#ef4444');
+                    let followUpText = r.follow_up_date && r.follow_up_date !== 'None' ? 
+                        `<div style="font-size: 12px; color: #475569; margin-top: 8px;"><i class='bx bx-calendar-event'></i> <strong>Follow-up Scheduled:</strong> ${r.follow_up_date}</div>` : '';
+
+                    return `<div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; display: flex; flex-direction: column; gap: 5px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-weight: 600; color: #0f172a; margin-right: 10px; font-size: 14px;">${r.date}</span>
+                                <span style="background: ${statusColor}20; color: ${statusColor}; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;">${r.status}</span>
+                            </div>
+                            <span style="background: #e2e8f0; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #475569;">${r.category}</span>
+                        </div>
+                        <div style="color: #334155; font-size: 13px; margin-top: 5px;"><strong>Notes:</strong> ${r.notes}</div>
+                        <div style="color: #059669; font-style: italic; font-size: 13px;"><strong>Action Plan:</strong> ${r.action_plan}</div>
+                        ${followUpText}
+                    </div>`;
+                }).join('');
+            }
         })
         .catch(err => {
             console.error(err);
