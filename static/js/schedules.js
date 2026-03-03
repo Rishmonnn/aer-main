@@ -1439,13 +1439,16 @@
             loadYearData(currentActiveYear);
             
             // --- NEW: SEND DATA TO INSTRUCTOR MODULE ---
-            if (typeof window.updateInstructorsFromImport === 'function') {
-                let allEvents = [];
-                for (let year in mockDatabase) {
-                    if (mockDatabase[year] && mockDatabase[year].events) {
-                        allEvents = allEvents.concat(mockDatabase[year].events);
-                    }
+            let allEvents = [];
+            for (let year in mockDatabase) {
+                if (mockDatabase[year] && mockDatabase[year].events) {
+                    allEvents = allEvents.concat(mockDatabase[year].events);
                 }
+            }
+            // CRITICAL NEW LINE: Save to browser memory so the other tab can read it
+            localStorage.setItem('aeris_imported_schedule', JSON.stringify(allEvents));
+            
+            if (typeof window.updateInstructorsFromImport === 'function') {
                 window.updateInstructorsFromImport(allEvents);
             }
             // ------------------------------------------

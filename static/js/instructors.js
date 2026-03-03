@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    
     const gridContainer = document.getElementById('facultyGrid');
     if (!gridContainer) return; 
 
@@ -9,9 +8,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const END_HOUR = 20;  
     const TIME_SLOTS_PER_HOUR = 2; 
 
-    // --- MAIN FACULTY DATA (Fetched from API) ---
+    // --- MAIN FACULTY DATA ---
     let facultyData = [];
-
     let registeredTeachers = [];
 
     // --- DOM Elements ---
@@ -29,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalHeaderHours = document.getElementById('modalHeaderHours');
     const calendarGrid = document.getElementById('calendarGrid');
     const modalClassListBody = document.getElementById('modalClassListBody');
-
+    
     // Add Modal Elements
     const btnAddTeacher = document.getElementById('btnAddTeacher');
     const addTeacherModal = document.getElementById('addTeacherModal');
@@ -38,47 +36,77 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchRegistered = document.getElementById('searchRegistered');
 
     function parseTime(timeStr) {
-        const [time, modifier] = timeStr.split(' ');
+        if (!timeStr) return 0;
+        const parts = timeStr.split(' ');
+        if (parts.length < 2) return 0;
+        const time = parts[0];
+        const modifier = parts[1];
         let [hours, minutes] = time.split(':');
         if (hours === '12') hours = '00';
         if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
         return parseInt(hours, 10) * 60 + parseInt(minutes, 10);
     }
 
-    function getTeacherSchedule(teacher) {
-        // If we have real imported events, map them to the grid format
-        if (teacher.rawEvents && teacher.rawEvents.length > 0) {
-            const daysLong = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    // --- THE FIX: DYNAMICALLY PROCESS REAL IMPORTED SCHEDULES ---
+    function processEventsIntoFaculty(events) {
+        let facultyMap = {};
+        events.forEach(ev => {
+            let facName = ev.extendedProps.faculty;
+            // Skip if no faculty is assigned or if it's TBA
+            if (!facName || facName.trim() === '' || facName.toUpperCase() === 'TBA') return; 
             
-            return teacher.rawEvents.map(ev => {
-                const props = ev.extendedProps || ev;
-                const startDt = new Date(ev.start);
-                const endDt = new Date(ev.end);
-                
-                const formatTime = (dt) => {
-                    let h = dt.getHours();
-                    let m = dt.getMinutes();
-                    const ampm = h >= 12 ? 'PM' : 'AM';
-                    h = h % 12 || 12;
-                    m = m < 10 ? '0' + m : m;
-                    return `${h}:${m} ${ampm}`;
+            if (!facultyMap[facName]) {
+                facultyMap[facName] = {
+                    id: facName,
+                    name: facName,
+                    department: 'Computer Engineering',
+                    classes: 0,
+                    lec: 0,
+                    lab: 0,
+                    schedule: []
                 };
-
-                return {
-                    subjectCode: props.code,
-                    subjectDesc: ev.title || props.title || '',
-                    room: props.room,
-                    startTime: formatTime(startDt),
-                    endTime: formatTime(endDt),
-                    dayIndex: startDt.getDay() === 0 ? 6 : startDt.getDay() - 1, // Mon=0, Sat=5
-                    dayLong: daysLong[startDt.getDay()],
-                    type: props.type === 'lecture' || props.type === 'Lec' ? 'Lec' : 'Lab'
-                };
+            }
+            
+            // Safely calculate exact hours
+            let start = new Date(ev.start);
+            let end = new Date(ev.end);
+            let hours = (end - start) / (1000 * 60 * 60);
+            if (isNaN(hours)) hours = 0;
+            
+            let isLab = ev.extendedProps.type.toLowerCase().includes('lab');
+            if (isLab) facultyMap[facName].lab += hours;
+            else facultyMap[facName].lec += hours;
+            
+            facultyMap[facName].classes += 1;
+            
+            // Calculate day index (Mon=0 ... Sun=6)
+            let dayIdx = start.getDay() - 1;
+            if (dayIdx < 0) dayIdx = 6;
+            
+            const formatTime = (d) => {
+                let h = d.getHours();
+                let m = String(d.getMinutes()).padStart(2, '0');
+                let ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12;
+                h = h ? h : 12;
+                return `${h}:${m} ${ampm}`;
+            };
+            const daysLong = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            
+            facultyMap[facName].schedule.push({
+                subjectCode: ev.extendedProps.code,
+                subjectDesc: ev.title,
+                room: ev.extendedProps.room || 'TBA',
+                startTime: formatTime(start),
+                endTime: formatTime(end),
+                dayIndex: dayIdx,
+                dayLong: daysLong[dayIdx],
+                type: isLab ? 'Lab' : 'Lec'
             });
-        }
+        });
         
-        // --- Fallback to your mock data if no import has happened yet ---
-        return []; 
+        // Return sorted alphabetically by name
+        return Object.values(facultyMap).sort((a,b) => a.name.localeCompare(b.name));
     }
 
     function buildGridStructure() {
@@ -90,6 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
             div.textContent = day;
             calendarGrid.appendChild(div);
         });
+
         const totalRows = (END_HOUR - START_HOUR) * TIME_SLOTS_PER_HOUR;
         for (let i = 0; i < totalRows; i++) {
             const minutesFromStart = i * 30;
@@ -98,12 +127,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const ampm = hour >= 12 ? 'PM' : 'AM';
             const displayHour = hour > 12 ? hour - 12 : hour;
             const timeLabel = `${displayHour}:${mins === 0 ? '00' : '30'} ${ampm}`;
+            
             const timeCell = document.createElement('div');
             timeCell.className = 'time-label';
             timeCell.textContent = timeLabel;
             timeCell.style.gridColumn = '1';
             timeCell.style.gridRow = `${i + 2}`;
             calendarGrid.appendChild(timeCell);
+
             for (let d = 0; d < 6; d++) {
                 const cell = document.createElement('div');
                 cell.className = 'grid-cell';
@@ -119,19 +150,23 @@ document.addEventListener('DOMContentLoaded', function() {
         modalTeacherDept.textContent = teacher.department;
         modalHeaderClasses.textContent = teacher.classes;
         
-        // Professional Header Split
         modalHeaderHours.innerHTML = `
             <span style="opacity:0.9;">${(teacher.lec + teacher.lab).toFixed(1)}</span>
-            <span style="font-size:0.7rem; margin-left:8px; opacity:0.7;">(L: ${teacher.lec} | Lab: ${teacher.lab})</span>
+            <span style="font-size:0.7rem; margin-left:8px; opacity:0.7;">(L: ${teacher.lec.toFixed(1)} | Lab: ${teacher.lab.toFixed(1)})</span>
         `;
+
+        // Load the REAL schedule
+        const schedule = teacher.schedule || [];
         
-        const schedule = getTeacherSchedule(teacher);
         buildGridStructure();
         
         schedule.forEach(cls => {
             const startMin = parseTime(cls.startTime);
             const endMin = parseTime(cls.endTime);
             const startGridMin = START_HOUR * 60;
+            
+            if (startMin === 0 || endMin === 0) return; 
+
             const startRow = Math.floor((startMin - startGridMin) / 30) + 2;
             const durationMin = endMin - startMin;
             const spanRows = Math.ceil(durationMin / 30);
@@ -151,8 +186,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         let listHtml = '';
-        if(schedule.length === 0) { listHtml = '<tr><td colspan="4">No classes scheduled.</td></tr>'; } 
-        else {
+        if(schedule.length === 0) { 
+            listHtml = '<tr><td colspan="4">No classes scheduled.</td></tr>';
+        } else {
             schedule.sort((a, b) => a.dayIndex - b.dayIndex);
             schedule.forEach(cls => {
                 const badgeClass = cls.type === 'Lab' ? 'lb-lab' : 'lb-lec';
@@ -174,9 +210,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderFaculty(data) {
         gridContainer.innerHTML = "";
         if (!data || data.length === 0) {
-            gridContainer.innerHTML = "<p style='color: #777; grid-column: span 3;'>No faculty members found.</p>";
+            gridContainer.innerHTML = "<div style='color: #777; grid-column: span 3; text-align: center; padding: 40px; background: white; border-radius: 8px;'><h3>No Faculty Members Found</h3><p>Import your class schedule Excel file in the Schedules tab first.</p></div>";
             return;
         }
+        
         data.forEach(teacher => {
             const totalLoad = teacher.lec + teacher.lab;
             const isFullLoad = totalLoad >= FULL_LOAD_THRESHOLD;
@@ -200,8 +237,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="stat-row">
                         <span><i class='bx bx-time-five'></i> Load:</span>
                         <div class="load-breakdown">
-                            <span class="lb-lec">Lec: ${teacher.lec}</span>
-                            <span class="lb-lab">Lab: ${teacher.lab}</span>
+                            <span class="lb-lec">Lec: ${teacher.lec.toFixed(1)}</span>
+                            <span class="lb-lab">Lab: ${teacher.lab.toFixed(1)}</span>
                         </div>
                     </div>
                 </div>
@@ -211,38 +248,45 @@ document.addEventListener('DOMContentLoaded', function() {
         updateStats(data);
     }
 
-    function fetchRegisteredFaculty() {
-        // Show a loading state
-        registeredTeachersList.innerHTML = "<p style='text-align:center; padding:10px;'>Loading faculty...</p>";
+    function updateStats(data) {
+        if (!totalFacultyEl) return;
+        totalFacultyEl.textContent = data.length;
+        totalClassesEl.textContent = data.reduce((sum, t) => sum + t.classes, 0);
+        const totalLec = data.reduce((sum, t) => sum + t.lec, 0);
+        const totalLab = data.reduce((sum, t) => sum + t.lab, 0);
         
+        totalHoursEl.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:flex-start; line-height:1.2;">
+                <span style="font-weight:800; font-size:1.3rem; color:var(--text-main);">${(totalLec + totalLab).toFixed(1)}</span>
+                <div style="display:flex; gap:5px; font-size:0.75rem;">
+                    <span style="color:var(--text-light);">L: <b>${totalLec.toFixed(1)}</b></span>
+                    <span style="color:#cbd5e1;">|</span>
+                    <span style="color:var(--text-light);">Lb: <b>${totalLab.toFixed(1)}</b></span>
+                </div>
+            </div>
+        `;
+    }
+
+    // --- ALL OTHER EXISTING LISTENERS ---
+    function fetchRegisteredFaculty() {
+        registeredTeachersList.innerHTML = "<p style='text-align:center; padding:10px;'>Loading faculty...</p>";
         fetch('/api/users/faculty')
             .then(async response => {
-                // Check if the response is actually OK (Status 200)
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP Error ${response.status}: ${errorText}`);
-                }
-                
-                // Check if the response is HTML instead of JSON (usually means a 404 or redirect)
+                if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
                 const contentType = response.headers.get("content-type");
                 if (contentType && contentType.indexOf("application/json") === -1) {
-                    throw new Error("Server returned HTML instead of JSON. The route might be missing or you are logged out.");
+                    throw new Error("Server returned HTML instead of JSON.");
                 }
-                
                 return response.json();
             })
             .then(data => {
-                // Filter out faculty that are already displayed in the main grid
                 const existingIds = facultyData.map(f => f.id);
                 registeredTeachers = data.filter(teacher => !existingIds.includes(teacher.id));
-                
-                // Render the list
                 renderRegisteredTeachers(searchRegistered ? searchRegistered.value : "");
             })
             .catch(err => {
                 console.error('Detailed Fetch Error:', err);
-                // Display the real error in the UI
-                registeredTeachersList.innerHTML = `<p style='color: #a00; text-align:center; font-size: 0.9rem; padding: 10px;'><b>Error:</b> ${err.message}<br><br>Check your terminal for Flask errors.</p>`;
+                registeredTeachersList.innerHTML = `<p style='color: #a00; text-align:center; font-size: 0.9rem; padding: 10px;'><b>Error:</b> Could not connect to database.</p>`;
             });
     }
 
@@ -262,7 +306,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="tsi-avatar"><i class='bx bx-user'></i></div>
                     <div class="tsi-info"><h4>${teacher.name}</h4><p>${teacher.department}</p></div>
                 </div>
-                <button class="btn-add-teacher" onclick="window.addTeacherToDept(${teacher.id})"><i class='bx bx-plus'></i> Add</button>
+                <button class="btn-add-teacher" onclick="window.addTeacherToDept('${teacher.id}')"><i class='bx bx-plus'></i> Add</button>
             `;
             registeredTeachersList.appendChild(div);
         });
@@ -274,7 +318,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const teacher = registeredTeachers[index];
             registeredTeachers.splice(index, 1);
             teacher.department = "Computer Engineering"; 
-            teacher.classes = 0; teacher.lec = 0.0; teacher.lab = 0.0;
+            teacher.classes = 0; teacher.lec = 0.0; teacher.lab = 0.0; teacher.schedule = [];
             facultyData.push(teacher);
             renderFaculty(facultyData);
             renderRegisteredTeachers(searchRegistered.value);
@@ -284,112 +328,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (closeModalBtn) closeModalBtn.onclick = () => scheduleModal.style.display = 'none';
     if (btnAddTeacher) {
         btnAddTeacher.onclick = () => { 
-            fetchRegisteredFaculty(); // Fetch fresh data from DB
-            addTeacherModal.style.display = 'flex'; 
+            fetchRegisteredFaculty();
+            addTeacherModal.style.display = 'flex';
         };
     }
     if (closeAddModalBtn) closeAddModalBtn.onclick = () => addTeacherModal.style.display = 'none';
+    
     if (searchRegistered) {
         searchRegistered.addEventListener('input', (e) => renderRegisteredTeachers(e.target.value));
     }
-    window.onclick = function(event) { 
-        if (event.target == scheduleModal) scheduleModal.style.display = 'none'; 
-        if (event.target == addTeacherModal) addTeacherModal.style.display = 'none';
-    }
-
-    function updateStats(data) {
-        if (!totalFacultyEl) return;
-        totalFacultyEl.textContent = data.length;
-        totalClassesEl.textContent = data.reduce((sum, t) => sum + t.classes, 0);
-        
-        const totalLec = data.reduce((sum, t) => sum + t.lec, 0);
-        const totalLab = data.reduce((sum, t) => sum + t.lab, 0);
-        
-        // Professional Top Stats Display
-        totalHoursEl.innerHTML = `
-            <div style="display:flex; flex-direction:column; align-items:flex-start; line-height:1.2;">
-                <span style="font-weight:800; font-size:1.3rem; color:var(--text-main);">${(totalLec + totalLab).toFixed(1)}</span>
-                <div style="display:flex; gap:5px; font-size:0.75rem;">
-                    <span style="color:var(--text-light);">L: <b>${totalLec}</b></span>
-                    <span style="color:#cbd5e1;">|</span>
-                    <span style="color:var(--text-light);">Lb: <b>${totalLab}</b></span>
-                </div>
-            </div>
-        `;
-    }
-
-    // --- NEW: CATCH IMPORTED EXCEL DATA ---
-    window.updateInstructorsFromImport = function(allEvents) {
-        const facultyMap = {};
-
-        allEvents.forEach(ev => {
-            const props = ev.extendedProps || ev;
-            const facultyName = props.faculty;
-            
-            // Skip unassigned classes
-            if (!facultyName || facultyName.toUpperCase() === 'TBA') return;
-
-            if (!facultyMap[facultyName]) {
-                facultyMap[facultyName] = {
-                    id: facultyName, // Use name as ID for imported data
-                    name: facultyName,
-                    department: "Computer Engineering",
-                    classes: 0,
-                    lec: 0,
-                    lab: 0,
-                    classSet: new Set(),
-                    rawEvents: []
-                };
-            }
-
-            const fac = facultyMap[facultyName];
-            fac.rawEvents.push(ev);
-            fac.classSet.add(props.code + "_" + props.sectionCode); // Track unique classes
-
-            // Calculate exact hours
-            const startDt = new Date(ev.start);
-            const endDt = new Date(ev.end);
-            const durationHrs = (endDt - startDt) / (1000 * 60 * 60);
-
-            if (props.type === 'lecture' || props.type === 'Lec') {
-                fac.lec += durationHrs;
-            } else {
-                fac.lab += durationHrs;
-            }
-        });
-
-        // Update the main facultyData array
-        Object.values(facultyMap).forEach(fac => {
-            fac.classes = fac.classSet.size;
-            
-            // Check if teacher already exists in the API data
-            const existingIndex = facultyData.findIndex(f => f.name.toUpperCase() === fac.name.toUpperCase());
-            if (existingIndex > -1) {
-                facultyData[existingIndex].classes = fac.classes;
-                facultyData[existingIndex].lec = fac.lec;
-                facultyData[existingIndex].lab = fac.lab;
-                facultyData[existingIndex].rawEvents = fac.rawEvents;
-            } else {
-                facultyData.push(fac);
-            }
-        });
-
-        // Re-render the UI with the newly calculated loads
-        renderFaculty(facultyData);
-    };
-
-    // --- FETCH DATA FROM SERVER ---
-    fetch('/api/instructors')
-        .then(response => response.json())
-        .then(data => {
-            facultyData = data;
-            renderFaculty(facultyData);
-        })
-        .catch(err => {
-            console.error('Error fetching instructors:', err);
-            gridContainer.innerHTML = "<p style='color: #a00; grid-column: span 3;'>Error loading data.</p>";
-        });
-
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
@@ -397,4 +344,44 @@ document.addEventListener('DOMContentLoaded', function() {
             renderFaculty(filtered);
         });
     }
+    window.onclick = function(event) { 
+        if (event.target == scheduleModal) scheduleModal.style.display = 'none';
+        if (event.target == addTeacherModal) addTeacherModal.style.display = 'none';
+    }
+
+    // --- CROSS-TAB COMMUNICATION LOGIC ---
+    window.updateInstructorsFromImport = function(events) {
+        localStorage.setItem('aeris_imported_schedule', JSON.stringify(events));
+        facultyData = processEventsIntoFaculty(events);
+        renderFaculty(facultyData);
+    };
+
+    // Initial Page Load
+    function loadInitialData() {
+        const savedEvents = localStorage.getItem('aeris_imported_schedule');
+        
+        if (savedEvents) {
+            // Pull real data from the Excel import memory
+            const parsedEvents = JSON.parse(savedEvents);
+            facultyData = processEventsIntoFaculty(parsedEvents);
+            renderFaculty(facultyData);
+        } else {
+            // Fallback to API if Excel hasn't been imported yet
+            fetch('/api/instructors')
+                .then(response => {
+                    if(!response.ok) throw new Error("API failed");
+                    return response.json();
+                })
+                .then(data => {
+                    facultyData = data;
+                    renderFaculty(facultyData);
+                })
+                .catch(err => {
+                    renderFaculty([]);
+                });
+        }
+    }
+
+    // Start up
+    loadInitialData();
 });
