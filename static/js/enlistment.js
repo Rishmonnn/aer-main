@@ -97,15 +97,12 @@ function renderSubjects(subjects) {
     subjects.forEach((sub) => {
         const row = document.createElement('div');
         
-        // Dynamic Classes
         const lockedClass = sub.locked ? 'subject-locked' : '';
         row.className = `subject-row ${lockedClass}`;
         
-        // --- Store units in dataset for Select All function ---
         row.dataset.units = sub.units; 
         row.dataset.code = sub.code;
 
-        // Interaction Logic
         if (sub.locked) {
             row.onclick = () => alert(`Cannot take ${sub.code}: ${sub.warning}`);
             row.style.opacity = '0.6';
@@ -115,11 +112,9 @@ function renderSubjects(subjects) {
             row.onclick = () => toggleSubject(row, sub);
         }
         
-        // Icon Logic
         let icon = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
         if (sub.locked) icon = "<i class='bx bxs-lock-alt' style='color:#64748b; font-size:1.4rem'></i>";
 
-        // Badge Logic
         let badgeHtml = `<span class="tag ${sub.type}">${sub.type.toUpperCase()}</span>`;
         if (sub.locked) {
             badgeHtml = `<span class="tag" style="background:#475569; color:white;">LOCKED</span>`;
@@ -127,13 +122,27 @@ function renderSubjects(subjects) {
             badgeHtml = `<span class="tag critical">RETAKE REQUIRED</span>`;
         }
 
-        // Warning Text (if locked)
         let warningHtml = sub.locked 
             ? `<div style="font-size:0.75rem; color:#ef4444; margin-top:4px; font-weight:500;"><i class='bx bxs-error-circle'></i> ${sub.warning}</div>` 
             : '';
 
+        // --- NEW: Generate Dropdown Options for Sections ---
+        let optionsHtml = '';
+        if (sub.sections && sub.sections.length > 0) {
+            sub.sections.forEach(sec => {
+                optionsHtml += `<option value="${sec.id}">${sec.name} (${sec.sched} | ${sec.room})</option>`;
+            });
+        }
+        
+        // Use onclick stopPropagation so picking a dropdown item doesn't toggle the subject
+        let sectionDropdownHtml = sub.locked ? '' : `
+            <select class="section-select" onclick="event.stopPropagation()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 0.8rem; background: white; color: #475569; outline: none; cursor: pointer;">
+                ${optionsHtml}
+            </select>
+        `;
+
         row.innerHTML = `
-            <div class="row-top">
+            <div class="row-top" style="align-items: center; border-bottom: none; padding-bottom: 0;">
                 <div class="subject-title">
                     <span class="selection-icon">${icon}</span>
                     <div style="display:flex; flex-direction:column;">
@@ -143,14 +152,8 @@ function renderSubjects(subjects) {
                 </div>
                 <div style="display:flex; gap:10px; align-items:center;">
                     ${badgeHtml}
-                    <div style="font-size:0.8rem; border:1px solid #cbd5e1; padding:2px 8px; border-radius:4px; font-weight:600; color:#475569;">
-                        ${sub.section}
-                    </div>
+                    ${sectionDropdownHtml}
                 </div>
-            </div>
-            <div class="row-details">
-                <div class="detail-item"><i class='bx bx-calendar'></i> ${sub.sched}</div>
-                <div class="detail-item"><i class='bx bx-map'></i> ${sub.room}</div>
             </div>
         `;
         
@@ -237,12 +240,22 @@ function submitEnlistment() {
     }
 
     const selectedRows = document.querySelectorAll('.subject-row[data-selected="true"]');
-    const subjectCodes = [];
+    const subjectsData = []; // Changed to an array of objects
+    
     selectedRows.forEach(row => {
-        if (row.dataset.code) subjectCodes.push(row.dataset.code);
+        const code = row.dataset.code;
+        if (code) {
+            // Find the select element in this specific row and get its value
+            const selectEl = row.querySelector('.section-select');
+            const sectionId = selectEl ? selectEl.value : null;
+            
+            subjectsData.push({
+                code: code,
+                section_id: sectionId
+            });
+        }
     });
 
-    // Send to Server
     btn.innerText = "Processing...";
     btn.disabled = true;
 
@@ -251,7 +264,7 @@ function submitEnlistment() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             student_id: currentStudent.id,
-            subjects: subjectCodes
+            subjects: subjectsData  // Send the object array instead of strings
         })
     })
     .then(res => res.json())

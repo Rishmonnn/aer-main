@@ -754,15 +754,15 @@ def get_pending_enrollment():
     output = []
     for s in students:
         # 1. Check for Failures in the Database
-        # We look for any failing grade (5.0) or Failed status
         failed_enrollments = Enrollment.query.filter_by(student_id=s.id)\
             .filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') )\
             .all()
         
         is_retained = len(failed_enrollments) > 0
-        
         decision = 'Retained' if is_retained else 'Promoted'
-        decision_color = 'retained' if is_retained else 'promoted' # CSS class helper
+        
+        # Extract the exact subject codes they failed
+        failed_subjects = [f.section.subject_code for f in failed_enrollments if f.section]
 
         output.append({
             'id': s.id,
@@ -772,7 +772,11 @@ def get_pending_enrollment():
             'status': s.status,
             'type': 'Irregular' if is_retained else 'Regular',
             'decision': decision,
-            'hasWarnings': is_retained # Triggers the warning icon in frontend
+            'hasWarnings': is_retained,
+            # --- NEW DATA FOR MODAL ---
+            'email': s.email or 'No email provided',
+            'contact': s.contact_number or 'No contact provided',
+            'failed_subjects': failed_subjects
         })
     return jsonify(output)
 
@@ -967,22 +971,36 @@ def get_student_available_subjects(student_id):
     
     output = []
     for sub in all_subjects:
-        section = Section.query.filter_by(subject_code=sub.code).first()
-        sched = section.schedule if section else "TBA"
-        room = section.room if section else "TBA"
+        # Fetch ALL sections for this subject
+        sections = Section.query.filter_by(subject_code=sub.code).all()
+        section_list = []
+        
+        for sec in sections:
+            section_list.append({
+                'id': sec.id,
+                'name': sec.name,
+                'sched': sec.schedule or "TBA",
+                'room': sec.room or "TBA"
+            })
+            
+        # If no sections exist yet, provide a fallback option
+        if not section_list:
+             section_list.append({
+                'id': 0,
+                'name': f"{sub.code}-TBA",
+                'sched': "TBA",
+                'room': "TBA"
+            })
 
         # --- CRITICAL LOGIC: CHECK PREREQUISITES ---
         is_locked = False
         warning_msg = None
         
-        # Check if this subject has a prerequisite
         if sub.prerequisite and sub.prerequisite not in ['None', '', 'nan']:
-            # If the prerequisite is in the failed list, LOCK this subject
             if sub.prerequisite in failed_codes:
                 is_locked = True
                 warning_msg = f"Prerequisite {sub.prerequisite} Failed"
 
-        # Check if this subject ITSELF was failed (Must Retake)
         is_retake = sub.code in failed_codes
         type_tag = 'critical' if is_retake else ('major' if sub.units >= 3 else 'minor')
 
@@ -991,9 +1009,7 @@ def get_student_available_subjects(student_id):
             'name': sub.description,
             'units': sub.units,
             'type': type_tag,
-            'sched': sched,
-            'room': room,
-            'section': section.name if section else "TBA",
+            'sections': section_list, # <--- We now pass a list of sections
             'locked': is_locked,   
             'warning': warning_msg 
         })
@@ -1009,22 +1025,24 @@ def get_student_available_subjects(student_id):
 def submit_student_enlistment():
     data = request.get_json()
     student_id = data.get('student_id')
-    subjects = data.get('subjects') # List of subject codes
+    subjects_data = data.get('subjects') # <--- Now expects a list of dicts: [{'code': 'CPE101', 'section_id': 1}, ...]
     
     student = Student.query.get(student_id)
     if not student:
         return jsonify({'success': False, 'message': 'Student not found'}), 404
 
     try:
-        # 1. Update Student Status (Removes them from Enlistment Page)
+        # 1. Update Student Status
         student.status = 'Enrolled' 
         
-        # 2. Create Enrollments for each subject
-        for code in subjects:
-            # Find the section (or create a default one if missing)
-            # In a real app, the student selects a specific Section ID. 
-            # Here we auto-assign to Section A for simplicity.
-            section = Section.query.filter_by(subject_code=code).first()
+        # 2. Create Enrollments for each selected subject and section
+        for item in subjects_data:
+            code = item.get('code')
+            section_id = item.get('section_id')
+            
+            section = None
+            if section_id and str(section_id) != '0':
+                section = Section.query.get(section_id)
             
             if not section:
                 # Fail-safe: Create a section if it doesn't exist
@@ -1035,14 +1053,13 @@ def submit_student_enlistment():
                     db.session.commit() # Commit needed to get section.id
             
             if section:
-                # Check if already enrolled to avoid duplicates
                 exists = Enrollment.query.filter_by(student_id=student_id, section_id=section.id).first()
                 if not exists:
                     enrollment = Enrollment(
                         student_id=student_id,
                         section_id=section.id,
-                        grade=None,      # No grade yet (Currently taking it)
-                        status='Enrolled' # Status in the class
+                        grade=None,
+                        status='Enrolled'
                     )
                     db.session.add(enrollment)
 

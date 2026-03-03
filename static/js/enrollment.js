@@ -7,69 +7,129 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // --- LOAD DATA FROM API ---
+// --- LOAD DATA FROM API ---
 function loadEnrollmentData() {
     fetch('/api/enrollment/pending')
         .then(res => res.json())
         .then(data => {
             // 1. Clear existing tables
-            document.querySelectorAll('.year-table tbody').forEach(el => el.innerHTML = '');
+            [1, 2, 3, 4].forEach(i => {
+                const tbody = document.getElementById(`enrollment-tbody-${i}`);
+                if (tbody) tbody.innerHTML = '';
+            });
 
-            // 2. Populate Tables
-            if (data.length === 0) {
-                return;
-            }
+            // 2. Setup Analytics and Grouping
+            const summaryContainer = document.getElementById('enrollmentSummaryCards');
+            if (summaryContainer) summaryContainer.style.display = 'grid';
+            
+            let promoteCount = 0;
+            let reviewCount = 0;
+            const groupedData = { '1': [], '2': [], '3': [], '4': [] };
 
             data.forEach(student => {
-                // Determine target table based on current year level
+                // Group by year
                 let yearIndex = '1'; 
                 if (student.year_level.includes('2')) yearIndex = '2';
                 else if (student.year_level.includes('3')) yearIndex = '3';
                 else if (student.year_level.includes('4')) yearIndex = '4';
-
-                const tbody = document.getElementById(`enrollment-tbody-${yearIndex}`);
                 
-                if (tbody) {
-                    const row = document.createElement('tr');
-                    row.className = 'student-row';
+                groupedData[yearIndex].push(student);
 
-                    // --- LOGIC: Check Decision (Retained vs Promoted) ---
-                    let actionHtml = '';
-                    if (student.decision === 'Retained') {
-                        actionHtml = '<span style="color:#d32f2f; font-weight:bold;">RETAINED (SAME YEAR)</span>';
-                    } else {
-                        actionHtml = '<span style="color:#166534; font-weight:bold;">PROMOTING TO NEXT YEAR</span>';
-                    }
+                // Tally Analytics
+                if (student.decision === 'Retained') reviewCount++;
+                else promoteCount++;
+            });
 
-                    // Store data for the modal
-                    row.onclick = (e) => openEnrollmentModal(e, {
-                        id: student.id,
-                        name: student.name,
-                        program: student.program,
-                        type: student.type, 
-                        year: student.year_level,
-                        standing: student.year_level, 
-                        decision: student.decision,
-                        hasWarnings: student.hasWarnings
-                    });
+            // Update DOM Cards
+            if(document.getElementById('count-total')) document.getElementById('count-total').innerText = data.length;
+            if(document.getElementById('count-promote')) document.getElementById('count-promote').innerText = promoteCount;
+            if(document.getElementById('count-review')) document.getElementById('count-review').innerText = reviewCount;
 
-                    row.innerHTML = `
-                        <td style="text-align: center;" onclick="event.stopPropagation()">
-                            <input type="checkbox" class="student-cb" value="${student.id}" onchange="updateBulkEnrollButton()">
-                        </td>
-                        <td>${student.id}</td>
-                        <td class="student-name">${student.name}</td>
-                        <td>${student.program}</td>
-                        <td><span class="status-pill pending">Pending</span></td>
-                        <td class="promote-text">${actionHtml}</td>
+            // 3. Populate Tables or Empty States
+            [1, 2, 3, 4].forEach(i => {
+                const tbody = document.getElementById(`enrollment-tbody-${i}`);
+                const students = groupedData[i.toString()];
+
+                if (!tbody) return;
+
+                if (students.length === 0) {
+                    // Inject Empty State
+                    const yearLabel = i === 1 ? '1st' : i === 2 ? '2nd' : i === 3 ? '3rd' : '4th';
+                    tbody.innerHTML = `
+                        <tr class="empty-state-row">
+                            <td colspan="6">
+                                <i class='bx bx-check-circle'></i>
+                                All caught up! No ${yearLabel} Year students pending enrollment.
+                            </td>
+                        </tr>
                     `;
-                    tbody.appendChild(row);
+                } else {
+                    // Populate Real Data
+                    students.forEach(student => {
+                        const row = document.createElement('tr');
+                        row.className = 'student-row';
+
+                        // Logic for Remarks Tag
+                        let remarksHtml = student.decision === 'Retained' 
+                            ? '<span class="tag critical"><i class="bx bx-error-circle"></i> Retained</span>' 
+                            : '<span class="tag success"><i class="bx bx-check"></i> Cleared</span>';
+
+                        // Store data for the modal
+                        const studentDataStr = JSON.stringify({
+                            id: student.id, name: student.name, program: student.program, type: student.type, 
+                            year: student.year_level, standing: student.year_level, decision: student.decision, hasWarnings: student.hasWarnings,
+                            email: student.email, contact: student.contact, failed_subjects: student.failed_subjects
+                        }).replace(/"/g, '&quot;');
+
+                        row.onclick = (e) => openEnrollmentModal(e, JSON.parse(studentDataStr.replace(/&quot;/g, '"')));
+
+                        row.innerHTML = `
+                            <td style="text-align: center;" onclick="event.stopPropagation()">
+                                <input type="checkbox" class="student-cb" value="${student.id}" onchange="updateBulkEnrollButton()">
+                            </td>
+                            <td><strong>${student.id}</strong></td>
+                            <td class="student-name">${student.name}</td>
+                            <td>${student.program}</td>
+                            <td>${remarksHtml}</td>
+                            <td>
+                                <div class="quick-actions" onclick="event.stopPropagation()">
+                                    <button class="btn-icon view" title="View Details" onclick="openEnrollmentModal(event, ${studentDataStr})"><i class='bx bx-show'></i></button>
+                                    <button class="btn-icon approve" title="Quick Approve" onclick="quickApprove('${student.id}')"><i class='bx bx-check'></i></button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
                     
-                    // Open the accordion so the user sees the new item
+                    // Open accordion if it has data
                     tbody.closest('.year-accordion').classList.remove('collapsed');
                 }
             });
         })
         .catch(err => console.error("Error loading enrollment data:", err));
+}
+
+// --- NEW QUICK ACTION FUNCTION ---
+function quickApprove(studentId) {
+    if(!confirm(`Are you sure you want to approve student ${studentId}?`)) return;
+
+    fetch('/api/enrollment/confirm', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id: studentId}) 
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            // Refresh tables across modules
+            loadEnrollmentData(); 
+            if (typeof loadEnlistmentData === 'function') loadEnlistmentData();
+            if (typeof loadStudentJourney === 'function') loadStudentJourney();
+        } else {
+            alert("Error: " + data.error);
+        }
+    })
+    .catch(err => alert("Server Error"));
 }
 
 // --- BULK ENROLLMENT LOGIC ---
@@ -165,6 +225,21 @@ function openEnrollmentModal(event, data) {
     document.getElementById('modalStudentProgram').innerText = data.program || '-';
     document.getElementById('modalStudentYear').innerText = data.year || '-';
     document.getElementById('modalStudentStanding').innerText = data.standing || '-';
+    document.getElementById('modalStudentEmail').innerText = data.email || 'N/A';
+    document.getElementById('modalStudentContact').innerText = data.contact || 'N/A';
+
+    const warningsDiv = document.getElementById('modalWarnings');
+    const failedSubjectsContainer = document.getElementById('modalFailedSubjects');
+    if (data.hasWarnings && data.failed_subjects && data.failed_subjects.length > 0) {
+        warningsDiv.style.display = 'block';
+        failedSubjectsContainer.innerHTML = ''; // Clear old tags
+        
+        data.failed_subjects.forEach(subject => {
+            failedSubjectsContainer.innerHTML += `<span class="tag critical" style="background: white; border-color: #fecaca; color: #ef4444;"><i class='bx bx-book'></i> ${subject}</span>`;
+        });
+    } else {
+        warningsDiv.style.display = 'none';
+    }
     
     // UI Update - Student Type Badge
     const typeLabel = data.type || 'Regular';

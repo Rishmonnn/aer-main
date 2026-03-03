@@ -47,13 +47,20 @@ document.addEventListener('DOMContentLoaded', function() {
         return parseInt(hours, 10) * 60 + parseInt(minutes, 10);
     }
 
-    // --- THE FIX: DYNAMICALLY PROCESS REAL IMPORTED SCHEDULES ---
+    // --- DYNAMICALLY PROCESS REAL IMPORTED SCHEDULES SAFELY ---
     function processEventsIntoFaculty(events) {
         let facultyMap = {};
+        
+        // Failsafe if events is somehow null or not an array
+        if (!Array.isArray(events)) return [];
+
         events.forEach(ev => {
-            let facName = ev.extendedProps.faculty;
+            // Safely handle missing extendedProps
+            const props = ev.extendedProps || {};
+            let facName = props.faculty;
+            
             // Skip if no faculty is assigned or if it's TBA
-            if (!facName || facName.trim() === '' || facName.toUpperCase() === 'TBA') return; 
+            if (!facName || typeof facName !== 'string' || facName.trim() === '' || facName.toUpperCase() === 'TBA') return; 
             
             if (!facultyMap[facName]) {
                 facultyMap[facName] = {
@@ -73,17 +80,25 @@ document.addEventListener('DOMContentLoaded', function() {
             let hours = (end - start) / (1000 * 60 * 60);
             if (isNaN(hours)) hours = 0;
             
-            let isLab = ev.extendedProps.type.toLowerCase().includes('lab');
-            if (isLab) facultyMap[facName].lab += hours;
-            else facultyMap[facName].lec += hours;
+            // Safe type checking to prevent crashes
+            let typeStr = props.type || ''; 
+            let isLab = typeStr.toLowerCase().includes('lab');
+            
+            if (isLab) {
+                facultyMap[facName].lab += hours;
+            } else {
+                facultyMap[facName].lec += hours;
+            }
             
             facultyMap[facName].classes += 1;
             
-            // Calculate day index (Mon=0 ... Sun=6)
+            // Calculate day index safely (Mon=0 ... Sun=6)
             let dayIdx = start.getDay() - 1;
             if (dayIdx < 0) dayIdx = 6;
+            if (isNaN(dayIdx)) dayIdx = 0; // Failsafe for invalid dates
             
             const formatTime = (d) => {
+                if (isNaN(d.getTime())) return "TBA";
                 let h = d.getHours();
                 let m = String(d.getMinutes()).padStart(2, '0');
                 let ampm = h >= 12 ? 'PM' : 'AM';
@@ -91,21 +106,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 h = h ? h : 12;
                 return `${h}:${m} ${ampm}`;
             };
+            
             const daysLong = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
             
             facultyMap[facName].schedule.push({
-                subjectCode: ev.extendedProps.code,
-                subjectDesc: ev.title,
-                room: ev.extendedProps.room || 'TBA',
+                subjectCode: props.code || 'TBA',
+                subjectDesc: ev.title || 'Unknown Subject',
+                room: props.room || 'TBA',
                 startTime: formatTime(start),
                 endTime: formatTime(end),
                 dayIndex: dayIdx,
-                dayLong: daysLong[dayIdx],
+                dayLong: daysLong[dayIdx] || 'Unknown',
                 type: isLab ? 'Lab' : 'Lec'
             });
         });
         
-        // Return sorted alphabetically by name
         return Object.values(facultyMap).sort((a,b) => a.name.localeCompare(b.name));
     }
 
@@ -146,18 +161,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderModalContent(teacher) {
-        modalTeacherName.textContent = teacher.name;
-        modalTeacherDept.textContent = teacher.department;
-        modalHeaderClasses.textContent = teacher.classes;
+        modalTeacherName.textContent = teacher.name || 'Unknown';
+        modalTeacherDept.textContent = teacher.department || 'CPE';
+        modalHeaderClasses.textContent = teacher.classes || 0;
+        
+        const lecHours = parseFloat(teacher.lec) || 0;
+        const labHours = parseFloat(teacher.lab) || 0;
         
         modalHeaderHours.innerHTML = `
-            <span style="opacity:0.9;">${(teacher.lec + teacher.lab).toFixed(1)}</span>
-            <span style="font-size:0.7rem; margin-left:8px; opacity:0.7;">(L: ${teacher.lec.toFixed(1)} | Lab: ${teacher.lab.toFixed(1)})</span>
+            <span style="opacity:0.9;">${(lecHours + labHours).toFixed(1)}</span>
+            <span style="font-size:0.7rem; margin-left:8px; opacity:0.7;">(L: ${lecHours.toFixed(1)} | Lab: ${labHours.toFixed(1)})</span>
         `;
 
-        // Load the REAL schedule
         const schedule = teacher.schedule || [];
-        
         buildGridStructure();
         
         schedule.forEach(cls => {
@@ -213,10 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 1. SAFE HANDLING FOR NO DATA
         if (!data || data.length === 0) {
-            // Reset the top stats to 0 safely
             updateStats([]);
-            
-            // Inject a beautifully styled empty state directly into the grid
             gridContainer.innerHTML = `
                 <div class="empty-state-container" style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; background: white; border-radius: 12px; border: 1px dashed #cbd5e1; text-align: center; margin-top: 20px;">
                     <div style="background: #f1f5f9; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
@@ -234,7 +247,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 2. RENDER ACTUAL DATA
         data.forEach(teacher => {
-            const totalLoad = teacher.lec + teacher.lab;
+            // CRITICAL FIX: Ensure lec and lab are numbers to prevent .toFixed() crash
+            const lecHours = parseFloat(teacher.lec) || 0;
+            const labHours = parseFloat(teacher.lab) || 0;
+            const totalLoad = lecHours + labHours;
             const isFullLoad = totalLoad >= FULL_LOAD_THRESHOLD;
             const statusBadge = isFullLoad ? `<div class="full-load-badge">FULL LOAD</div>` : '';
             
@@ -246,18 +262,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 ${statusBadge}
                 <div class="card-header">
                     <div class="avatar"><i class='bx bx-user'></i></div>
-                    <div class="info"><h3>${teacher.name}</h3><div class="dept-badge"><i class='bx bx-bookmark'></i> ${teacher.department}</div></div>
+                    <div class="info"><h3>${teacher.name || 'Unknown'}</h3><div class="dept-badge"><i class='bx bx-bookmark'></i> ${teacher.department || 'Computer Engineering'}</div></div>
                 </div>
                 <div class="card-stats">
                     <div class="stat-row">
                         <span><i class='bx bx-book-open'></i> Classes:</span>
-                        <span class="stat-value">${teacher.classes}</span>
+                        <span class="stat-value">${teacher.classes || 0}</span>
                     </div>
                     <div class="stat-row">
                         <span><i class='bx bx-time-five'></i> Load:</span>
                         <div class="load-breakdown">
-                            <span class="lb-lec">Lec: ${teacher.lec.toFixed(1)}</span>
-                            <span class="lb-lab">Lab: ${teacher.lab.toFixed(1)}</span>
+                            <span class="lb-lec">Lec: ${lecHours.toFixed(1)}</span>
+                            <span class="lb-lab">Lab: ${labHours.toFixed(1)}</span>
                         </div>
                     </div>
                 </div>
@@ -265,14 +281,12 @@ document.addEventListener('DOMContentLoaded', function() {
             gridContainer.appendChild(card);
         });
         
-        // Update stats with real data
         updateStats(data);
     }
 
     function updateStats(data) {
         if (!totalFacultyEl || !totalClassesEl || !totalHoursEl) return;
         
-        // Failsafe: If data is empty, set everything to 0
         if (!data || data.length === 0) {
             totalFacultyEl.textContent = "0";
             totalClassesEl.textContent = "0";
@@ -289,11 +303,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Calculate real stats
         totalFacultyEl.textContent = data.length;
-        totalClassesEl.textContent = data.reduce((sum, t) => sum + t.classes, 0);
-        const totalLec = data.reduce((sum, t) => sum + t.lec, 0);
-        const totalLab = data.reduce((sum, t) => sum + t.lab, 0);
+        totalClassesEl.textContent = data.reduce((sum, t) => sum + (parseInt(t.classes) || 0), 0);
+        const totalLec = data.reduce((sum, t) => sum + (parseFloat(t.lec) || 0), 0);
+        const totalLab = data.reduce((sum, t) => sum + (parseFloat(t.lab) || 0), 0);
         
         totalHoursEl.innerHTML = `
             <div style="display:flex; flex-direction:column; align-items:flex-start; line-height:1.2;">
@@ -307,7 +320,6 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
-    // --- ALL OTHER EXISTING LISTENERS ---
     function fetchRegisteredFaculty() {
         registeredTeachersList.innerHTML = "<p style='text-align:center; padding:10px;'>Loading faculty...</p>";
         fetch('/api/users/faculty')
@@ -396,12 +408,10 @@ document.addEventListener('DOMContentLoaded', function() {
         renderFaculty(facultyData);
     };
 
-    // Initial Page Load
     function loadInitialData() {
         const savedEvents = localStorage.getItem('aeris_imported_schedule');
         
         if (savedEvents && savedEvents.length > 5) {
-            // Found real data from the Excel import memory
             try {
                 const parsedEvents = JSON.parse(savedEvents);
                 facultyData = processEventsIntoFaculty(parsedEvents);
@@ -415,7 +425,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 fetchFromAPI();
             }
         } else {
-            // No local storage data, fall back to API
             fetchFromAPI();
         }
     }
@@ -428,7 +437,16 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(data => {
                 if (data && data.length > 0) {
-                    facultyData = data;
+                    // CRITICAL FIX: Ensure DB instructors have all properties to prevent crashes
+                    facultyData = data.map(teacher => ({
+                        id: teacher.id || teacher.name,
+                        name: teacher.name || 'Unknown Faculty',
+                        department: teacher.department || 'Computer Engineering',
+                        classes: teacher.classes || 0,
+                        lec: parseFloat(teacher.lec) || 0.0,
+                        lab: parseFloat(teacher.lab) || 0.0,
+                        schedule: teacher.schedule || []
+                    }));
                     renderFaculty(facultyData);
                 } else {
                     gridContainer.innerHTML = "<div style='color: #777; grid-column: span 3; text-align: center; padding: 40px; background: white; border-radius: 8px;'><h3>No Faculty Members Found</h3><p>Import your class schedule Excel file in the Schedules tab first to generate the faculty list.</p></div>";
@@ -436,13 +454,12 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(err => {
                 console.error("API error:", err);
-                // CRITICAL: Pass an empty array so the Empty State triggers safely!
                 renderFaculty([]); 
             });
     }
 
-    // Start up
     loadInitialData();
+    
     window.addEventListener('storage', function(e) {
         if (e.key === 'aeris_imported_schedule' && e.newValue) {
             try {

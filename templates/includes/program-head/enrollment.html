@@ -17,6 +17,30 @@
     </div>
 </div>
 
+<div class="enrollment-summary-cards" id="enrollmentSummaryCards" style="display: none;">
+        <div class="summary-card">
+            <div class="summary-icon blue"><i class='bx bx-group'></i></div>
+            <div class="summary-info">
+                <span class="summary-value" id="count-total">0</span>
+                <span class="summary-label">Total Pending</span>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon green"><i class='bx bx-check-shield'></i></div>
+            <div class="summary-info">
+                <span class="summary-value" id="count-promote">0</span>
+                <span class="summary-label">Ready to Promote</span>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon red"><i class='bx bx-error-circle'></i></div>
+            <div class="summary-info">
+                <span class="summary-value" id="count-review">0</span>
+                <span class="summary-label">Requires Review</span>
+            </div>
+        </div>
+    </div>
+
 <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
         <div class="search-container" style="flex: 1; margin-bottom: 0;">
             <i class='bx bx-search'></i>
@@ -40,7 +64,11 @@
                         <th style="width: 40px; text-align: center;">
                             <input type="checkbox" class="select-all-cb" onchange="toggleAllCheckboxes(this)">
                         </th>
-                        <th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Promote to</th>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>Program</th>
+                        <th>Remarks</th>
+                        <th style="text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="enrollment-tbody-1">
@@ -123,17 +151,27 @@
         </div>
         
         <div class="modal-body-scroll" style="padding: 20px;">
-            <div class="student-profile-header" style="text-align: left; margin-bottom: 25px;">
+            <div class="student-profile-header" style="text-align: left; margin-bottom: 20px;">
                 <div class="student-title-info">
                     <h3 id="modalStudentName" style="color: #0f172a; font-size: 1.6rem; margin-bottom: 6px;">-</h3>
                     <p style="color: #64748b; font-size: 1rem; font-weight: 600;"><i class='bx bx-id-card' style="color: #90242d;"></i> <span id="modalStudentId">-</span></p>
                 </div>
+                
+                <div style="display: flex; gap: 15px; margin-top: 12px; font-size: 0.85rem; color: #475569;">
+                    <span><i class='bx bx-envelope'></i> <span id="modalStudentEmail">-</span></span>
+                    <span><i class='bx bx-phone'></i> <span id="modalStudentContact">-</span></span>
+                </div>
             </div>
 
             <div id="modalWarnings" style="display: none;">
-                <div class="alert-box danger">
-                    <i class='bx bx-error-circle'></i>
-                    <div><h4>Student Retained</h4><p>Failed curriculum due to critical subject</p></div>
+                <div class="alert-box danger" style="flex-direction: column; gap: 8px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <i class='bx bx-error-circle'></i>
+                        <h4 style="margin: 0;">Student Retained: Academic Deficiencies</h4>
+                    </div>
+                    <p style="margin-left: 32px;">This student cannot be promoted to the next year level due to failing grades in the following subjects:</p>
+                    <div id="modalFailedSubjects" style="margin-left: 32px; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                        </div>
                 </div>
             </div>
 
