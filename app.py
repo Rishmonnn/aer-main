@@ -460,6 +460,8 @@ def save_schedule():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+    
+    
 
 @app.route('/api/schedules/<int:event_id>', methods=['DELETE'])
 @login_required
