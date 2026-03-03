@@ -218,24 +218,32 @@
     </div>
 
 
-    <div id="advisingModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-top-bar"></div>
-            <span id="close-adv-modal" class="modal-close">&times;</span>
+    <div id="advisingModal" class="modal" style="display: none;">
+        <div class="modal-content"> 
+            
+            <div id="ai-loading-overlay" class="ai-loading-overlay" style="display: none;">
+                <div class="ai-loading-content">
+                    <i class='bx bx-loader-alt bx-spin' style="font-size: 50px; color: #8b5cf6; margin-bottom: 15px;"></i>
+                    <h3 style="color: #334155; margin: 0; font-size: 1.2rem;">Consulting AI Advisor</h3>
+                    <p style="color: #64748b; font-size: 0.9rem; margin-top: 8px;">Analyzing student history and formatting action plan...</p>
+                </div>
+            </div>
+            
             <div class="adv-header-banner">
                 <div class="adv-header-icon">
                     <i class='bx bx-message-square-detail'></i>
                 </div>
                 <div class="adv-header-text">
                     <h2>Student Advising & Intervention</h2>
-                    <p>Session log for <strong id="adv-student-name">-</strong> (<span id="adv-student-id">-</span>)</p>
+                    <p>Session log for <strong id="adv-student-name" style="color: white;">-</strong> (<span id="adv-student-id">-</span>)</p>
                 </div>
+                <span id="close-adv-modal" class="modal-close" style="margin-left: auto; cursor: pointer; font-size: 1.5rem; color: #fff;" onclick="closeAdvisingModal()">&times;</span>
             </div>
 
             <div class="adv-body">
                 <div class="adv-section-title"><i class='bx bx-history'></i> Past Advising Records</div>
                 <div class="adv-history-container">
-                    <div id="adv-history-list" class="adv-history-list">Loading...</div>
+                    <div id="adv-history-list" style="font-size: 15px; color: #64748b;">Loading...</div>
                 </div>
 
                 <div class="adv-section-title"><i class='bx bx-edit'></i> New Session Details</div>
@@ -262,18 +270,21 @@
                     </div>
                     <div class="adv-input-group">
                         <label>Follow-up Date (Optional)</label>
-                        <input type="date" id="adv-followup" class="adv-input">
+                        <input type="date" id="adv-followup" class="adv-input" style="color: #475569;">
                     </div>
                 </div>
 
                 <div class="adv-grid-2">
                     <div class="adv-input-group">
-                        <label>Discussion Notes</label>
+                        <div style="display: flex; align-items: center; min-height: 36px; margin-bottom: 8px;">
+                            <label style="margin-bottom: 0;">Discussion Notes</label>
+                        </div>
                         <textarea id="adv-notes" class="adv-input" placeholder="Summarize the main points discussed during the session..."></textarea>
                     </div>
+
                     <div class="adv-input-group">
-                        <div class="adv-actionplan-header">
-                            <label>Agreed Action Plan</label>
+                        <div style="display: flex; justify-content: space-between; align-items: center; min-height: 36px; margin-bottom: 8px;">
+                            <label style="margin-bottom: 0;">Agreed Action Plan</label>
                             <button type="button" id="btn-generate-ai" class="btn-ai-generate">
                                 <i class='bx bx-sparkles'></i> Auto-Generate Plan
                             </button>
@@ -281,14 +292,15 @@
                         <textarea id="adv-action-plan" class="adv-input" placeholder="What specific steps did the student agree to take? (e.g., Attend peer tutoring on Fridays)"></textarea>
                     </div>
                 </div>
-
-                <div class="adv-footer">
-                    <button id="btn-cancel-adv" class="btn-cancel" onclick="closeAdvisingModal()">Cancel</button>
-                    <button id="btn-submit-adv" class="btn-confirm" onclick="submitAdvising()">
-                        <i class='bx bx-save'></i> Save Record
-                    </button>
-                </div>
+            </div> 
+            
+            <div class="adv-footer">
+                <button id="btn-cancel-adv" class="btn-cancel" onclick="closeAdvisingModal()" style="font-size: 1rem; padding: 10px 20px; border-radius: 8px;">Cancel</button>
+                <button id="btn-submit-adv" class="btn-confirm" style="font-size: 1rem; background: var(--primary-red, #8B0000); padding: 10px 20px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 8px;" onclick="submitAdvising()">
+                    <i class='bx bx-save'></i> Save Record
+                </button>
             </div>
+            
         </div>
     </div>
 

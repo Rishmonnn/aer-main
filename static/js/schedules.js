@@ -1095,8 +1095,17 @@
                     const year = btn.getAttribute('data-year');
                     loadYearData(year);
                     updateSelectDropdowns();
-                    const semText = document.querySelector('.sched-select').value === "1st Semester" ? "1st Sem" : "2nd Sem";
-                    document.getElementById('sched-subtitle').textContent = `${year}${getOrdinal(year)} Year • Section 1 • ${semText}`;
+
+                    // Safely check for the dropdown to prevent future null errors
+                    const semDropdown = document.querySelector('.sched-select');
+                    const semText = semDropdown && semDropdown.value === "1st Semester" ? "1st Sem" : "2nd Sem";
+
+                    // Prevent the subtitle from saying "allth Year" when clicking 'All'
+                    if (year === 'all') {
+                        document.getElementById('sched-subtitle').textContent = `All Years • All Sections • ${semText}`;
+                    } else {
+                        document.getElementById('sched-subtitle').textContent = `${year}${getOrdinal(year)} Year • All Sections • ${semText}`;
+                    }
                 }
             });
         }

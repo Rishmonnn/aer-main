@@ -372,6 +372,23 @@ function closeAdvisingModal() {
     editingRecordId = null;
 }
 
+// Helper to auto-resize textareas
+function autoResizeTextarea(textarea) {
+    if (!textarea) return;
+    textarea.style.height = 'auto'; // Reset to calculate true height
+    textarea.style.height = textarea.scrollHeight + 'px'; // Expand to fit
+    textarea.style.overflow = 'hidden'; // Hide the scrollbar for a clean look
+}
+
+// Attach typing listeners when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    const advNotes = document.getElementById('adv-notes');
+    const advActionPlan = document.getElementById('adv-action-plan');
+    
+    if (advNotes) advNotes.addEventListener('input', function() { autoResizeTextarea(this); });
+    if (advActionPlan) advActionPlan.addEventListener('input', function() { autoResizeTextarea(this); });
+});
+
 function openAdvisingModal(studentId, studentName) {
     currentAdviseStudentId = studentId;
     
@@ -388,8 +405,17 @@ function openAdvisingModal(studentId, studentName) {
 
 function resetAdvisingForm() {
     editingRecordId = null;
-    document.getElementById('adv-notes').value = '';
-    document.getElementById('adv-action-plan').value = '';
+    
+    const notesEl = document.getElementById('adv-notes');
+    const planEl = document.getElementById('adv-action-plan');
+    
+    notesEl.value = '';
+    planEl.value = '';
+    
+    // Reset heights to default
+    notesEl.style.height = 'auto';
+    planEl.style.height = 'auto';
+    
     document.getElementById('adv-category').selectedIndex = 0;
     document.getElementById('adv-status').value = 'Open';
     document.getElementById('adv-followup').value = '';
@@ -470,8 +496,16 @@ function editPastRecord(recordId) {
     document.getElementById('adv-category').value = record.category || 'Other';
     document.getElementById('adv-status').value = record.status || 'Open';
     document.getElementById('adv-followup').value = (record.follow_up_date && record.follow_up_date !== 'None') ? record.follow_up_date : '';
-    document.getElementById('adv-notes').value = record.notes || '';
-    document.getElementById('adv-action-plan').value = record.action_plan || '';
+    
+    const notesEl = document.getElementById('adv-notes');
+    const planEl = document.getElementById('adv-action-plan');
+    
+    notesEl.value = record.notes || '';
+    planEl.value = record.action_plan || '';
+    
+    // Auto-resize instantly after loading the old text
+    autoResizeTextarea(notesEl);
+    autoResizeTextarea(planEl);
     
     // Change the main button to look like an "Update" button
     const btn = document.getElementById('btn-submit-adv');
@@ -539,6 +573,7 @@ function submitAdvising() {
 
 document.addEventListener('DOMContentLoaded', () => {
     const aiBtn = document.getElementById('btn-generate-ai');
+    const loadingOverlay = document.getElementById('ai-loading-overlay'); // Get the overlay
     
     if(aiBtn) {
         aiBtn.addEventListener('click', async () => {
@@ -553,11 +588,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const notes = document.getElementById('adv-notes').value;
             const actionPlanInput = document.getElementById('adv-action-plan');
 
-            // 3. Set UI to Loading State
-            const originalText = aiBtn.innerHTML;
-            aiBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Generating...";
+            // 3. ✨ SHOW THE FULL LOADING SCREEN ✨
+            if (loadingOverlay) loadingOverlay.style.display = 'flex';
             aiBtn.disabled = true;
-            actionPlanInput.value = "Consulting AI Advisor... Please wait.";
 
             try {
                 // 4. Call the Flask backend AI API endpoint
@@ -573,7 +606,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // 5. Populate the text area
                 if(data.success) {
-                    actionPlanInput.value = data.action_plan;
+                    // Slight artificial delay so the user actually sees the smooth animation
+                    setTimeout(() => {
+                        actionPlanInput.value = data.action_plan;
+                        // Resize automatically after AI injects the text
+                        autoResizeTextarea(actionPlanInput); 
+                    }, 300);
                 } else {
                     actionPlanInput.value = "";
                     alert(data.message || "Could not generate plan.");
@@ -583,9 +621,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 actionPlanInput.value = "";
                 alert("An error occurred while connecting to the AI.");
             } finally {
-                // 6. Restore the Magic Button state
-                aiBtn.innerHTML = originalText;
-                aiBtn.disabled = false;
+                // 6. ✨ HIDE THE FULL LOADING SCREEN ✨
+                // Added a small 400ms timeout just so the transition feels smooth
+                setTimeout(() => {
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
+                    aiBtn.disabled = false;
+                }, 400);
             }
         });
     }

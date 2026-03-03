@@ -8,13 +8,14 @@ from datetime import datetime # Make sure to import datetime
 from models import db, User, Student, Subject, Section, Enrollment, ScheduleEvent, AdvisingRecord
 
 from dotenv import load_dotenv
-import google.generativeai as genai
+from groq import Groq
 
 # Load the environment variables from the .env file BEFORE configuring the API
 load_dotenv()
+groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # Configure the Gemini API
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+
 
 app = Flask(__name__, 
     template_folder=os.path.join(os.path.dirname(__file__), 'templates'),
@@ -1248,26 +1249,42 @@ def generate_action_plan(student_id):
     Generate a brief, empathetic, 3-step actionable recovery plan for this student. 
     Make the steps concrete and achievable. Do not include any introductory or concluding text.
     Format the response exactly like this:
-    1: [Actionable advice]
-    2: [Actionable advice]
-    3: [Actionable advice]
+    𝟏: [Actionable advice]
+    
+    𝟐: [Actionable advice]
+    
+    𝟑: [Actionable advice]
     """
 
     try:
-        # 5. Call the Gemini API
-        # Using gemini-1.5-flash as it is the fastest and most cost-effective for text tasks
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content(prompt)
+        # 5. Call the Groq API
+        # Using LLaMA 3 8B - it is completely free and insanely fast
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful academic advisor. Output only the requested 3-step action plan without intro or outro text."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            model="llama-3.3-70b-versatile", 
+            temperature=0.7,
+            max_tokens=250
+        )
+        
+        # Extract the text from the Groq response
+        action_plan_text = chat_completion.choices[0].message.content.strip()
         
         return jsonify({
             'success': True, 
-            'action_plan': response.text.strip()
+            'action_plan': action_plan_text
         })
     except Exception as e:
-        print(f"AI Generation Error: {e}")
-        # --- CHANGED: Now it sends the REAL error to your browser ---
+        print(f"AI Generation Error (Groq): {e}")
         return jsonify({'success': False, 'message': f"System Error: {str(e)}"}), 500
-
 
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5001)

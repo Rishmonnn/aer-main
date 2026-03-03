@@ -436,7 +436,8 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(err => {
                 console.error("API error:", err);
-                gridContainer.innerHTML = "<div style='color: #777; grid-column: span 3; text-align: center; padding: 40px; background: white; border-radius: 8px;'><h3>No Faculty Members Found</h3><p>Import your class schedule Excel file in the Schedules tab first to generate the faculty list.</p></div>";
+                // CRITICAL: Pass an empty array so the Empty State triggers safely!
+                renderFaculty([]); 
             });
     }
 
