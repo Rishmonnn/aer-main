@@ -242,11 +242,14 @@ let selectedStudentIdForDrop = null;
 
 const dropModal = document.getElementById('dropStudentModal');
 const openDropBtn = document.getElementById('btn-open-drop-modal');
-const closeDropBtn = document.getElementById('close-drop-modal');
 const cancelDropBtn = document.getElementById('btn-cancel-drop');
 const searchInput = document.getElementById('drop-student-search');
 const suggestionsBox = document.getElementById('drop-student-suggestions');
 const submitDropBtn = document.getElementById('btn-submit-drop');
+
+// close button for advising modal (added to HTML)
+const closeAdvBtn = document.getElementById('close-adv-modal');
+
 
 function closeDropModal() {
     if(dropModal) dropModal.style.display = "none";
@@ -270,11 +273,13 @@ if (openDropBtn) {
     }
 }
 
-if (closeDropBtn) closeDropBtn.onclick = closeDropModal;
+// attach cancel buttons
 if (cancelDropBtn) cancelDropBtn.onclick = closeDropModal;
+if (closeAdvBtn) closeAdvBtn.onclick = closeAdvisingModal;
 
 window.addEventListener('click', (e) => { 
-    if(e.target == dropModal) closeDropModal(); 
+    if(e.target == dropModal) closeDropModal();
+    if(e.target == advisingModal) closeAdvisingModal();
 });
 
 if (searchInput) {

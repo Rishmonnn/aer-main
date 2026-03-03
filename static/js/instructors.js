@@ -208,12 +208,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderFaculty(data) {
+        if (!gridContainer) return;
         gridContainer.innerHTML = "";
+        
+        // 1. SAFE HANDLING FOR NO DATA
         if (!data || data.length === 0) {
-            gridContainer.innerHTML = "<div style='color: #777; grid-column: span 3; text-align: center; padding: 40px; background: white; border-radius: 8px;'><h3>No Faculty Members Found</h3><p>Import your class schedule Excel file in the Schedules tab first.</p></div>";
+            // Reset the top stats to 0 safely
+            updateStats([]);
+            
+            // Inject a beautifully styled empty state directly into the grid
+            gridContainer.innerHTML = `
+                <div class="empty-state-container" style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; background: white; border-radius: 12px; border: 1px dashed #cbd5e1; text-align: center; margin-top: 20px;">
+                    <div style="background: #f1f5f9; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                        <i class='bx bx-user-x' style="font-size: 3rem; color: #94a3b8;"></i>
+                    </div>
+                    <h3 style="margin: 0 0 10px 0; color: #334155; font-size: 1.5rem;">No Instructors Available</h3>
+                    <p style="margin: 0 0 24px 0; color: #64748b; max-width: 400px; line-height: 1.5;">Your faculty list is currently empty. You can add instructors manually or import your schedule in the Schedules tab to generate them automatically.</p>
+                    <button class="btn-primary" onclick="document.getElementById('btnAddTeacher').click()" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; background: var(--maroon); color: white; display: flex; align-items: center; gap: 8px;">
+                        <i class='bx bx-plus'></i> Add Instructor Manually
+                    </button>
+                </div>
+            `;
             return;
         }
         
+        // 2. RENDER ACTUAL DATA
         data.forEach(teacher => {
             const totalLoad = teacher.lec + teacher.lab;
             const isFullLoad = totalLoad >= FULL_LOAD_THRESHOLD;
@@ -245,11 +264,32 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             gridContainer.appendChild(card);
         });
+        
+        // Update stats with real data
         updateStats(data);
     }
 
     function updateStats(data) {
-        if (!totalFacultyEl) return;
+        if (!totalFacultyEl || !totalClassesEl || !totalHoursEl) return;
+        
+        // Failsafe: If data is empty, set everything to 0
+        if (!data || data.length === 0) {
+            totalFacultyEl.textContent = "0";
+            totalClassesEl.textContent = "0";
+            totalHoursEl.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:flex-start; line-height:1.2;">
+                    <span style="font-weight:800; font-size:1.3rem; color:var(--text-main);">0.0</span>
+                    <div style="display:flex; gap:5px; font-size:0.75rem;">
+                        <span style="color:var(--text-light);">L: <b>0.0</b></span>
+                        <span style="color:#cbd5e1;">|</span>
+                        <span style="color:var(--text-light);">Lb: <b>0.0</b></span>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        // Calculate real stats
         totalFacultyEl.textContent = data.length;
         totalClassesEl.textContent = data.reduce((sum, t) => sum + t.classes, 0);
         const totalLec = data.reduce((sum, t) => sum + t.lec, 0);
@@ -360,28 +400,57 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadInitialData() {
         const savedEvents = localStorage.getItem('aeris_imported_schedule');
         
-        if (savedEvents) {
-            // Pull real data from the Excel import memory
-            const parsedEvents = JSON.parse(savedEvents);
-            facultyData = processEventsIntoFaculty(parsedEvents);
-            renderFaculty(facultyData);
+        if (savedEvents && savedEvents.length > 5) {
+            // Found real data from the Excel import memory
+            try {
+                const parsedEvents = JSON.parse(savedEvents);
+                facultyData = processEventsIntoFaculty(parsedEvents);
+                if (facultyData.length > 0) {
+                    renderFaculty(facultyData);
+                } else {
+                    gridContainer.innerHTML = "<div style='grid-column: span 3; text-align: center; padding: 40px;'><h3>No Faculty Found in Import</h3><p>Your Excel file was processed, but no valid faculty names were found in the Faculty column.</p></div>";
+                }
+            } catch (e) {
+                console.error("Could not parse saved schedule data:", e);
+                fetchFromAPI();
+            }
         } else {
-            // Fallback to API if Excel hasn't been imported yet
-            fetch('/api/instructors')
-                .then(response => {
-                    if(!response.ok) throw new Error("API failed");
-                    return response.json();
-                })
-                .then(data => {
+            // No local storage data, fall back to API
+            fetchFromAPI();
+        }
+    }
+
+    function fetchFromAPI() {
+        fetch('/api/instructors')
+            .then(response => {
+                if(!response.ok) throw new Error("API failed");
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.length > 0) {
                     facultyData = data;
                     renderFaculty(facultyData);
-                })
-                .catch(err => {
-                    renderFaculty([]);
-                });
-        }
+                } else {
+                    gridContainer.innerHTML = "<div style='color: #777; grid-column: span 3; text-align: center; padding: 40px; background: white; border-radius: 8px;'><h3>No Faculty Members Found</h3><p>Import your class schedule Excel file in the Schedules tab first to generate the faculty list.</p></div>";
+                }
+            })
+            .catch(err => {
+                console.error("API error:", err);
+                gridContainer.innerHTML = "<div style='color: #777; grid-column: span 3; text-align: center; padding: 40px; background: white; border-radius: 8px;'><h3>No Faculty Members Found</h3><p>Import your class schedule Excel file in the Schedules tab first to generate the faculty list.</p></div>";
+            });
     }
 
     // Start up
     loadInitialData();
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'aeris_imported_schedule' && e.newValue) {
+            try {
+                const parsedEvents = JSON.parse(e.newValue);
+                facultyData = processEventsIntoFaculty(parsedEvents);
+                renderFaculty(facultyData);
+            } catch (err) {
+                console.error("Error reading updated schedule from storage:", err);
+            }
+        }
+    });
 });
