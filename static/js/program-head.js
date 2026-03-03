@@ -196,6 +196,16 @@ function switchTab(evt, section) {
                     window.Schedules.init();
                 }
             }, 100);
+        if (section === 'instructors') {
+            setTimeout(() => {
+                // Manually trigger the loadInitialData function from instructors.js 
+                // by dispatching a custom event, or checking local storage again
+                window.dispatchEvent(new Event('resize')); // Forces grid to recalculate
+                
+                // If you exported a global init function in instructors.js, you would call it here:
+                // if (window.initInstructors) window.initInstructors();
+            }, 100);
+            }
         }
     }
 }

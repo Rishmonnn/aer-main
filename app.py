@@ -44,14 +44,7 @@ FACULTY_CLASS_LIST = [
     {'id': 2, 'code': 'CE102', 'name': 'Structural Analysis', 'students': 40},
     {'id': 3, 'code': 'CE103', 'name': 'Fluid Mechanics', 'students': 38}
 ]
-INSTRUCTORS_DATA = [
-    { 'id': 1001, 'name': "SANTOS, MARIA CLARA", 'department': "Computer Engineering", 'classes': 2, 'lec': 3.0, 'lab': 0.0 },
-    { 'id': 1002, 'name': "REYES, JOHN MICHAEL", 'department': "Computer Engineering", 'classes': 2, 'lec': 3.0, 'lab': 3.0 },
-    { 'id': 1003, 'name': "DELA CRUZ, ANNA", 'department': "Computer Engineering", 'classes': 2, 'lec': 0.0, 'lab': 3.0 },
-    { 'id': 1004, 'name': "SAMPLE, FULL LOAD", 'department': "Computer Engineering", 'classes': 8, 'lec': 18.0, 'lab': 8.0 },
-    { 'id': 1005, 'name': "Engr. Juan Dela Cruz", 'department': "Computer Engineering", 'classes': 0, 'lec': 0, 'lab': 0 },
-    { 'id': 1006, 'name': "Dr. Jose Rizal", 'department': "General Education", 'classes': 0, 'lec': 0, 'lab': 0 }
-]
+INSTRUCTORS_DATA = []
 
 # ==================== AUTH & ROUTES ====================
 
@@ -971,25 +964,29 @@ def get_student_available_subjects(student_id):
     
     output = []
     for sub in all_subjects:
-        # Fetch ALL sections for this subject
-        sections = Section.query.filter_by(subject_code=sub.code).all()
-        section_list = []
+        # --- NEW: Fetch Sections from the Scheduling System (ScheduleEvent) ---
+        events = ScheduleEvent.query.filter_by(subject_code=sub.code).all()
+        unique_sections = {}
         
-        for sec in sections:
-            section_list.append({
-                'id': sec.id,
-                'name': sec.name,
-                'sched': sec.schedule or "TBA",
-                'room': sec.room or "TBA"
-            })
-            
-        # If no sections exist yet, provide a fallback option
+        for ev in events:
+            # Group by section_code to avoid duplicates if a section has multiple schedule blocks (e.g. MWF)
+            if ev.section_code not in unique_sections:
+                unique_sections[ev.section_code] = {
+                    'id': ev.section_code, # Use the string code (e.g., 'A', '50123')
+                    'name': ev.section_code,
+                    'faculty': ev.faculty_name or "TBA",
+                    'room': ev.room or "TBA"
+                }
+                
+        section_list = list(unique_sections.values())
+        
+        # Fallback if the subject hasn't been scheduled on the calendar yet
         if not section_list:
-             section_list.append({
-                'id': 0,
-                'name': f"{sub.code}-TBA",
-                'sched': "TBA",
-                'room': "TBA"
+            section_list.append({
+                'id': 'TBA',
+                'name': 'TBA',
+                'faculty': 'TBA',
+                'room': 'TBA'
             })
 
         # --- CRITICAL LOGIC: CHECK PREREQUISITES ---
@@ -1009,7 +1006,7 @@ def get_student_available_subjects(student_id):
             'name': sub.description,
             'units': sub.units,
             'type': type_tag,
-            'sections': section_list, # <--- We now pass a list of sections
+            'sections': section_list, # <--- Now populated from ScheduleEvent
             'locked': is_locked,   
             'warning': warning_msg 
         })
@@ -1025,7 +1022,7 @@ def get_student_available_subjects(student_id):
 def submit_student_enlistment():
     data = request.get_json()
     student_id = data.get('student_id')
-    subjects_data = data.get('subjects') # <--- Now expects a list of dicts: [{'code': 'CPE101', 'section_id': 1}, ...]
+    subjects_data = data.get('subjects') # [{'code': 'CPE 101', 'section_id': 'A'}, ...]
     
     student = Student.query.get(student_id)
     if not student:
@@ -1035,24 +1032,22 @@ def submit_student_enlistment():
         # 1. Update Student Status
         student.status = 'Enrolled' 
         
-        # 2. Create Enrollments for each selected subject and section
+        # 2. Process each subject
         for item in subjects_data:
             code = item.get('code')
-            section_id = item.get('section_id')
+            section_code = item.get('section_id') # This is the section_code string now ('A', 'B', etc)
             
-            section = None
-            if section_id and str(section_id) != '0':
-                section = Section.query.get(section_id)
+            # Check if this exact section already exists in the Section table
+            section = Section.query.filter_by(subject_code=code, name=section_code).first()
             
             if not section:
-                # Fail-safe: Create a section if it doesn't exist
-                subject = Subject.query.get(code)
-                if subject:
-                    section = Section(name=f"{code}-A", subject_code=code, room="TBA", schedule="TBA")
-                    db.session.add(section)
-                    db.session.commit() # Commit needed to get section.id
+                # Sync it to the Section table so Enrollment has a valid foreign key
+                section = Section(name=section_code or "TBA", subject_code=code, room="TBA", schedule="TBA")
+                db.session.add(section)
+                db.session.commit() # Commit needed to generate section.id
             
             if section:
+                # Check if already enrolled to avoid duplicates
                 exists = Enrollment.query.filter_by(student_id=student_id, section_id=section.id).first()
                 if not exists:
                     enrollment = Enrollment(

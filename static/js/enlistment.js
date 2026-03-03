@@ -130,7 +130,8 @@ function renderSubjects(subjects) {
         let optionsHtml = '';
         if (sub.sections && sub.sections.length > 0) {
             sub.sections.forEach(sec => {
-                optionsHtml += `<option value="${sec.id}">${sec.name} (${sec.sched} | ${sec.room})</option>`;
+                // Formatting it nicely: "Section A (Room 101 | Instructor Name)"
+                optionsHtml += `<option value="${sec.id}">Section ${sec.name} (${sec.room} | ${sec.faculty})</option>`;
             });
         }
         
