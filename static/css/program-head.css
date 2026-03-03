@@ -163,36 +163,70 @@ body {
 .btn-action:hover { background: var(--maroon); color: white; border-color: var(--maroon); box-shadow: 0 4px 6px rgba(144, 36, 45, 0.2); transform: translateY(-1px); }
 
 /* --- Modern Calendar --- */
+/* --- Enhanced Modern Calendar --- */
 .calendar-card { 
     background: white; border-radius: var(--card-radius); padding: 25px; 
     border: 1px solid #e2e8f0; display: flex; flex-direction: column; 
-    box-shadow: var(--shadow-sm); height: 100%; 
+    box-shadow: var(--shadow-md); /* Slightly deeper shadow */
+    height: 100%; 
 }
-.calendar-header-title { font-size: 1rem; font-weight: 800; color: #0f172a; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; text-transform: uppercase;}
-.calendar-header-title i { color: var(--maroon); font-size: 1.4rem; }
+.calendar-header-title {margin-top: 10px; font-size: 1.1rem; font-weight: 800; color: #0f172a; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; text-transform: uppercase;}
+.calendar-header-title i { color: var(--maroon); font-size: 1.5rem; }
 
 .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .calendar-selects { display: flex; gap: 8px; }
 .calendar-selects select { 
-    border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 6px; 
+    border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 8px; 
     font-size: 0.85rem; background: #f8fafc; cursor: pointer; 
-    color: #1e293b; font-weight: 600; outline: none;
+    color: #1e293b; font-weight: 600; outline: none; transition: all 0.2s ease;
 }
-.calendar-nav-btns { display: flex; gap: 5px; }
-.calendar-btn { 
-    background: #f1f5f9; border: 1px solid #cbd5e1; width: 32px; height: 32px; 
-    border-radius: 6px; display: flex; align-items: center; justify-content: center; 
-    cursor: pointer; color: #475569; font-size: 1.2rem; transition: 0.2s;
-}
-.calendar-btn:hover { background: #e2e8f0; color: #0f172a; }
+.calendar-selects select:hover { border-color: #94a3b8; background: #fff; }
 
-.modern-calendar { width: 100%; border-collapse: collapse; text-align: center; }
-.modern-calendar th { font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; padding-bottom: 15px; }
-.modern-calendar td { font-size: 0.9rem; padding: 12px 0; font-weight: 600; color: #334155; }
-.modern-calendar td.today { 
-    background: var(--maroon); color: white; border-radius: 50%; 
-    width: 32px; height: 32px; display: inline-flex; align-items: center; 
-    justify-content: center; margin: 0 auto; box-shadow: 0 4px 8px rgba(144, 36, 45, 0.3);
+.calendar-nav-btns { display: flex; gap: 6px; }
+.calendar-btn { 
+    background: #f1f5f9; border: 1px solid #cbd5e1; width: 34px; height: 34px; 
+    border-radius: 8px; display: flex; align-items: center; justify-content: center; 
+    cursor: pointer; color: #475569; font-size: 1.3rem; transition: all 0.2s ease;
+}
+.calendar-btn:hover { background: var(--maroon); color: white; border-color: var(--maroon); transform: translateY(-1px); }
+
+.modern-calendar { width: 100%; border-collapse: separate; border-spacing: 0 8px; text-align: center; }
+.modern-calendar th { font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; padding-bottom: 10px; }
+
+/* Cell and Date Styling */
+.modern-calendar td { padding: 0; }
+.modern-calendar td span { 
+    font-size: 0.9rem; font-weight: 600; color: #334155;
+    width: 36px; height: 36px; display: inline-flex; align-items: center; 
+    justify-content: center; border-radius: 50%; transition: all 0.2s ease;
+    margin: 0 auto;
+}
+
+/* Mute weekends (Sunday and Saturday) */
+.modern-calendar td:first-child span,
+.modern-calendar td:last-child span { color: #94a3b8; }
+
+/* Hover effect for dates (excludes today and empty cells) */
+.modern-calendar td span:hover:not(.today):not(:empty) { 
+    background: #f1f5f9; color: var(--maroon); cursor: pointer; transform: scale(1.1);
+}
+
+/* Fixed 'Today' Marker with Animated Pulse Gradient */
+.modern-calendar td span.today { 
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--dark-maroon) 100%); 
+    color: white !important; 
+    box-shadow: 0 4px 10px rgba(144, 36, 45, 0.4);
+    font-weight: 700;
+    transform: scale(1.1);
+    position: relative;
+    animation: pulse-glow 2s infinite;
+}
+
+/* Subtle glowing animation for today's date */
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 0 0 rgba(144, 36, 45, 0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(144, 36, 45, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(144, 36, 45, 0); }
 }
 
 /* --- Top Banner / Header Styling --- */

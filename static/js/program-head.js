@@ -211,12 +211,15 @@ function renderCalendar() {
     const lastDate = new Date(y, m + 1, 0).getDate();
     let days = "<tr>";
     
-    // Empty cells
-    for (let i = 0; i < firstDay; i++) days += "<td></td>";
+    // Add empty spans for consistent layout sizing
+    for (let i = 0; i < firstDay; i++) {
+        days += "<td><span></span></td>";
+    }
 
     const today = new Date();
     for (let d = 1; d <= lastDate; d++) {
         if ((d + firstDay - 1) % 7 === 0 && d !== 1) days += "</tr><tr>";
+        
         const isToday = d === today.getDate() && m === today.getMonth() && y === today.getFullYear();
         days += `<td><span class="${isToday ? 'today' : ''}">${d}</span></td>`;
     }
