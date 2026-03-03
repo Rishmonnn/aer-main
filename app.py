@@ -1248,15 +1248,15 @@ def generate_action_plan(student_id):
     Generate a brief, empathetic, 3-step actionable recovery plan for this student. 
     Make the steps concrete and achievable. Do not include any introductory or concluding text.
     Format the response exactly like this:
-    Step 1: [Actionable advice]
-    Step 2: [Actionable advice]
-    Step 3: [Actionable advice]
+    1: [Actionable advice]
+    2: [Actionable advice]
+    3: [Actionable advice]
     """
 
     try:
         # 5. Call the Gemini API
         # Using gemini-1.5-flash as it is the fastest and most cost-effective for text tasks
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(prompt)
         
         return jsonify({
