@@ -68,7 +68,14 @@ function openEnlistmentModal(studentData) {
     document.getElementById('enlistmentModal').classList.add('active');
 
     // 3. FETCH REAL SUBJECTS FROM API
-    fetch(`/api/enlistment/subjects/${studentData.id}`)
+    const timestamp = new Date().getTime();
+    fetch(`/api/enlistment/subjects/${studentData.id}?t=${timestamp}`, {
+        method: 'GET',
+        headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+        }
+    })
         .then(res => res.json())
         .then(subjects => {
             renderSubjects(subjects);

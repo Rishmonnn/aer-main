@@ -376,27 +376,46 @@
             () => { 
                 const yearKey = ev.extendedProps.year;
                 
-                if (mockDatabase[yearKey]) {
-                    // FIX: Match the type (Lec/Lab) too, so they don't overwrite each other
-                    let dbEvent = mockDatabase[yearKey].events.find(e => 
-                        e.title === ev.title && 
-                        e.extendedProps.code === ev.extendedProps.code &&
-                        e.extendedProps.type === ev.extendedProps.type
-                    );
-                    
-                    if (dbEvent) {
-                        // FIX: Format date strictly to local time to prevent the UTC timezone shift pushing classes into Sunday
-                        const formatLocal = (d) => {
-                            const pad = (n) => String(n).padStart(2, '0');
-                            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
-                        };
-                        
-                        dbEvent.start = formatLocal(ev.start);
-                        if (ev.end) dbEvent.end = formatLocal(ev.end);
-                    }
-                }
+                // 1. Format Dates Local Time
+                const formatLocal = (d) => {
+                    const pad = (n) => String(n).padStart(2, '0');
+                    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+                };
                 
-                if (typeof showToast === 'function') showToast(`Schedule updated for ${ev.title}`);
+                const updatedStart = formatLocal(ev.start);
+                const updatedEnd = ev.end ? formatLocal(ev.end) : null;
+
+                // 2. Prepare payload for DB
+                const updatedEvent = {
+                    id: ev.id,
+                    title: ev.title,
+                    start: updatedStart,
+                    end: updatedEnd,
+                    backgroundColor: ev.backgroundColor,
+                    borderColor: ev.borderColor,
+                    extendedProps: ev.extendedProps
+                };
+
+                // 3. Save to Database
+                fetch('/api/schedules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedEvent)
+                }).then(() => {
+                    // Update local mockDatabase
+                    if (mockDatabase[yearKey]) {
+                        let dbEvent = mockDatabase[yearKey].events.find(e => 
+                            e.title === ev.title && 
+                            e.extendedProps.code === ev.extendedProps.code &&
+                            e.extendedProps.type === ev.extendedProps.type
+                        );
+                        if (dbEvent) {
+                            dbEvent.start = updatedStart;
+                            if (updatedEnd) dbEvent.end = updatedEnd;
+                        }
+                    }
+                    if (typeof showToast === 'function') showToast(`Schedule updated for ${ev.title}`);
+                });
             },
             () => { 
                 info.revert();
@@ -500,7 +519,6 @@
         const type = document.getElementById('typeSelect').value;
         const sectionCode = document.getElementById('sectionCode').value;
 
-        // Convert day index to date
         const date = getNextDayOfWeek(day);
         const startDt = new Date(`${date}T${start}:00`);
         const endDt = new Date(`${date}T${end}:00`);
@@ -515,6 +533,7 @@
             showError(conflict);
             return;
         }
+        
         const yearColor = mockDatabase[modalYear] ? mockDatabase[modalYear].color : '#3b82f6'; 
 
         const newEvent = {
@@ -522,8 +541,8 @@
             title: subData.title,
             start: `${date}T${start}:00`,
             end: `${date}T${end}:00`,
-            backgroundColor: yearColor, // Now uses correct Year color instantly
-            borderColor: yearColor,     // Now uses correct Year color instantly
+            backgroundColor: yearColor,
+            borderColor: yearColor,
             extendedProps: {
                 code: subData.code,
                 sectionCode: sectionCode,
@@ -534,33 +553,47 @@
             }
         };
 
-        if (editingEvent) {
-            const oldYear = editingEvent.extendedProps.year;
-            if (mockDatabase[oldYear]) { 
-                // FIX 2: Added e.extendedProps.type to ensure editing a Lecture doesn't delete the Lab!
-                mockDatabase[oldYear].events = mockDatabase[oldYear].events.filter(e => 
-                    !(e.title === editingEvent.title && 
-                      e.extendedProps.code === editingEvent.extendedProps.code &&
-                      e.extendedProps.type === editingEvent.extendedProps.type)
-                );
-            }
-            editingEvent.remove();
-        }
-        
-        if (!mockDatabase[modalYear]) mockDatabase[modalYear] = { color: yearColor, events: [] };
-        mockDatabase[modalYear].events.push(newEvent);
+        // --- NEW: Save to Database so Enlistment can see it instantly ---
+        fetch('/api/schedules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newEvent)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                newEvent.id = data.id; // Get the real DB ID
+                
+                // Update Local Calendar
+                if (editingEvent) {
+                    const oldYear = editingEvent.extendedProps.year;
+                    if (mockDatabase[oldYear]) { 
+                        mockDatabase[oldYear].events = mockDatabase[oldYear].events.filter(e => 
+                            !(e.title === editingEvent.title && 
+                              e.extendedProps.code === editingEvent.extendedProps.code &&
+                              e.extendedProps.type === editingEvent.extendedProps.type)
+                        );
+                    }
+                    editingEvent.remove();
+                }
+                
+                if (!mockDatabase[modalYear]) mockDatabase[modalYear] = { color: yearColor, events: [] };
+                mockDatabase[modalYear].events.push(newEvent);
 
-        if (modalYear === currentActiveYear) {
-            calendarInstance.addEvent(newEvent);
-            updateKPIs(calendarInstance.getEvents());
-            toggleEmptyState(true); 
-        } else {
-            if (typeof showToast === 'function') {
-                showToast(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
+                if (modalYear === currentActiveYear) {
+                    calendarInstance.addEvent(newEvent);
+                    updateKPIs(calendarInstance.getEvents());
+                    toggleEmptyState(true); 
+                } else {
+                    if (typeof showToast === 'function') {
+                        showToast(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
+                    }
+                }
             } else {
-                alert(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
+                alert("Database Error: " + data.message);
             }
-        }
+        })
+        .catch(err => console.error("Error saving to DB:", err));
 
         Schedules.closeModal();
     }
@@ -1448,21 +1481,33 @@
             loadYearData(currentActiveYear);
             
             // --- NEW: SEND DATA TO INSTRUCTOR MODULE ---
+            // --- NEW: SEND DATA TO INSTRUCTOR MODULE & DATABASE ---
             let allEvents = [];
             for (let year in mockDatabase) {
                 if (mockDatabase[year] && mockDatabase[year].events) {
                     allEvents = allEvents.concat(mockDatabase[year].events);
                 }
             }
-            // CRITICAL NEW LINE: Save to browser memory so the other tab can read it
-            localStorage.setItem('aeris_imported_schedule', JSON.stringify(allEvents));
             
+            // 1. Save to browser memory
+            localStorage.setItem('aeris_imported_schedule', JSON.stringify(allEvents));
             if (typeof window.updateInstructorsFromImport === 'function') {
                 window.updateInstructorsFromImport(allEvents);
             }
+            
+            // 2. PUSH TO BACKEND DATABASE SO ENLISTMENT CAN SEE IT
+            fetch('/api/schedules/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(allEvents)
+            })
+            .then(res => res.json())
+            .then(dbRes => {
+                if (!dbRes.success) console.error("Failed to sync schedules to DB:", dbRes.message);
+            });
             // ------------------------------------------
 
-            if (!silent) showToast(`Successfully imported ${count} CPE entries and sorted them by Year Level.`);
+            if (!silent) showToast(`Successfully imported ${count} CPE entries and synced to database.`);
             return count;
         }
         return 0;
@@ -1715,10 +1760,14 @@
             "Delete",
             "Cancel",
             () => { 
+                // --- NEW: Delete from Database ---
+                if (editingEvent.id) {
+                    fetch(`/api/schedules/${editingEvent.id}`, { method: 'DELETE' })
+                        .catch(err => console.error("Error deleting from DB:", err));
+                }
+
                 const yearKey = editingEvent.extendedProps.year;
-                
                 if (mockDatabase[yearKey]) {
-                    // FIX: Added extendedProps.type check here too!
                     mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
                         !(e.title === editingEvent.title && 
                           e.extendedProps.code === editingEvent.extendedProps.code &&
