@@ -894,9 +894,11 @@ def confirm_single_enrollment():
 
         # 3. Bump Year Level if promoted
         if not is_retained:
-            if student.year_level == '1st Year': student.year_level = '2nd Year'
-            elif student.year_level == '2nd Year': student.year_level = '3rd Year'
-            elif student.year_level == '3rd Year': student.year_level = '4th Year'
+            # Disabled for 2nd Semester enrollment
+            pass
+            # if student.year_level == '1st Year': student.year_level = '2nd Year'
+            # elif student.year_level == '2nd Year': student.year_level = '3rd Year'
+            # elif student.year_level == '3rd Year': student.year_level = '4th Year'
             
         db.session.commit()
         
