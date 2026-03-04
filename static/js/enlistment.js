@@ -60,7 +60,13 @@ function loadEnlistmentData() {
     fetch('/api/enlistment/pending')
         .then(res => res.json())
         .then(data => {
+            // Clear existing rows first
             document.querySelectorAll('.enlistment-table tbody').forEach(el => el.innerHTML = '');
+
+            // Track how many students are added per year level
+            const yearCounts = { '1': 0, '2': 0, '3': 0, '4': 0 };
+
+            // Distribute students into their respective tables
             data.forEach(student => {
                 let yearIndex = '1'; 
                 if (student.year_level.includes('2')) yearIndex = '2';
@@ -69,6 +75,7 @@ function loadEnlistmentData() {
 
                 const tbody = document.getElementById(`enlistment-tbody-${yearIndex}`);
                 if (tbody) {
+                    yearCounts[yearIndex]++;
                     const tr = document.createElement('tr');
                     tr.onclick = () => openEnlistmentModal(student);
                     tr.innerHTML = `
@@ -79,14 +86,36 @@ function loadEnlistmentData() {
                         <td><button class="btn-view-action">Enlist</button></td>
                     `;
                     tbody.appendChild(tr);
+                    
+                    // Automatically open accordions that have pending students
                     tbody.closest('.year-accordion').classList.remove('collapsed');
                 }
             });
+
+            // Inject "Empty State" for any year level with 0 students
+            const yearLabels = { '1': '1st', '2': '2nd', '3': '3rd', '4': '4th' };
+            for (const [year, count] of Object.entries(yearCounts)) {
+                if (count === 0) {
+                    const tbody = document.getElementById(`enlistment-tbody-${year}`);
+                    if (tbody) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 45px 20px; background: #fcfcfc; border-bottom: none; cursor: default;">
+                                    <i class='bx bx-check-shield' style='font-size: 3.5rem; color: #cbd5e1; margin-bottom: 12px; display: block;'></i>
+                                    <div style="font-size: 1.15rem; color: #334155; margin: 0 0 6px 0; font-weight: 700;">All caught up!</div>
+                                    <div style="color: #64748b; font-size: 0.95rem; margin: 0;">No ${yearLabels[year]}-year students pending enlistment.</div>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                }
+            }
+        })
+        .catch(err => {
+            console.error("Error loading enlistment data:", err);
+            showToast("Failed to load student data.", "error");
         });
 }
-
-let currentStudent = {};
-let selectedUnits = 0;
 
 function openEnlistmentModal(studentData) {
     currentStudent = studentData;
