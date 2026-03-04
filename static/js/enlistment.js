@@ -236,7 +236,9 @@ function autoFillBlock() {
         }
         row.dataset.selected = 'true'; row.classList.add('selected');
         row.querySelector('.selection-icon').innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
-        selectedUnits += (parseInt(row.dataset.units) || 0);
+        
+        // 🚀 BUG FIX: Parse units securely
+        selectedUnits += (parseInt(row.dataset.units, 10) || 0);
     });
     const btn = document.getElementById('btnSelectAll');
     if(btn) btn.innerText = "Deselect All";
@@ -252,7 +254,8 @@ function toggleAllSubjects() {
     selectedUnits = 0; 
     rows.forEach(row => {
         const iconSpan = row.querySelector('.selection-icon');
-        const units = parseInt(row.dataset.units) || 0;
+        const units = parseInt(row.dataset.units, 10) || 0; // 🚀 BUG FIX: Parse Int securely
+        
         if (targetState) {
             row.dataset.selected = 'true'; row.classList.add('selected');
             iconSpan.innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
@@ -270,14 +273,16 @@ function toggleAllSubjects() {
 function toggleSubject(rowElement, subject) {
     const isSelected = rowElement.dataset.selected === 'true';
     const iconSpan = rowElement.querySelector('.selection-icon');
+    const units = parseInt(subject.units, 10) || 0; // 🚀 BUG FIX: Math crash string-concatenation fix
+    
     if (isSelected) {
         rowElement.dataset.selected = 'false'; rowElement.classList.remove('selected');
         iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
-        selectedUnits -= subject.units;
+        selectedUnits -= units;
     } else {
         rowElement.dataset.selected = 'true'; rowElement.classList.add('selected');
         iconSpan.innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
-        selectedUnits += subject.units;
+        selectedUnits += units;
     }
     const rows = document.querySelectorAll('.subject-row:not(.subject-locked)');
     const allSelected = Array.from(rows).every(r => r.dataset.selected === 'true');
@@ -307,11 +312,11 @@ function updateSummary() {
     if (percentage > 100) {
         progressBar.style.width = '100%'; progressBar.classList.add('overload');
         unitCounter.style.color = '#ef4444'; 
-        btnEnlist.disabled = true; btnEnlist.style.opacity = '0.5'; btnEnlist.style.cursor = 'not-allowed';
+        btnEnlist.disabled = true;
     } else {
         progressBar.style.width = `${percentage}%`; progressBar.classList.remove('overload');
         unitCounter.style.color = '#10b981'; 
-        btnEnlist.disabled = false; btnEnlist.style.opacity = '1'; btnEnlist.style.cursor = 'pointer';
+        btnEnlist.disabled = false; 
     }
 
     renderScheduleBoard(selectedRows);
@@ -337,7 +342,8 @@ function updateCartDrawer(selectedRows) {
 }
 
 function parseTimeToDecimal(timeStr) {
-    const match = timeStr.trim().match(/(\d{2}):(\d{2})\s*([APM]{2})/i);
+    // 🚀 BUG FIX: \d{1,2} to allow "7:30AM" instead of strictly requiring "07:30AM"
+    const match = timeStr.trim().match(/(\d{1,2}):(\d{2})\s*([APM]{2})/i); 
     if(!match) return null;
     let hours = parseInt(match[1]);
     const minutes = parseInt(match[2]);
@@ -350,14 +356,12 @@ function parseTimeToDecimal(timeStr) {
 
 function renderScheduleBoard(selectedRows) {
     const days = ['MON','TUE','WED','THU','FRI','SAT'];
-    const hideEmptyDays = selectedRows.length > 0; // Smart flag: Hide empty days only if subjects are selected
-
-    // 1. Clear Tracks & Dynamically hide rows with no classes
+    let hasPlottedSomething = false; // 🚀 BUG FIX: Tracks if at least ONE time was mapped
+    
+    // Clear Tracks First
     days.forEach(day => {
         const track = document.getElementById(`track-${day}`);
-        const row = document.getElementById(`row-${day}`);
         if(track) track.innerHTML = '';
-        if(row) row.style.display = hideEmptyDays ? 'none' : 'flex'; // Hides the gap!
     });
     
     const tbaList = document.getElementById('tbaList');
@@ -367,6 +371,7 @@ function renderScheduleBoard(selectedRows) {
 
     const cardColors = ['#90242d', '#0284c7', '#059669', '#d97706', '#7c3aed', '#db2777'];
 
+    // Map through selected rows and plot them
     selectedRows.forEach((row, index) => {
         const code = row.dataset.code;
         const selectEl = row.querySelector('.section-select');
@@ -388,16 +393,13 @@ function renderScheduleBoard(selectedRows) {
                 const endDec = parseTimeToDecimal(endStr);
 
                 if (startDec !== null && endDec !== null) {
+                    hasPlottedSomething = true;
                     const leftPercent = ((startDec - 7) / 14) * 100;
                     const widthPercent = ((endDec - startDec) / 14) * 100;
 
                     daysArr.forEach(day => {
                         const track = document.getElementById(`track-${day}`);
-                        const dayRow = document.getElementById(`row-${day}`);
-                        
-                        if (track && dayRow) {
-                            dayRow.style.display = 'flex'; // Unhide the active day row!
-                            
+                        if (track) {
                             const block = document.createElement('div');
                             block.className = 'gantt-block';
                             block.style.background = color;
@@ -415,12 +417,28 @@ function renderScheduleBoard(selectedRows) {
             }
         }
 
+        // If block couldn't be mapped to the timeline, put it in TBA Tray
         if (!isPlotted) {
             hasTBA = true;
             const tbaPill = document.createElement('div');
             tbaPill.className = 'tba-pill';
             tbaPill.innerHTML = `<span style="color:${color}">●</span> ${code}`;
             if(tbaList) tbaList.appendChild(tbaPill);
+        }
+    });
+
+    // 🚀 BUG FIX: Smarter day hiding logic
+    days.forEach(day => {
+        const row = document.getElementById(`row-${day}`);
+        const track = document.getElementById(`track-${day}`);
+        if (row && track) {
+            if (hasPlottedSomething) {
+                // If we mapped standard times, safely hide rows that ended up totally empty
+                row.style.display = track.innerHTML.trim() === '' ? 'none' : 'flex';
+            } else {
+                // If NOTHING was plotted (eg only TBA classes), keep all blank rows visible to maintain calendar shape
+                row.style.display = 'flex'; 
+            }
         }
     });
 
@@ -447,7 +465,8 @@ function submitEnlistment() {
         }
     });
 
-    btn.innerText = "Processing..."; btn.disabled = true;
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Processing..."; 
+    btn.disabled = true;
 
     fetch('/api/enlistment/submit', {
         method: 'POST',
