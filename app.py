@@ -460,40 +460,6 @@ def save_schedule():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
-    
-
-@app.route('/api/schedules/bulk', methods=['POST'])
-@app.route('/api/schedules/bulk', methods=['POST'])
-@login_required
-def save_bulk_schedules():
-    """Syncs Excel imported schedules directly to the database."""
-    events_data = request.get_json()
-    try:
-        # Clear old schedules to prevent duplicates when re-importing
-        ScheduleEvent.query.delete() 
-        
-        for data in events_data:
-            event = ScheduleEvent(
-                title=data.get('title', 'Unknown'),
-                subject_code=data['extendedProps'].get('code', ''),
-                section_code=data['extendedProps'].get('sectionCode', 'TBA'),
-                faculty_name=data['extendedProps'].get('faculty', 'TBA'),
-                room=data['extendedProps'].get('room', 'TBA'),
-                type=data['extendedProps'].get('type', 'lecture'),
-                year_level=str(data['extendedProps'].get('year', '1')),
-                start_time=data.get('start', ''),
-                end_time=data.get('end', ''),
-                color=data.get('backgroundColor', '#3b82f6')
-            )
-            db.session.add(event)
-        
-        db.session.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
-        print(f"Bulk Import Error: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
-    
 
 @app.route('/api/schedules/<int:event_id>', methods=['DELETE'])
 @login_required
@@ -973,13 +939,17 @@ def get_student_available_subjects(student_id):
     
     failed_codes = [f.section.subject_code for f in failed_records if f.section]
 
+    # 2. Determine Scope of Subjects to Show
     target_year = student.year_level
     
+    print(f"DEBUG: Enlistment for {student.name} ({target_year}) - Active Sem: {ACTIVE_SEMESTER}")
+
     regular_subjects = Subject.query.filter_by(
         year_level=target_year, 
         semester=ACTIVE_SEMESTER
     ).all()
 
+   
     back_subjects = []
     if failed_codes:
         back_subjects = Subject.query.filter(
@@ -987,38 +957,25 @@ def get_student_available_subjects(student_id):
             Subject.semester == ACTIVE_SEMESTER
         ).all()
 
+    # Combine lists (Use a dictionary comp to remove duplicates based on code)
     combined = regular_subjects + back_subjects
     unique_subjects = {s.code: s for s in combined}.values()
     all_subjects = list(unique_subjects)
     
     output = []
-    
-    # --- NEW: Fetch all events once to process them safely ---
-    all_scheduled_events = ScheduleEvent.query.all()
-    
     for sub in all_subjects:
-        # --- ULTIMATE MATCHING: Strips dashes, spaces, and special characters ---
-        target_code = ''.join(char for char in str(sub.code).upper() if char.isalnum())
-        
-        # Match events by applying the exact same stripping to the schedule's code
-        events = [
-            ev for ev in all_scheduled_events 
-            if ev.subject_code and ''.join(char for char in str(ev.subject_code).upper() if char.isalnum()) == target_code
-        ]
-        
+        # --- NEW: Fetch Sections from the Scheduling System (ScheduleEvent) ---
+        events = ScheduleEvent.query.filter_by(subject_code=sub.code).all()
         unique_sections = {}
         
         for ev in events:
-            # Fallback to "TBA" if the schedule was saved without a section code
-            sec_code = ev.section_code if ev.section_code and ev.section_code.strip() else "TBA"
-            
-            if sec_code not in unique_sections:
-                unique_sections[sec_code] = {
-                    'id': sec_code, 
-                    'name': sec_code,
+            # Group by section_code to avoid duplicates if a section has multiple schedule blocks (e.g. MWF)
+            if ev.section_code not in unique_sections:
+                unique_sections[ev.section_code] = {
+                    'id': ev.section_code, # Use the string code (e.g., 'A', '50123')
+                    'name': ev.section_code,
                     'faculty': ev.faculty_name or "TBA",
-                    'room': ev.room or "TBA",
-                    'sched': f"{ev.start_time}-{ev.end_time}"
+                    'room': ev.room or "TBA"
                 }
                 
         section_list = list(unique_sections.values())
@@ -1029,8 +986,7 @@ def get_student_available_subjects(student_id):
                 'id': 'TBA',
                 'name': 'TBA',
                 'faculty': 'TBA',
-                'room': 'TBA',
-                'sched': 'TBA'
+                'room': 'TBA'
             })
 
         # --- CRITICAL LOGIC: CHECK PREREQUISITES ---
@@ -1050,12 +1006,14 @@ def get_student_available_subjects(student_id):
             'name': sub.description,
             'units': sub.units,
             'type': type_tag,
-            'sections': section_list, 
+            'sections': section_list, # <--- Now populated from ScheduleEvent
             'locked': is_locked,   
             'warning': warning_msg 
         })
     
+    # Sort: Retakes/Unlocked first, Locked last
     output.sort(key=lambda x: x['locked'])
+    
     return jsonify(output)
 
 
