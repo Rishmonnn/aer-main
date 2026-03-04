@@ -1007,28 +1007,34 @@ def get_student_available_subjects(student_id):
     output = []
     for sub in all_subjects:
         # --- NEW: Fetch Sections from the Scheduling System (ScheduleEvent) ---
-        # --- ULTRA SAFE MATCHING ---
+        # --- ULTRA SAFE MATCHING V2: Checks Title too! ---
         all_events = ScheduleEvent.query.all()
         events = []
         
         for ev in all_events:
-            if ev.subject_code and sub.code:
+            # Combine subject_code and title. If code is missing, we catch it in the title!
+            ev_string = str(ev.subject_code or "") + " " + str(ev.title or "")
+            
+            if ev_string and sub.code:
                 # Remove ALL spaces and make lowercase for bulletproof comparison
-                clean_ev_code = ev.subject_code.replace(" ", "").lower()
+                clean_ev_string = ev_string.replace(" ", "").lower()
                 clean_sub_code = sub.code.replace(" ", "").lower()
                 
-                # If the core code exists anywhere inside the scheduled code, link it!
-                if clean_sub_code in clean_ev_code:
+                # If the core code exists anywhere inside the scheduled code or title, link it!
+                if clean_sub_code in clean_ev_string:
                     events.append(ev)
                     
         unique_sections = {}
         
         for ev in events:
+            # Fallback to "A" if section_code is completely empty in the DB
+            sec_val = ev.section_code if ev.section_code else "A" 
+            
             # Group by section_code to avoid duplicates if a section has multiple schedule blocks (e.g. MWF)
-            if ev.section_code not in unique_sections:
-                unique_sections[ev.section_code] = {
-                    'id': ev.section_code, # Use the string code (e.g., 'A', '50123')
-                    'name': ev.section_code,
+            if sec_val not in unique_sections:
+                unique_sections[sec_val] = {
+                    'id': sec_val, 
+                    'name': sec_val,
                     'faculty': ev.faculty_name or "TBA",
                     'room': ev.room or "TBA"
                 }
@@ -1096,18 +1102,21 @@ def submit_student_enlistment():
             section = Section.query.filter_by(subject_code=code, name=section_code).first()
             
             if not section:
-                # --- ULTRA SAFE MATCHING: Fetch real scheduling data ---
+                # --- ULTRA SAFE MATCHING V2: Fetch real scheduling data ---
                 all_scheduled = ScheduleEvent.query.all()
                 schedule_events = []
                 
                 for ev in all_scheduled:
-                    if ev.subject_code and code and ev.section_code and section_code:
-                        clean_ev_code = ev.subject_code.replace(" ", "").lower()
+                    ev_string = str(ev.subject_code or "") + " " + str(ev.title or "")
+                    
+                    if ev_string and code:
+                        clean_ev_string = ev_string.replace(" ", "").lower()
                         clean_code = code.replace(" ", "").lower()
-                        clean_ev_sec = ev.section_code.replace(" ", "").lower()
-                        clean_sec = section_code.replace(" ", "").lower()
                         
-                        if (clean_code in clean_ev_code) and (clean_sec == clean_ev_sec):
+                        clean_ev_sec = str(ev.section_code or "A").replace(" ", "").lower()
+                        clean_sec = str(section_code or "A").replace(" ", "").lower()
+                        
+                        if (clean_code in clean_ev_string) and (clean_sec == clean_ev_sec):
                             schedule_events.append(ev)
                 
                 room_val = "TBA"
