@@ -1,24 +1,86 @@
 // =======================================================
+// GLOBAL: TOAST NOTIFICATIONS
+// =======================================================
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if(!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    const icon = type === 'success' ? 'bx-check-circle' : 'bx-error-circle';
+    toast.innerHTML = `<i class='bx ${icon}'></i> <span>${message}</span>`;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.3s forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+// =======================================================
+// GLOBAL: NUMBER ANIMATOR
+// =======================================================
+function animateValue(obj, start, end, duration) {
+    if (!obj) return;
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        // Easing function for a smooth slow-down effect at the end
+        const easeProgress = 1 - Math.pow(1 - progress, 4);
+        obj.innerHTML = Math.floor(easeProgress * (end - start) + start);
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        } else {
+            obj.innerHTML = end; // Ensure it lands exactly on the target number
+        }
+    };
+    window.requestAnimationFrame(step);
+}
+
+// =======================================================
 // PART 1: PENDING ENROLLMENT LIST (Approval Workflow)
 // =======================================================
 
 document.addEventListener('DOMContentLoaded', function() {
     loadEnrollmentData();
+
+    // Setup Filter Pills
+    const pills = document.querySelectorAll('.filter-pill');
+    pills.forEach(pill => {
+        pill.addEventListener('click', function() {
+            pills.forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+            filterEnrollment();
+        });
+    });
 });
 
-// --- LOAD DATA FROM API ---
-// --- LOAD DATA FROM API ---
 function loadEnrollmentData() {
+    // 1. Show Skeletons before fetching
+    const skeletonHTML = `
+        <tr class="skeleton-row">
+            <td><div class="skeleton-box" style="width: 20px;"></div></td>
+            <td><div class="skeleton-box" style="width: 100px;"></div></td>
+            <td><div class="skeleton-box" style="width: 150px;"></div></td>
+            <td><div class="skeleton-box" style="width: 80px;"></div></td>
+            <td><div class="skeleton-box" style="width: 100px;"></div></td>
+            <td><div class="skeleton-box" style="width: 60px;"></div></td>
+        </tr>
+    `.repeat(3);
+
+    [1, 2, 3, 4].forEach(i => {
+        const tbody = document.getElementById(`enrollment-tbody-${i}`);
+        if (tbody) tbody.innerHTML = skeletonHTML;
+    });
+
     fetch('/api/enrollment/pending')
         .then(res => res.json())
         .then(data => {
-            // 1. Clear existing tables
             [1, 2, 3, 4].forEach(i => {
                 const tbody = document.getElementById(`enrollment-tbody-${i}`);
                 if (tbody) tbody.innerHTML = '';
             });
 
-            // 2. Setup Analytics and Grouping
             const summaryContainer = document.getElementById('enrollmentSummaryCards');
             if (summaryContainer) summaryContainer.style.display = 'grid';
             
@@ -27,7 +89,6 @@ function loadEnrollmentData() {
             const groupedData = { '1': [], '2': [], '3': [], '4': [] };
 
             data.forEach(student => {
-                // Group by year
                 let yearIndex = '1'; 
                 if (student.year_level.includes('2')) yearIndex = '2';
                 else if (student.year_level.includes('3')) yearIndex = '3';
@@ -35,17 +96,19 @@ function loadEnrollmentData() {
                 
                 groupedData[yearIndex].push(student);
 
-                // Tally Analytics
                 if (student.decision === 'Retained') reviewCount++;
                 else promoteCount++;
             });
 
-            // Update DOM Cards
-            if(document.getElementById('count-total')) document.getElementById('count-total').innerText = data.length;
-            if(document.getElementById('count-promote')) document.getElementById('count-promote').innerText = promoteCount;
-            if(document.getElementById('count-review')) document.getElementById('count-review').innerText = reviewCount;
+            // Trigger Number Animations
+            const countTotalEl = document.getElementById('count-total');
+            const countPromoteEl = document.getElementById('count-promote');
+            const countReviewEl = document.getElementById('count-review');
+            
+            if (countTotalEl) animateValue(countTotalEl, 0, data.length, 1000);
+            if (countPromoteEl) animateValue(countPromoteEl, 0, promoteCount, 1000);
+            if (countReviewEl) animateValue(countReviewEl, 0, reviewCount, 1000);
 
-            // 3. Populate Tables or Empty States
             [1, 2, 3, 4].forEach(i => {
                 const tbody = document.getElementById(`enrollment-tbody-${i}`);
                 const students = groupedData[i.toString()];
@@ -53,28 +116,28 @@ function loadEnrollmentData() {
                 if (!tbody) return;
 
                 if (students.length === 0) {
-                    // Inject Empty State
                     const yearLabel = i === 1 ? '1st' : i === 2 ? '2nd' : i === 3 ? '3rd' : '4th';
+                    // Inject Designed Empty State
                     tbody.innerHTML = `
                         <tr class="empty-state-row">
                             <td colspan="6">
-                                <i class='bx bx-check-circle'></i>
-                                All caught up! No ${yearLabel} Year students pending enrollment.
+                                <div class="empty-state-container">
+                                    <i class='bx bx-ghost empty-state-icon'></i>
+                                    <div class="empty-state-text">All caught up!</div>
+                                    <div class="empty-state-subtext">No ${yearLabel} Year students pending enrollment.</div>
+                                </div>
                             </td>
                         </tr>
                     `;
                 } else {
-                    // Populate Real Data
                     students.forEach(student => {
                         const row = document.createElement('tr');
                         row.className = 'student-row';
 
-                        // Logic for Remarks Tag
                         let remarksHtml = student.decision === 'Retained' 
                             ? '<span class="tag critical"><i class="bx bx-error-circle"></i> Retained</span>' 
                             : '<span class="tag success"><i class="bx bx-check"></i> Cleared</span>';
 
-                        // Store data for the modal
                         const studentDataStr = JSON.stringify({
                             id: student.id, name: student.name, program: student.program, type: student.type, 
                             year: student.year_level, standing: student.year_level, decision: student.decision, hasWarnings: student.hasWarnings,
@@ -100,16 +163,16 @@ function loadEnrollmentData() {
                         `;
                         tbody.appendChild(row);
                     });
-                    
-                    // Open accordion if it has data
                     tbody.closest('.year-accordion').classList.remove('collapsed');
                 }
             });
         })
-        .catch(err => console.error("Error loading enrollment data:", err));
+        .catch(err => {
+            console.error(err);
+            showToast("Failed to load enrollment data", "error");
+        });
 }
 
-// --- NEW QUICK ACTION FUNCTION ---
 function quickApprove(studentId) {
     if(!confirm(`Are you sure you want to approve student ${studentId}?`)) return;
 
@@ -121,24 +184,21 @@ function quickApprove(studentId) {
     .then(res => res.json())
     .then(data => {
         if(data.success) {
-            // Refresh tables across modules
+            showToast(`Student ${studentId} approved successfully!`, 'success');
             loadEnrollmentData(); 
             if (typeof loadEnlistmentData === 'function') loadEnlistmentData();
             if (typeof loadStudentJourney === 'function') loadStudentJourney();
         } else {
-            alert("Error: " + data.error);
+            showToast(data.error, 'error');
         }
     })
-    .catch(err => alert("Server Error"));
+    .catch(err => showToast("Server Error", 'error'));
 }
 
-// --- BULK ENROLLMENT LOGIC ---
 function toggleAllCheckboxes(source) {
-    // Find the closest table body and check all visible checkboxes
     const table = source.closest('table');
     const checkboxes = table.querySelectorAll('tbody .student-cb');
     checkboxes.forEach(cb => {
-        // Only check rows that aren't hidden by the search filter
         if(cb.closest('tr').style.display !== 'none') {
             cb.checked = source.checked;
         }
@@ -148,18 +208,16 @@ function toggleAllCheckboxes(source) {
 
 function updateBulkEnrollButton() {
     const checked = document.querySelectorAll('.student-cb:checked');
-    const btn = document.getElementById('btn-bulk-enroll');
+    const container = document.getElementById('bulk-action-container');
     const countSpan = document.getElementById('bulk-count');
     
-    // Safety check: Make sure the button actually exists on the page
-    if (!btn) return; 
+    if (!container) return; 
 
     if (checked.length > 0) {
-        btn.style.display = 'inline-flex';
-        // Safety check: Only update innerText if the span exists
+        container.style.display = 'block';
         if (countSpan) countSpan.innerText = checked.length;
     } else {
-        btn.style.display = 'none';
+        container.style.display = 'none';
     }
 }
 
@@ -172,9 +230,8 @@ function confirmBulkEnrollment() {
     if (!confirm(`Are you sure you want to enroll ${ids.length} selected student(s)?`)) return;
 
     const btn = document.getElementById('btn-bulk-enroll');
-    const originalText = btn.innerHTML; // Save the HTML with the span inside
+    const originalText = btn.innerHTML; 
     
-    // Change to loading state
     btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Processing...";
     btn.disabled = true;
 
@@ -186,40 +243,33 @@ function confirmBulkEnrollment() {
     .then(res => res.json())
     .then(data => {
         if(data.success) {
-            // 1. Restore the HTML immediately so the span exists again
             btn.innerHTML = originalText;
+            document.getElementById('bulk-action-container').style.display = 'none';
             
-            // 2. Hide the button explicitly since everyone was enrolled
-            btn.style.display = 'none';
+            showToast(`Successfully enrolled ${data.count} students!`, 'success');
             
-            alert(`Successfully enrolled ${data.count} students!`);
-            
-            // 3. Uncheck master checkboxes
             document.querySelectorAll('.select-all-cb').forEach(cb => cb.checked = false);
             
-            // 4. Refresh tables
             loadEnrollmentData(); 
             if (typeof loadEnlistmentData === 'function') loadEnlistmentData();
             if (typeof loadStudentJourney === 'function') loadStudentJourney();
-            
         } else {
-            alert("Error: " + data.error);
-            btn.innerHTML = originalText; // Restore on error
+            showToast(data.error, 'error');
+            btn.innerHTML = originalText;
         }
     })
     .catch(err => {
-        alert("Server Error: " + err);
-        btn.innerHTML = originalText; // Restore on error
+        showToast("Server Error", 'error');
+        btn.innerHTML = originalText;
     })
     .finally(() => {
         btn.disabled = false;
     });
 }
-// --- CONFIRMATION MODAL & API CALL ---
+
 function openEnrollmentModal(event, data) {
     if (event) event.stopPropagation();
     
-    // UI Updates - Text details
     document.getElementById('modalStudentId').innerText = data.id || '-';
     document.getElementById('modalStudentName').innerText = data.name || '-';
     document.getElementById('modalStudentProgram').innerText = data.program || '-';
@@ -232,7 +282,7 @@ function openEnrollmentModal(event, data) {
     const failedSubjectsContainer = document.getElementById('modalFailedSubjects');
     if (data.hasWarnings && data.failed_subjects && data.failed_subjects.length > 0) {
         warningsDiv.style.display = 'block';
-        failedSubjectsContainer.innerHTML = ''; // Clear old tags
+        failedSubjectsContainer.innerHTML = '';
         
         data.failed_subjects.forEach(subject => {
             failedSubjectsContainer.innerHTML += `<span class="tag critical" style="background: white; border-color: #fecaca; color: #ef4444;"><i class='bx bx-book'></i> ${subject}</span>`;
@@ -241,20 +291,16 @@ function openEnrollmentModal(event, data) {
         warningsDiv.style.display = 'none';
     }
     
-    // UI Update - Student Type Badge
     const typeLabel = data.type || 'Regular';
     const typeClass = typeLabel.toLowerCase() === 'irregular' ? 'irregular' : 'regular';
     document.getElementById('modalStudentType').innerHTML = `<span class="status-pill ${typeClass}">${typeLabel}</span>`;
     
-    // UI Update - Decision Badge (Promote vs Retain)
-// UI Update - Decision Badge (Promote vs Retain)
     const decisionEl = document.getElementById('modalStudentDecision');
     const isRetained = data.decision === 'Retained';
     const decisionIcon = isRetained ? "bx-minus-circle" : "bx-chevrons-up";
     const decisionClass = isRetained ? "badge-retain" : "badge-promote";
     const decisionText = isRetained ? "RETAINED" : "PROMOTING TO NEXT YEAR";
     
-    // Change background of the full-width modern card depending on decision
     const fullCard = document.getElementById('decision-card-container');
     const iconContainer = document.getElementById('decision-icon-container');
     
@@ -280,10 +326,7 @@ function openEnrollmentModal(event, data) {
         </span>
     `;
 
-    // Show the modal
     document.getElementById('enrollmentModal').classList.add('active');
-
-    // Attach ID to Confirm Button
     const btn = document.getElementById('btn-confirm-enroll');
     btn.setAttribute('data-id', data.id);
 }
@@ -301,7 +344,6 @@ function confirmSingleEnrollment() {
     btn.innerText = "Processing...";
     btn.disabled = true;
 
-    // CALL API
     fetch('/api/enrollment/confirm', { 
         method: 'POST', 
         headers: {'Content-Type': 'application/json'},
@@ -310,49 +352,48 @@ function confirmSingleEnrollment() {
     .then(res => res.json())
     .then(data => {
         if(data.success) {
-            alert(`Student successfully enrolled! Status: ${data.status}`);
+            showToast('Student successfully enrolled!', 'success');
             closeEnrollmentModal();
-            
-            // 1. Refresh THIS module (Enrollment)
             loadEnrollmentData(); 
-            
-            // 2. DIRECT UPDATE: Refresh the NEXT module (Enlistment)
-            if (typeof loadEnlistmentData === 'function') {
-                loadEnlistmentData();
-            }
-
-            // 3. Update Student Journey
-            if (typeof loadStudentJourney === 'function') {
-                loadStudentJourney();
-            }
-
+            if (typeof loadEnlistmentData === 'function') loadEnlistmentData();
+            if (typeof loadStudentJourney === 'function') loadStudentJourney();
         } else {
-            alert("Error: " + data.error);
+            showToast(data.error, 'error');
         }
     })
-    .catch(err => alert("Server Error"))
+    .catch(err => showToast("Server Error", 'error'))
     .finally(() => {
-       btn.innerHTML = "<i class='bx bx-check-circle'></i> Approve Enrollment";
-        btn.disabled = false;
+       btn.innerHTML = "<i class='bx bx-check-circle'></i> Enroll Student";
+       btn.disabled = false;
     });
 }
 
-// --- ACCORDION & FILTER ---
 function toggleAccordion(element) {
     element.parentElement.classList.toggle('collapsed');
 }
 
 function filterEnrollment() {
-    const input = document.getElementById('enrollmentSearch');
-    const filter = input.value.toUpperCase();
-    const rows = document.querySelectorAll('.year-table tbody tr');
+    const searchInput = document.getElementById('enrollmentSearch');
+    const input = searchInput ? searchInput.value.toUpperCase() : '';
+    
+    const activePill = document.querySelector('.filter-pill.active');
+    const activeFilter = activePill ? activePill.getAttribute('data-filter') : 'all';
+    
+    const rows = document.querySelectorAll('.year-table tbody tr.student-row');
+
     rows.forEach(row => {
-        if(row.innerText.toUpperCase().indexOf(filter) > -1) {
-            row.style.display = "";
-            row.closest('.year-accordion').classList.remove('collapsed');
-        } else {
-            row.style.display = "none";
+        const text = row.innerText.toUpperCase();
+        let show = text.indexOf(input) > -1;
+
+        if (show && activeFilter !== 'all') {
+            if (activeFilter === 'cleared' && !text.includes('CLEARED')) show = false;
+            if (activeFilter === 'retained' && !text.includes('RETAINED')) show = false;
+            if (activeFilter === 'bscpe' && !text.includes('BSCPE')) show = false;
         }
+
+        row.style.display = show ? "" : "none";
+        
+        if (show) row.closest('.year-accordion').classList.remove('collapsed');
     });
 }
 
@@ -382,7 +423,6 @@ function closeUploadModal() {
 }
 
 // --- FILE HANDLING ---
-
 function handleFileSelect(e) {
     const file = e.target.files[0];
     if (file) {
@@ -392,18 +432,41 @@ function handleFileSelect(e) {
     e.target.value = ''; 
 }
 
-function dropHandler(e) {
-    e.preventDefault();
-    e.currentTarget.classList.remove('dragover');
-    if (e.dataTransfer.files.length > 0) {
-        showLoadingState();
-        const file = e.dataTransfer.files[0];
-        setTimeout(() => processExcelFile(file), 100);
+function dragOverHandler(e) { 
+    e.preventDefault(); 
+    const dt = e.dataTransfer;
+    const zone = e.currentTarget;
+    
+    if (dt.items && dt.items.length > 0 && dt.items[0].kind === 'file') {
+        const fileType = dt.items[0].type;
+        if (fileType.includes('spreadsheetml') || fileType.includes('excel') || fileType.includes('csv')) {
+            zone.classList.add('dragover-success');
+            zone.classList.remove('dragover-error');
+        } else {
+            zone.classList.add('dragover-error');
+            zone.classList.remove('dragover-success');
+        }
     }
 }
 
-function dragOverHandler(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
-function dragLeaveHandler(e) { e.preventDefault(); e.currentTarget.classList.remove('dragover'); }
+function dragLeaveHandler(e) { 
+    e.preventDefault(); 
+    e.currentTarget.classList.remove('dragover-success', 'dragover-error'); 
+}
+
+function dropHandler(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover-success', 'dragover-error');
+    if (e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if(file.name.endsWith('.xls') || file.name.endsWith('.xlsx') || file.name.endsWith('.csv')){
+             showLoadingState();
+             setTimeout(() => processExcelFile(file), 100);
+        } else {
+             showToast("Invalid file type. Please upload XLSX or XLS.", "error");
+        }
+    }
+}
 
 function showLoadingState() {
     const zone = document.querySelector('.drag-drop-zone');
@@ -417,8 +480,9 @@ function resetDropZone() {
     const zone = document.querySelector('.drag-drop-zone');
     if(zone) {
         zone.style.pointerEvents = 'auto';
+        zone.classList.remove('dragover-success', 'dragover-error');
         zone.innerHTML = `
-            <input type="file" id="modalFileInput" hidden onchange="handleFileSelect(event)" accept=".xlsx, .xls">
+            <input type="file" id="modalFileInput" hidden onchange="handleFileSelect(event)" accept=".xlsx, .xls, .csv">
             <i class='bx bx-upload upload-icon-large'></i>
             <h3>Drag and drop file here, or click to browse</h3>
             <p>Accepted formats: XLSX, XLS</p>
@@ -426,10 +490,9 @@ function resetDropZone() {
     }
 }
 
-// --- EXCEL PARSING ---
 function processExcelFile(file) {
     if (typeof XLSX === 'undefined') {
-        alert("Error: The Excel processing library (SheetJS) failed to load.");
+        showToast("Error: Excel library failed to load.", "error");
         resetDropZone();
         return;
     }
@@ -450,24 +513,23 @@ function processExcelFile(file) {
                 fileHeaders = jsonData[0]; 
                 uploadedData = XLSX.utils.sheet_to_json(sheet);
                 
-                // Success
                 setTimeout(() => {
                     nextStep();
                     resetDropZone(); 
                 }, 500);
             } else {
-                alert("The uploaded Excel file appears to be empty.");
+                showToast("The uploaded Excel file appears to be empty.", "error");
                 resetDropZone();
             }
         } catch (error) {
             console.error("SheetJS Error:", error);
-            alert("Error reading file. Please ensure it is a valid .xlsx or .xls file.");
+            showToast("Error reading file. Please ensure it is a valid .xlsx or .xls file.", "error");
             resetDropZone();
         }
     };
 
     reader.onerror = function() {
-        alert("Failed to read file from disk.");
+        showToast("Failed to read file from disk.", "error");
         resetDropZone();
     };
 
@@ -504,28 +566,43 @@ function updatePreviewTable() {
 
     uploadedData.slice(0, 100).forEach((row, index) => {
         const tr = document.createElement('tr');
+        
         const getVal = (key) => {
             const colName = mappings[key];
-            return colName ? (row[colName] || '-') : '-';
+            return colName ? (row[colName] || '') : '';
         };
+
         tr.innerHTML = `
             <td>${index + 1}</td>
             <td><i class='bx bxs-check-circle' style='color:#2e7d32; font-size:1.2rem;'></i></td>
-            <td>${getVal('lastname')}</td>
-            <td>${getVal('firstname')}</td>
-            <td>${getVal('middlename')}</td>
-            <td>${getVal('program')}</td>
-            <td>${getVal('email')}</td>
-            <td>${getVal('contact')}</td>
-            <td>${getVal('address')}</td>
-            <td>${getVal('birthdate')}</td>
-            <td>${getVal('gender')}</td>
+            <td contenteditable="true" data-index="${index}" data-key="lastname">${getVal('lastname')}</td>
+            <td contenteditable="true" data-index="${index}" data-key="firstname">${getVal('firstname')}</td>
+            <td contenteditable="true" data-index="${index}" data-key="middlename">${getVal('middlename')}</td>
+            <td contenteditable="true" data-index="${index}" data-key="program">${getVal('program') || 'BSCpE'}</td>
+            <td contenteditable="true" data-index="${index}" data-key="email">${getVal('email')}</td>
+            <td contenteditable="true" data-index="${index}" data-key="contact">${getVal('contact')}</td>
+            <td contenteditable="true" data-index="${index}" data-key="address">${getVal('address')}</td>
+            <td>${getVal('birthdate') || '-'}</td>
+            <td>${getVal('gender') || '-'}</td>
         `;
         tbody.appendChild(tr);
     });
+
+    const editableCells = tbody.querySelectorAll('td[contenteditable="true"]');
+    editableCells.forEach(cell => {
+        cell.addEventListener('blur', function() {
+            const rowIndex = this.getAttribute('data-index');
+            const dataKey = this.getAttribute('data-key');
+            const newValue = this.innerText.trim();
+            
+            const excelColumnName = mappings[dataKey];
+            if (excelColumnName) {
+                uploadedData[rowIndex][excelColumnName] = newValue;
+            }
+        });
+    });
 }
 
-// --- WIZARD NAVIGATION ---
 function nextStep() {
     if (currentStep === 3) {
         submitEnrollment();
@@ -545,7 +622,6 @@ function submitEnrollment() {
     btn.innerText = "Importing...";
     btn.disabled = true;
 
-    // 1. GATHER DATA
     const mappings = {};
     document.querySelectorAll('.map-select').forEach(sel => {
         if(sel.value) mappings[sel.getAttribute('data-key')] = sel.value;
@@ -565,7 +641,6 @@ function submitEnrollment() {
         };
     });
 
-    // 2. SEND TO SERVER
     fetch('/api/enrollment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -577,19 +652,17 @@ function submitEnrollment() {
             document.getElementById('success-message').innerText = 
                 `${data.count} students successfully enrolled!`;
             
-            // Move to Success Step
             currentStep++;
             updateStepUI();
             
-            // Refresh Pending List
             loadEnrollmentData(); 
         } else {
-            alert("Import Failed: " + (data.message || "Unknown error"));
+            showToast("Import Failed: " + (data.message || "Unknown error"), "error");
         }
     })
     .catch(err => {
         console.error(err);
-        alert("Server Error: Unable to save students.");
+        showToast("Server Error: Unable to save students.", "error");
     })
     .finally(() => {
         btn.innerText = originalText;
@@ -607,6 +680,11 @@ function prevStep() {
 function updateStepUI() {
     [1,2,3,4].forEach(n => document.getElementById(`step-${n}`).style.display = 'none');
     document.getElementById(`step-${currentStep}`).style.display = 'block';
+
+    // Animate the connected progress bar
+    const progressWidth = ((currentStep - 1) / 3) * 100;
+    const progressBar = document.getElementById('stepper-progress');
+    if (progressBar) progressBar.style.width = `${progressWidth}%`;
 
     for(let i=1; i<=4; i++) {
         const icon = document.getElementById(`step-icon-${i}`);
@@ -639,7 +717,6 @@ function updateStepUI() {
 // =======================================================
 
 function openManualEnrollmentModal() {
-    // Reset the form whenever it opens
     document.getElementById('manualEnrollmentForm').reset();
     document.getElementById('manualEnrollmentModal').classList.add('active');
 }
@@ -649,7 +726,6 @@ function closeManualEnrollmentModal() {
 }
 
 function submitManualEnrollment() {
-    // 1. Gather data from form inputs
     const studentId = document.getElementById('manualId').value.trim();
     const first = document.getElementById('manualFirst').value.trim();
     const last = document.getElementById('manualLast').value.trim();
@@ -660,13 +736,11 @@ function submitManualEnrollment() {
     const gender = document.getElementById('manualGender').value;
     const address = document.getElementById('manualAddress').value.trim();
 
-    // Basic Validation
     if (!studentId || !first || !last) {
-        alert("Student ID, First Name, and Last Name are required.");
+        showToast("Student ID, First Name, and Last Name are required.", "error");
         return;
     }
 
-    // 2. Wrap it in an array to match the Excel Upload API format
     const payload = [{
         student_id: studentId || null,
         firstname: first,
@@ -679,13 +753,11 @@ function submitManualEnrollment() {
         address: address
     }];
 
-    // Update button UI
     const btn = document.querySelector('#manualEnrollmentModal .btn-enroll');
     const originalText = btn.innerHTML;
     btn.innerHTML = "Processing...";
     btn.disabled = true;
 
-    // 3. Post to the exact same endpoint as the Excel Upload
     fetch('/api/enrollment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -694,16 +766,16 @@ function submitManualEnrollment() {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            alert("Student successfully enrolled!");
+            showToast("Student successfully enrolled!", "success");
             closeManualEnrollmentModal();
-            loadEnrollmentData(); // Refresh the list
+            loadEnrollmentData(); 
         } else {
-            alert("Failed to add student: " + (data.message || "Unknown error"));
+            showToast("Failed to add student: " + (data.message || "Unknown error"), "error");
         }
     })
     .catch(err => {
         console.error(err);
-        alert("Server Error: Unable to enroll student.");
+        showToast("Server Error: Unable to enroll student.", "error");
     })
     .finally(() => {
         btn.innerHTML = originalText;

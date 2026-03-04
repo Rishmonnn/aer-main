@@ -1,4 +1,5 @@
 <div class="enrollment-container">
+    <div id="toast-container"></div>
     <div class="module-header">ENROLLMENT</div>
 
     <div class="upload-banner">
@@ -41,16 +42,28 @@
         </div>
     </div>
 
-<div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+<div class="controls-wrapper" style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
+    <div class="filter-pills-container" id="enrollmentFilters">
+        <button class="filter-pill active" data-filter="all">All Students</button>
+        <button class="filter-pill" data-filter="cleared">Ready to Promote</button>
+        <button class="filter-pill" data-filter="retained">Retained (Requires Review)</button>
+        <button class="filter-pill" data-filter="bscpe">BSCpE Only</button>
+    </div>
+
+    <div style="display: flex; gap: 15px; align-items: center;">
         <div class="search-container" style="flex: 1; margin-bottom: 0;">
             <i class='bx bx-search'></i>
             <input type="text" id="enrollmentSearch" placeholder="Search by Student Name or ID Number..." onkeyup="filterEnrollment()">
         </div>
         
-        <button class="btn-enroll" id="btn-bulk-enroll" onclick="confirmBulkEnrollment()" style="display: none; padding: 12px 20px; font-weight: 600; font-size: 14px; gap: 8px;">
-            <i class='bx bx-check-double' style="font-size: 1.2rem;"></i> Enroll Selected (<span id="bulk-count">0</span>)
-        </button>
+        <div id="bulk-action-container" style="display: none;">
+            <button class="sticky-bulk-bar" id="btn-bulk-enroll" onclick="confirmBulkEnrollment()">
+                <i class='bx bx-check-double' style="font-size: 1.2rem;"></i> 
+                <span>Enroll Selected (<span id="bulk-count">0</span>)</span>
+            </button>
+        </div>
     </div>
+</div>
 
     <div class="year-accordion">
         <div class="accordion-header header-pink" onclick="toggleAccordion(this)">
@@ -232,9 +245,10 @@
         </div>
 
         <div class="stepper-wrapper">
-            <div class="step-indicator active" id="step-icon-1">1</div><i class='bx bx-right-arrow-alt step-arrow'></i>
-            <div class="step-indicator" id="step-icon-2">2</div><i class='bx bx-right-arrow-alt step-arrow'></i>
-            <div class="step-indicator" id="step-icon-3">3</div><i class='bx bx-right-arrow-alt step-arrow'></i>
+            <div class="stepper-progress-bar" id="stepper-progress"></div>
+            <div class="step-indicator active" id="step-icon-1">1</div>
+            <div class="step-indicator" id="step-icon-2">2</div>
+            <div class="step-indicator" id="step-icon-3">3</div>
             <div class="step-indicator" id="step-icon-4">4</div>
         </div>
 

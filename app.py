@@ -407,12 +407,15 @@ def get_enlistment(): return jsonify([])
 @app.route('/api/schedules', methods=['GET'])
 @login_required
 def get_all_schedules():
-    """Fetches all schedules from the database formatted for FullCalendar."""
-    events = ScheduleEvent.query.all()
+    """Fetches schedules filtered by the requested academic term."""
+    # Default to 2nd Sem if the frontend doesn't specify
+    term = request.args.get('term', 'AY2025-2026-Sem2') 
+    
+    # ONLY grab events for this specific term
+    events = ScheduleEvent.query.filter_by(academic_term=term).all()
     output = []
     
     for ev in events:
-        # BUG FIX: Force dates into the strict ISO format FullCalendar requires
         start_str = ev.start_time
         end_str = ev.end_time
         if hasattr(start_str, 'isoformat'): start_str = start_str.isoformat()
@@ -423,7 +426,6 @@ def get_all_schedules():
             'title': ev.title,
             'start': start_str,
             'end': end_str,
-            # Failsafe in case your database column is named differently
             'backgroundColor': getattr(ev, 'color', '#3b82f6'),
             'borderColor': getattr(ev, 'color', '#3b82f6'),
             'extendedProps': {
@@ -440,14 +442,19 @@ def get_all_schedules():
 @app.route('/api/schedules/bulk', methods=['POST'])
 @login_required
 def save_bulk_schedules():
-    """Saves hundreds of classes from Excel instantly to the DB."""
-    data = request.get_json()
-    if not data:
+    """Saves classes to the DB without wiping historical data from older terms."""
+    payload = request.get_json()
+    if not payload:
         return jsonify({'success': False, 'message': 'No data provided'}), 400
         
+    # We now expect a dictionary containing both the 'term' and the 'events'
+    term = payload.get('term', 'AY2025-2026-Sem2')
+    data = payload.get('events', [])
+        
     try:
-        # Clear old imported schedules to prevent duplicates on re-import
-        ScheduleEvent.query.delete() 
+        # THE MAGIC: Delete ONLY the old imported schedules for THIS specific term. 
+        # Last semester's schedule is completely safe!
+        ScheduleEvent.query.filter_by(academic_term=term).delete() 
         
         for item in data:
             event = ScheduleEvent(
@@ -460,7 +467,8 @@ def save_bulk_schedules():
                 year_level=str(item['extendedProps'].get('year', '1')),
                 start_time=item.get('start'),
                 end_time=item.get('end'),
-                color=item.get('backgroundColor', '#3b82f6')
+                color=item.get('backgroundColor', '#3b82f6'),
+                academic_term=term # <--- Link the class to the term
             )
             db.session.add(event)
             

@@ -32,7 +32,29 @@
                 allEvents = allEvents.concat(mockDatabase[year].events);
             }
         }
+        
         localStorage.setItem('aeris_imported_schedule', JSON.stringify(allEvents));
+        
+        const activeTerm = document.getElementById('academicTermSelect').value;
+
+        // Send BOTH the term AND the events to Python
+        fetch('/api/schedules/bulk', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                term: activeTerm,
+                events: allEvents
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                console.error("Database save failed:", data.message);
+            }
+        })
+        .catch(error => console.error("Error syncing to database:", error));
         
         if (typeof window.updateInstructorsFromImport === 'function') {
             window.updateInstructorsFromImport(allEvents);
@@ -40,53 +62,41 @@
     }
 
     function loadInitialSchedules() {
-        const savedEvents = localStorage.getItem('aeris_imported_schedule');
-        
-        if (savedEvents && savedEvents.length > 5) {
-            try {
-                const parsedEvents = JSON.parse(savedEvents);
-                
-                for (let year in mockDatabase) mockDatabase[year].events = [];
-                importedFaculty.clear();
-                importedSections.clear();
-                
-                parsedEvents.forEach(ev => {
-                    let year = ev.extendedProps.year;
-                    if (!mockDatabase[year]) mockDatabase[year] = { color: ev.backgroundColor || '#3b82f6', events: [] };
-                    mockDatabase[year].events.push(ev);
-
-                    if (ev.extendedProps.faculty && ev.extendedProps.faculty.toUpperCase() !== 'TBA') {
-                        importedFaculty.add(ev.extendedProps.faculty);
-                    }
-                    if (ev.extendedProps.sectionCode) {
-                        importedSections.add(ev.extendedProps.sectionCode);
-                    }
-                });
-                
-                updateSelectDropdowns(); 
-                if (calendarInstance) loadYearData(currentActiveYear);
-            } catch (e) {
-                fetchFromAPI(); 
-            }
-        } else {
-            fetchFromAPI(); 
-        }
-    }
+    // Force the app to ALWAYS fetch from the MySQL database first
+    // instead of relying on the local browser storage.
+    fetchFromAPI(); 
+}
 
     function fetchFromAPI() {
-        fetch('/api/schedules')
+        // Grab the selected term from the dropdown
+        const activeTerm = document.getElementById('academicTermSelect').value;
+        
+        // Append the term to the URL so Python knows which one to fetch
+        fetch(`/api/schedules?term=${activeTerm}`)
         .then(res => res.json())
         .then(data => {
+            // Clear old data
             for (let year in mockDatabase) mockDatabase[year].events = [];
+            importedFaculty.clear();
+            importedSections.clear();
+            
             data.forEach(event => {
                 let year = event.extendedProps.year;
-                if (!mockDatabase[year]) mockDatabase[year] = { color: event.backgroundColor, events: [] };
+                if (!mockDatabase[year]) mockDatabase[year] = { color: event.backgroundColor || '#3b82f6', events: [] };
                 mockDatabase[year].events.push(event);
+
+                if (event.extendedProps.faculty && event.extendedProps.faculty.toUpperCase() !== 'TBA') {
+                    importedFaculty.add(event.extendedProps.faculty);
+                }
+                if (event.extendedProps.sectionCode) {
+                    importedSections.add(event.extendedProps.sectionCode);
+                }
             });
             
-            syncMemoryToStorage(); 
+            updateSelectDropdowns(); 
             if (calendarInstance) loadYearData(currentActiveYear);
-        });
+        })
+        .catch(err => console.error("Error loading from database:", err));
     }
 
     function init() {
@@ -753,9 +763,10 @@
         }
 
         const filterSelects = document.querySelectorAll('.controls-group select');
-        const sectionFilter = filterSelects.length > 1 ? filterSelects[1].value : 'all';
-        const facultyFilter = filterSelects.length > 2 ? filterSelects[2].value : 'all';
-
+        const sectionFilterSelect = document.getElementById('sectionFilterSelect');
+        const facultyFilterSelect = document.getElementById('facultyFilterSelect');
+        const sectionFilter = sectionFilterSelect ? sectionFilterSelect.value : 'all';
+        const facultyFilter = facultyFilterSelect ? facultyFilterSelect.value : 'all';
         if (sectionFilter !== 'all' || facultyFilter !== 'all') {
             allEventsToDisplay = allEventsToDisplay.filter(ev => {
                 let matchSection = true;
@@ -775,8 +786,8 @@
         }
 
         if (allEventsToDisplay.length > 0) {
-            // Instantly injects classes into the existing grid so the screen never blinks white!
-            allEventsToDisplay.forEach(ev => calendarInstance.addEvent(ev));
+            // THE FIX: Batch add all events at once to eliminate rendering lag
+            calendarInstance.addEventSource(allEventsToDisplay);
             updateKPIs(allEventsToDisplay); 
             toggleEmptyState(true); 
         } else {
@@ -962,16 +973,16 @@
         const dropZone = document.getElementById('dragDropZone');
         const fileInput = document.getElementById('modalFileInput');
 
-        const filterSelects = document.querySelectorAll('.controls-group select');
-        
-        if (filterSelects.length > 1) {
-            filterSelects[1].addEventListener('change', function() {
+        const filterSection = document.getElementById('sectionFilterSelect');
+        if (filterSection) {
+            filterSection.addEventListener('change', function() {
                 loadYearData(currentActiveYear);
             });
         }
         
-        if (filterSelects.length > 2) {
-            filterSelects[2].addEventListener('change', function() {
+        const filterFaculty = document.getElementById('facultyFilterSelect');
+        if (filterFaculty) {
+            filterFaculty.addEventListener('change', function() {
                 loadYearData(currentActiveYear);
             });
         }
@@ -1034,6 +1045,12 @@
                         document.getElementById('sched-subtitle').textContent = `${year}${getOrdinal(year)} Year • All Sections • ${semText}`;
                     }
                 }
+            });
+        }
+        const termSelect = document.getElementById('academicTermSelect');
+        if (termSelect) {
+            termSelect.addEventListener('change', function() {
+                fetchFromAPI(); // Fetch the schedule for the newly selected term
             });
         }
     }
@@ -1101,15 +1118,30 @@
 
         const count = subjectsWithoutInstructor.length;
 
+        container.classList.remove('hidden');
+        container.classList.remove('expanded');
+
         if (count === 0) {
-            container.classList.add('hidden');
+            // NEW: Add a success class for CSS styling
+            container.classList.add('success-mode');
+            
+            titleEl.textContent = "All Classes Have Instructors";
+            document.querySelector('#unassigned-faculty-alert p').textContent = "No pending assignments for this year level.";
+            badgeEl.textContent = "All Clear";
+            listContainer.innerHTML = '';
+            
+            const icon = container.querySelector('.alert-icon-box i');
+            if (icon) icon.className = 'bx bx-check-shield';
             return;
         }
 
-        container.classList.remove('hidden');
+        // NEW: Remove the success class if there are warnings
+        container.classList.remove('success-mode');
+        
         titleEl.textContent = `${count} Subject${count > 1 ? 's' : ''} Without Instructor`;
+        document.querySelector('#unassigned-faculty-alert p').textContent = "These classes need a faculty assignment before the schedule is finalized.";
         badgeEl.textContent = `${count} Pending`;
-
+        
         listContainer.innerHTML = '';
         subjectsWithoutInstructor.forEach(sub => {
             let detailsText = `Section: ${sub.section}`;
@@ -1400,7 +1432,7 @@
 
     function updateSelectDropdowns() {
         const sectionSelect = document.getElementById('modalSection');
-        const filterSelects = document.querySelectorAll('.controls-group select');
+        const filterFaculty = document.getElementById('facultyFilterSelect');
         let filterSection = filterSelects.length > 1 ? filterSelects[1] : null;
 
         const modalYearSelect = document.getElementById('modalYear');

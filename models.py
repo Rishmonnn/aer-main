@@ -88,20 +88,20 @@ class Enrollment(db.Model):
 class ScheduleEvent(db.Model):
     __tablename__ = 'schedule_events'
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)        # Descriptive Title
-    subject_code = db.Column(db.String(20), nullable=False)  # e.g., CPE 101
-    section_code = db.Column(db.String(50), nullable=False)  # e.g., 50123 or A
-    faculty_name = db.Column(db.String(100), nullable=True)  # Instructor
+    title = db.Column(db.String(200), nullable=False)        
+    subject_code = db.Column(db.String(20), nullable=False)  
+    section_code = db.Column(db.String(50), nullable=False)  
+    faculty_name = db.Column(db.String(100), nullable=True)  
     room = db.Column(db.String(50), nullable=True)           
-    type = db.Column(db.String(20), nullable=False)          # lecture or lab
-    year_level = db.Column(db.String(20), nullable=False)    # 1, 2, 3, or 4
+    type = db.Column(db.String(20), nullable=False)          
+    year_level = db.Column(db.String(20), nullable=False)    
     
-    # FullCalendar exact timestamps (e.g., "2026-02-09T07:30:00")
     start_time = db.Column(db.String(50), nullable=False)
     end_time = db.Column(db.String(50), nullable=False)
     color = db.Column(db.String(20), nullable=False)
-
-# models.py (Add to the bottom of the file)
+    
+    # --- NEW: Tracks which semester this schedule belongs to ---
+    academic_term = db.Column(db.String(50), nullable=False, default='AY2025-2026-Sem2')
 
 # 8. ADVISING RECORDS
 class AdvisingRecord(db.Model):
