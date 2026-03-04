@@ -14,8 +14,7 @@
         <div class="accordion-body">
             <table class="enlistment-table">
                 <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody id="enlistment-tbody-1">
-                    </tbody>
+                <tbody id="enlistment-tbody-1"></tbody>
             </table>
         </div>
     </div>
@@ -28,8 +27,7 @@
         <div class="accordion-body">
             <table class="enlistment-table">
                 <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody id="enlistment-tbody-2">
-                     </tbody>
+                <tbody id="enlistment-tbody-2"></tbody>
             </table>
         </div>
     </div>
@@ -42,8 +40,7 @@
         <div class="accordion-body">
             <table class="enlistment-table">
                 <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody id="enlistment-tbody-3">
-                     </tbody>
+                <tbody id="enlistment-tbody-3"></tbody>
             </table>
         </div>
     </div>
@@ -56,8 +53,7 @@
         <div class="accordion-body">
             <table class="enlistment-table">
                 <thead><tr><th>Student ID Number</th><th>Name</th><th>Program</th><th>Status</th><th>Action</th></tr></thead>
-                <tbody id="enlistment-tbody-4">
-                     </tbody>
+                <tbody id="enlistment-tbody-4"></tbody>
             </table>
         </div>
     </div>
@@ -83,22 +79,10 @@
                 </div>
 
                 <div class="student-details-grid-enhanced">
-                    <div class="detail-card">
-                        <span class="label">Program</span>
-                        <span class="value">BSCpE</span>
-                    </div>
-                    <div class="detail-card">
-                        <span class="label">Official Standing</span>
-                        <span class="value" id="modalStanding">-</span>
-                    </div>
-                    <div class="detail-card">
-                        <span class="label">Student Type</span>
-                        <span class="value" id="modalStatus">-</span>
-                    </div>
-                    <div class="detail-card">
-                        <span class="label">Max Allowed Units</span>
-                        <span class="value"><span id="maxUnits">-</span> Units</span>
-                    </div>
+                    <div class="detail-card"><span class="label">Program</span><span class="value">BSCpE</span></div>
+                    <div class="detail-card"><span class="label">Official Standing</span><span class="value" id="modalStanding">-</span></div>
+                    <div class="detail-card"><span class="label">Student Type</span><span class="value" id="modalStatus">-</span></div>
+                    <div class="detail-card"><span class="label">Max Allowed Units</span><span class="value"><span id="maxUnits">-</span> Units</span></div>
                 </div>
 
                 <div id="enlistmentAlerts"></div>
@@ -136,32 +120,21 @@
                 </div>
                 
                 <div class="calendar-wrapper">
-                    <div class="cal-header-row">
-                        <div class="cal-header" style="background: #fff; border-right: 1px solid #e2e8f0;">GMT</div>
-                        <div class="cal-header">MON</div>
-                        <div class="cal-header">TUE</div>
-                        <div class="cal-header">WED</div>
-                        <div class="cal-header">THU</div>
-                        <div class="cal-header">FRI</div>
-                        <div class="cal-header">SAT</div>
-                    </div>
+                    <div class="cal-time-header-row" id="calTimeHeader"></div>
 
-                    <div class="cal-time-col" id="calTimeCol">
-                        </div>
-
-                    <div class="cal-day-col" id="col-MON"></div>
-                    <div class="cal-day-col" id="col-TUE"></div>
-                    <div class="cal-day-col" id="col-WED"></div>
-                    <div class="cal-day-col" id="col-THU"></div>
-                    <div class="cal-day-col" id="col-FRI"></div>
-                    <div class="cal-day-col" id="col-SAT"></div>
+                    <div class="cal-day-row" id="row-MON"><div class="cal-day-label">MON</div><div class="cal-day-track" id="track-MON"></div></div>
+                    <div class="cal-day-row" id="row-TUE"><div class="cal-day-label">TUE</div><div class="cal-day-track" id="track-TUE"></div></div>
+                    <div class="cal-day-row" id="row-WED"><div class="cal-day-label">WED</div><div class="cal-day-track" id="track-WED"></div></div>
+                    <div class="cal-day-row" id="row-THU"><div class="cal-day-label">THU</div><div class="cal-day-track" id="track-THU"></div></div>
+                    <div class="cal-day-row" id="row-FRI"><div class="cal-day-label">FRI</div><div class="cal-day-track" id="track-FRI"></div></div>
+                    <div class="cal-day-row" id="row-SAT"><div class="cal-day-label">SAT</div><div class="cal-day-track" id="track-SAT"></div></div>
                 </div>
 
                 <div class="tba-tray" id="tbaTray" style="display: none;">
                     <div class="tba-header">Unscheduled / TBA Sections</div>
                     <div class="tba-list" id="tbaList"></div>
                 </div>
-            </div>
+            </div> 
         </div>
 
         <div class="modal-footer-bar">
@@ -184,7 +157,6 @@
                             <div style="text-align: center; color: #94a3b8; padding: 10px;">Cart is empty.</div>
                         </div>
                     </div>
-
                 </div>
             </div>
             <div class="footer-buttons">
