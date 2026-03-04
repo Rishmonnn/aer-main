@@ -1381,7 +1381,6 @@
     // --- NEW: SUGGESTION 4 (Resilient Excel parsing) ---
     function processExcelData(data, silent = false) {
         let count = 0;
-        // 1. Dynamically find column indexes by scanning headers (Rows 0-2)
         let colMap = { code: 2, title: 3, course: 4, section: 11, timeLec: 12, timeLab: 13, dayLec: 14, dayLab: 15, roomLec: 16, roomLab: 17, faculty: 18 };
         
         const headerRows = data.slice(0, 3);
@@ -1397,7 +1396,8 @@
             });
         });
 
-        // Loop starting from index 3
+        let allNewEvents = []; // Hold all events before committing them
+
         for (let i = 3; i < data.length; i++) {
             const row = data[i];
             if (!row || row.length < 10) continue;
@@ -1410,12 +1410,10 @@
 
             if (!code || !title) continue;
 
-            // 1. Check if it's a CPE course FIRST
             const courseLower = course.toLowerCase();
             const isCPE = courseLower.includes('cpe') || courseLower.includes('bscpe') || courseLower.includes('computer engineering');
             if (!isCPE) continue; 
 
-            // 2. ONLY THEN capture the faculty and section for the dropdowns
             if (faculty && faculty !== 'undefined') importedFaculty.add(faculty);
             if (section && section !== 'undefined') importedSections.add(section);
 
@@ -1423,44 +1421,61 @@
             const yearMatch = course.match(/-(\d)/); 
             if (yearMatch) targetYear = yearMatch[1];
             
-            let yearColor = '#ef4444'; // Default Red for 1st Year
-            if (targetYear == "2") yearColor = '#3b82f6'; // Blue
-            if (targetYear == "3") yearColor = '#10b981'; // Green
-            if (targetYear == "4") yearColor = '#8b5cf6'; // Purple
-
-            if (!mockDatabase[targetYear]) mockDatabase[targetYear] = { color: yearColor, events: [] };
+            let yearColor = '#ef4444'; 
+            if (targetYear == "2") yearColor = '#3b82f6'; 
+            if (targetYear == "3") yearColor = '#10b981'; 
+            if (targetYear == "4") yearColor = '#8b5cf6'; 
 
             let rowEvents = [];
 
-            // We fall back to standard indices for complex split headers (Time/Room) if strict mapping fails
             extractAndAddEvent('lecture', row[colMap.timeLec], row[colMap.dayLec], row[colMap.roomLec], code, title, section, faculty, rowEvents, yearColor);
             extractAndAddEvent('lab', row[colMap.timeLab], row[colMap.dayLab], row[colMap.roomLab], code, title, section, faculty, rowEvents, yearColor);
 
             if (rowEvents.length > 0) {
                 rowEvents.forEach(ev => ev.extendedProps.year = targetYear);
-                mockDatabase[targetYear].events = mockDatabase[targetYear].events.concat(rowEvents);
-                count += rowEvents.length;
+                allNewEvents = allNewEvents.concat(rowEvents);
             }
         }
 
-        if (count > 0) {
+        if (allNewEvents.length > 0) {
+            // THE FIX: Overwrite Old File Data. Prevent "amplifying" same subjects 
+            // by purging matching class signatures before inserting the newly imported ones.
+            const importedSignatures = new Set(allNewEvents.map(ev => 
+                `${ev.extendedProps.year}_${ev.extendedProps.code}_${ev.extendedProps.sectionCode}_${ev.extendedProps.type}`
+            ));
+
+            for (let year in mockDatabase) {
+                if (mockDatabase[year] && mockDatabase[year].events) {
+                    mockDatabase[year].events = mockDatabase[year].events.filter(existing => {
+                        const sig = `${existing.extendedProps.year}_${existing.extendedProps.code}_${existing.extendedProps.sectionCode}_${existing.extendedProps.type}`;
+                        return !importedSignatures.has(sig); // Remove if it's being updated by this Excel import
+                    });
+                }
+            }
+
+            // Commit New Events
+            allNewEvents.forEach(ev => {
+                const year = ev.extendedProps.year;
+                if (!mockDatabase[year]) mockDatabase[year] = { color: ev.backgroundColor, events: [] };
+                mockDatabase[year].events.push(ev);
+            });
+
+            count = allNewEvents.length;
+
             updateSelectDropdowns();
             loadYearData(currentActiveYear);
             
-            // --- NEW: SEND DATA TO INSTRUCTOR MODULE ---
             let allEvents = [];
             for (let year in mockDatabase) {
                 if (mockDatabase[year] && mockDatabase[year].events) {
                     allEvents = allEvents.concat(mockDatabase[year].events);
                 }
             }
-            // CRITICAL NEW LINE: Save to browser memory so the other tab can read it
-            localStorage.setItem('aeris_imported_schedule', JSON.stringify(allEvents));
             
+            localStorage.setItem('aeris_imported_schedule', JSON.stringify(allEvents));
             if (typeof window.updateInstructorsFromImport === 'function') {
                 window.updateInstructorsFromImport(allEvents);
             }
-            // ------------------------------------------
 
             if (!silent) showToast(`Successfully imported ${count} CPE entries and sorted them by Year Level.`);
             return count;
@@ -1506,28 +1521,49 @@
     populateFaculty();
 }
 
-    function extractAndAddEvent(type, timeStr, dayStr, roomStr, code, title, section, faculty, importedEvents) {
+    function extractAndAddEvent(type, timeStr, dayStr, roomStr, code, title, section, faculty, importedEvents, color) {
         if (!timeStr || !dayStr || String(timeStr).trim() === '' || String(dayStr).trim() === '') return;
-        const times = parseAdvancedTime(String(timeStr));
-        if (!times) return; 
-        const days = parseAdvancedDays(String(dayStr));
         
-        // Hash the color exactly like the React App
-        const color = hashColor(code + type);
+        // THE FIX: Properly pair corresponding times to corresponding days to prevent amplification
+        const timeParts = String(timeStr).split('/').map(s => s.trim()).filter(Boolean);
+        const dayParts = String(dayStr).split('/').map(s => s.trim()).filter(Boolean);
+        const roomParts = String(roomStr).split('/').map(s => s.trim()).filter(Boolean);
+        
+        dayParts.forEach((dayGroup, index) => {
+            // Match corresponding time/room, fallback to the first one if length differs
+            const targetTimeStr = timeParts[index] || timeParts[0];
+            const targetRoomStr = roomParts[index] || roomParts[0] || 'TBA';
+            
+            const times = parseAdvancedTime(targetTimeStr);
+            if (!times) return; 
+            
+            const days = parseAdvancedDays(dayGroup);
+            
+            days.forEach(date => {
+                // Secondary check: Deduplicate identical overlapping segments within the same Excel row
+                const isDuplicate = importedEvents.some(ev => 
+                    ev.extendedProps.code === code &&
+                    ev.extendedProps.sectionCode === section &&
+                    ev.extendedProps.type === type &&
+                    ev.start === `${date}T${times.start}:00` &&
+                    ev.end === `${date}T${times.end}:00`
+                );
 
-        days.forEach(date => {
-            importedEvents.push({
-                title: title,
-                start: `${date}T${times.start}:00`,
-                end: `${date}T${times.end}:00`,
-                backgroundColor: color,
-                borderColor: color,
-                extendedProps: {
-                    code: code,
-                    sectionCode: section,
-                    type: type,
-                    room: roomStr ? String(roomStr).trim() : 'TBA',
-                    faculty: faculty
+                if (!isDuplicate) {
+                    importedEvents.push({
+                        title: title,
+                        start: `${date}T${times.start}:00`,
+                        end: `${date}T${times.end}:00`,
+                        backgroundColor: color,
+                        borderColor: color,
+                        extendedProps: {
+                            code: code,
+                            sectionCode: section,
+                            type: type,
+                            room: targetRoomStr,
+                            faculty: faculty
+                        }
+                    });
                 }
             });
         });
@@ -1550,28 +1586,23 @@
     function parseAdvancedTime(timeStr) {
         if (!timeStr) return null;
         
-        // Grab just the first part if it's duplicated (e.g. "09:00AM-10:30AM/09:00AM-10:30AM")
-        const part = String(timeStr).split('/')[0].trim();
-        
-        // Advanced Regex to catch standard time formats
-        const match = part.match(/(\d{1,2})[:]+(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2})[:]+(\d{2})\s*(AM|PM)/i);
+        // Match just a single parsed time boundary block since it's already split by extractAndAddEvent
+        const match = String(timeStr).trim().match(/(\d{1,2})[:]+(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2})[:]+(\d{2})\s*(AM|PM)/i);
         if (!match) return null;
 
         let startH = parseInt(match[1]);
-        const startM = match[2]; // Keep as string for formatting
+        const startM = match[2]; 
         const startMeridiem = match[3].toUpperCase();
         
         let endH = parseInt(match[4]);
-        const endM = match[5]; // Keep as string for formatting
+        const endM = match[5]; 
         const endMeridiem = match[6].toUpperCase();
 
-        // Convert to 24-hour format
         if (startMeridiem === 'PM' && startH !== 12) startH += 12;
         if (startMeridiem === 'AM' && startH === 12) startH = 0;
         if (endMeridiem === 'PM' && endH !== 12) endH += 12;
         if (endMeridiem === 'AM' && endH === 12) endH = 0;
 
-        // Format as HH:mm for FullCalendar
         const formatHHMM = (h, m) => `${h.toString().padStart(2, '0')}:${m}`;
 
         return {
@@ -1582,23 +1613,20 @@
 
     function parseAdvancedDays(daysStr) {
         if (!daysStr) return [];
-        
-        // Split by slashes or commas ("MON/WED", "TUE, THU")
-        const splitDays = String(daysStr).split(/[/,]/).map(d => d.trim().toUpperCase()).filter(Boolean);
-        
         let dates = [];
+        // Support comma and space separation within the day group
+        const tokens = String(daysStr).replace(/[,]/g, ' ').split(/\s+/).filter(Boolean);
         
-        // Map the extracted days to FullCalendar dates (Base week starting Feb 9, 2026)
-        splitDays.forEach(day => {
-            if (day === 'MON' || day === 'MONDAY' || day === 'M') dates.push('2026-02-09');
-            if (day === 'TUE' || day === 'TUESDAY' || day === 'T') dates.push('2026-02-10');
-            if (day === 'WED' || day === 'WEDNESDAY' || day === 'W') dates.push('2026-02-11');
-            if (day === 'THU' || day === 'THURSDAY' || day === 'TH') dates.push('2026-02-12');
-            if (day === 'FRI' || day === 'FRIDAY' || day === 'F') dates.push('2026-02-13');
-            if (day === 'SAT' || day === 'SATURDAY' || day === 'S') dates.push('2026-02-14');
+        tokens.forEach(day => {
+            const d = day.toUpperCase();
+            if (d === 'MON' || d === 'MONDAY' || d === 'M') dates.push('2026-02-09');
+            if (d === 'TUE' || d === 'TUESDAY' || d === 'T') dates.push('2026-02-10');
+            if (d === 'WED' || d === 'WEDNESDAY' || d === 'W') dates.push('2026-02-11');
+            if (d === 'THU' || d === 'THURSDAY' || d === 'TH') dates.push('2026-02-12');
+            if (d === 'FRI' || d === 'FRIDAY' || d === 'F') dates.push('2026-02-13');
+            if (d === 'SAT' || d === 'SATURDAY' || d === 'S') dates.push('2026-02-14');
         });
 
-        // Return unique dates only
         return [...new Set(dates)];
     }
 
