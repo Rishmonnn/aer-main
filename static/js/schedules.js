@@ -5,32 +5,93 @@
     let importedSections = new Set();
     let editingEvent = null;
     
-    // 1. FACULTY LIST (Fetched via API in init)
-    
     // 2. FULL CURRICULUM DATA
     let curriculumData = [];
 
     // 3. MOCK DATABASE
     const mockDatabase = {
-        "1": { color: '#ef4444', events: [] }, // Professional Red
-        "2": { color: '#3b82f6', events: [] }, // Professional Blue
-        "3": { color: '#10b981', events: [] }, // Professional Green
-        "4": { color: '#8b5cf6', events: [] }  // Professional Purple
+        "1": { color: '#ef4444', events: [] }, 
+        "2": { color: '#3b82f6', events: [] }, 
+        "3": { color: '#10b981', events: [] }, 
+        "4": { color: '#8b5cf6', events: [] }  
     };
 
     const COLOR_PALETTE = [
-        'hsl(210, 90%, 55%)',
-        'hsl(160, 60%, 45%)',
-        'hsl(35, 90%, 55%)',
-        'hsl(280, 60%, 55%)',
-        'hsl(0, 70%, 55%)',
-        'hsl(195, 80%, 45%)',
+        'hsl(210, 90%, 55%)', 'hsl(160, 60%, 45%)', 'hsl(35, 90%, 55%)',
+        'hsl(280, 60%, 55%)', 'hsl(0, 70%, 55%)', 'hsl(195, 80%, 45%)',
     ];
 
     function hashColor(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) & 0xffffffff;
         return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
+    }
+
+    function syncMemoryToStorage() {
+        let allEvents = [];
+        for (let year in mockDatabase) {
+            if (mockDatabase[year] && mockDatabase[year].events) {
+                allEvents = allEvents.concat(mockDatabase[year].events);
+            }
+        }
+        localStorage.setItem('aeris_imported_schedule', JSON.stringify(allEvents));
+        
+        if (typeof window.updateInstructorsFromImport === 'function') {
+            window.updateInstructorsFromImport(allEvents);
+        }
+    }
+
+    // --- FIX 1: RESTORE DROPDOWN MEMORY SO CLASSES DON'T TURN INVISIBLE ---
+    function loadInitialSchedules() {
+        const savedEvents = localStorage.getItem('aeris_imported_schedule');
+        
+        if (savedEvents && savedEvents.length > 5) {
+            try {
+                const parsedEvents = JSON.parse(savedEvents);
+                
+                // Clear the mock database and Sets
+                for (let year in mockDatabase) mockDatabase[year].events = [];
+                importedFaculty.clear();
+                importedSections.clear();
+                
+                parsedEvents.forEach(ev => {
+                    let year = ev.extendedProps.year;
+                    if (!mockDatabase[year]) mockDatabase[year] = { color: ev.backgroundColor || '#3b82f6', events: [] };
+                    mockDatabase[year].events.push(ev);
+
+                    // CRITICAL: Rebuild the memory for dropdowns!
+                    if (ev.extendedProps.faculty && ev.extendedProps.faculty.toUpperCase() !== 'TBA') {
+                        importedFaculty.add(ev.extendedProps.faculty);
+                    }
+                    if (ev.extendedProps.sectionCode) {
+                        importedSections.add(ev.extendedProps.sectionCode);
+                    }
+                });
+                
+                updateSelectDropdowns(); 
+                if (calendarInstance) loadYearData(currentActiveYear);
+            } catch (e) {
+                fetchFromAPI(); 
+            }
+        } else {
+            fetchFromAPI(); 
+        }
+    }
+
+    function fetchFromAPI() {
+        fetch('/api/schedules')
+        .then(res => res.json())
+        .then(data => {
+            for (let year in mockDatabase) mockDatabase[year].events = [];
+            data.forEach(event => {
+                let year = event.extendedProps.year;
+                if (!mockDatabase[year]) mockDatabase[year] = { color: event.backgroundColor, events: [] };
+                mockDatabase[year].events.push(event);
+            });
+            
+            syncMemoryToStorage(); 
+            if (calendarInstance) loadYearData(currentActiveYear);
+        });
     }
 
     function init() {
@@ -64,27 +125,23 @@
             eventDrop: handleScheduleChange,
             eventResize: handleScheduleChange,
             
-            // --- NEW: SUGGESTION 5 (Click to Edit/Delete) ---
             eventClick: function(info) {
                 const ev = info.event;
-                editingEvent = ev; // Set global state
+                editingEvent = ev; 
                 const props = ev.extendedProps;
                 
-                // 1. Open the modal and hide errors
                 const modal = document.getElementById('addClassModal');
                 if (modal) modal.style.display = 'flex';
                 
                 const errorBanner = document.getElementById('modalError');
                 if (errorBanner) errorBanner.style.display = 'none';
                 
-                // 2. Change Modal UI to "Edit Mode"
                 document.querySelector('#addClassModal .header-text h3').textContent = 'Edit Class';
                 document.querySelector('#addClassModal .header-text p').textContent = `Editing: ${ev.title}`;
                 
                 const btnDelete = document.getElementById('btnDeleteClass');
                 if (btnDelete) btnDelete.style.display = 'inline-flex';
                 
-                // 3. Auto-Detect Year & Semester FIRST
                 document.getElementById('modalYear').value = props.year || currentActiveYear;
                 
                 if (props.code && typeof curriculumData !== 'undefined' && curriculumData.length > 0) {
@@ -96,12 +153,9 @@
                     }
                 }
                 
-                // Reload the dropdowns based on the detected Year/Sem
                 if (typeof filterSubjects === 'function') filterSubjects();
                 
-                // 4. Smart Dropdown Selection with Fallbacks
                 setTimeout(() => {
-                    // Select Subject
                     const subjectSelect = document.getElementById('subjectSelect');
                     if(subjectSelect && props.code) {
                         const cleanCode = props.code.trim().toUpperCase();
@@ -115,7 +169,6 @@
                         if (typeof onSubjectChange === 'function') onSubjectChange(); 
                     }
                     
-                    // Select Section
                     const savedSection = (props.sectionCode || '').trim();
                     const modalSection = document.getElementById('modalSection');
                     if (modalSection && savedSection) {
@@ -129,7 +182,6 @@
                     }
                     document.getElementById('sectionCode').value = savedSection;
 
-                    // Select Faculty (Displays current instructor, or leaves blank if TBA)
                     const facultySelect = document.getElementById('facultySelect');
                     if (facultySelect && props.faculty && props.faculty.toUpperCase() !== 'TBA') {
                         let facFound = Array.from(facultySelect.options).find(opt => opt.value.trim().toUpperCase() === props.faculty.trim().toUpperCase());
@@ -140,14 +192,12 @@
                              facultySelect.value = props.faculty;
                         }
                     } else if (facultySelect) {
-                        facultySelect.value = ''; // Leave blank if TBA
+                        facultySelect.value = ''; 
                     }
 
-                    // Fill remaining fields
                     document.getElementById('typeSelect').value = props.type || 'lecture';
                     document.getElementById('roomInput').value = props.room || '';
                     
-                    // Format Time and Day precisely
                     if (ev.start) {
                         let dayIndex = ev.start.getDay();
                         document.getElementById('daySelect').value = dayIndex === 0 ? 7 : dayIndex;
@@ -163,12 +213,11 @@
                 }, 50);
             },
             
-            // Inject EXACT React HTML Structure into Events
             eventContent: function(arg) {
                 let props = arg.event.extendedProps;
                 let facultyShort = props.faculty ? props.faculty.split(',')[0] : 'TBA';
                 let room = props.room || 'TBA';
-                let timeText = arg.timeText; // <-- Get time explicitly from FullCalendar
+                let timeText = arg.timeText; 
                 
                 return {
                     html: `
@@ -192,35 +241,17 @@
 
         calendarInstance.render();
         
-        // FIX: Force update size after a short delay to handle "hidden tab" rendering issues
         setTimeout(() => {
             calendarInstance.updateSize();
         }, 200);
 
         fetchCurriculumData();
-        loadYearData(currentActiveYear);
         populateFaculty(); 
         setupEventListeners();
+        
+        loadInitialSchedules();
     }
 
-    fetch('/api/schedules')
-    .then(res => res.json())
-    .then(data => {
-        // Clear old mock data
-        for (let year in mockDatabase) mockDatabase[year].events = [];
-        
-        // Put database events into the mockDatabase structure
-        data.forEach(event => {
-            let year = event.extendedProps.year;
-            if (!mockDatabase[year]) mockDatabase[year] = { color: event.backgroundColor, events: [] };
-            mockDatabase[year].events.push(event);
-        });
-        
-        // Render the calendar
-        loadYearData(currentActiveYear);
-    });
-
-    // --- NEW: SUGGESTION 3 (Fetch Curriculum) ---
     function fetchCurriculumData() {
         fetch('/api/subjects')
             .then(res => res.json())
@@ -228,22 +259,19 @@
                 if (data.length > 0) {
                     curriculumData = data;
                 }
-                filterSubjects(); // Refresh dropdowns
+                filterSubjects(); 
             })
             .catch(err => console.error("Failed to load curriculum", err));
     }
 
-    // --- POPULATE FACULTY (Connected to API) ---
     function populateFaculty() {
         const facultySelect = document.getElementById('facultySelect');
         const filterSelects = document.querySelectorAll('.controls-group select');
         let filterFaculty = filterSelects.length > 2 ? filterSelects[2] : null;
 
-        // Get the year currently selected in the Add/Edit Modal
         const modalYearSelect = document.getElementById('modalYear');
         const modalYear = modalYearSelect ? modalYearSelect.value : currentActiveYear;
 
-        // HELPER: Scans the database to find faculty actively teaching in a specific year
         const getActiveFacultyForYear = (targetYear) => {
             let active = new Set();
             if (targetYear === 'all') {
@@ -270,14 +298,12 @@
             const dashboardActiveFaculty = getActiveFacultyForYear(currentActiveYear);
             const modalActiveFaculty = getActiveFacultyForYear(modalYear);
 
-            // 1. Populate Modal Dropdown (Grouped by Modal Year)
             if (facultySelect) {
                 facultySelect.innerHTML = '<option value="">-- Select Instructor --</option>';
                 
                 let activeOptions = '';
                 let otherOptions = '';
 
-                // Sort and split faculty into two distinct groups
                 Array.from(allFacultySet).sort().forEach(fac => {
                     if (modalActiveFaculty.has(fac)) { 
                         activeOptions += `<option value="${fac}">${fac}</option>`;
@@ -286,7 +312,6 @@
                     }
                 });
 
-                // Append the groups to the dropdown
                 if (activeOptions) {
                     facultySelect.innerHTML += `<optgroup label="Active in Year ${modalYear}">${activeOptions}</optgroup>`;
                 }
@@ -295,11 +320,9 @@
                 }
             }
 
-            // 2. Populate Dashboard Filter Dropdown (Strictly Filtered by Dashboard Year)
             if (filterFaculty) {
                 filterFaculty.innerHTML = '<option value="all">All Faculty</option>';
                 Array.from(allFacultySet).sort().forEach(fac => {
-                    // Show if viewing 'all' years, or if they actively teach in the selected dashboard tab
                     if (currentActiveYear === 'all' || dashboardActiveFaculty.has(fac)) {
                         filterFaculty.innerHTML += `<option value="${fac}">${fac}</option>`;
                     }
@@ -312,25 +335,18 @@
         fetch('/api/instructors')
             .then(response => response.json())
             .then(data => {
-                // Merge Database Faculty with Imported Faculty
                 let combinedFaculty = new Set(importedFaculty);
                 data.forEach(fac => combinedFaculty.add(fac.name.toUpperCase()));
-                
                 renderDropdowns(combinedFaculty);
             })
             .catch(err => {
-                console.error("Error loading API faculty, falling back to Excel data only:", err);
-                
-                // Fallback: Just use Excel data if API fails
                 renderDropdowns(importedFaculty);
             });
     }
 
-    // --- NEW: SUGGESTION 2 (Smart Conflicts) ---
     function isOverlapping(newStart, newEnd, targetYear, checkRoom, checkFaculty, excludeEvent = null) {
         let eventsToCheck = [];
         
-        // Always check ALL events across all years to prevent room/faculty double booking
         for (let year in mockDatabase) {
             eventsToCheck = eventsToCheck.concat(mockDatabase[year].events.map(e => ({
                 start: new Date(e.start),
@@ -344,19 +360,15 @@
 
         for (let ev of eventsToCheck) {
             if (excludeEvent && ev.title === excludeEvent.title && ev.start.getTime() === new Date(excludeEvent.startStr).getTime()) {
-        continue;
-    }
-            // If time overlaps...
+                continue;
+            }
             if (newStart < ev.end && newEnd > ev.start) {
-                // 1. Room Conflict (Don't check if TBA)
                 if (checkRoom && checkRoom !== 'TBA' && checkRoom.toUpperCase() === ev.room?.toUpperCase()) {
                     return `Room Conflict: ${ev.room} is already booked for ${ev.title}.`;
                 }
-                // 2. Instructor Conflict (Don't check if TBA)
                 if (checkFaculty && checkFaculty !== 'TBA' && checkFaculty.toUpperCase() === ev.faculty?.toUpperCase()) {
                     return `Instructor Conflict: ${ev.faculty} is already teaching ${ev.title}.`;
                 }
-                // 3. Student Conflict (Same Year Level shouldn't overlap)
                 if (targetYear === ev.year) {
                     return `Student Conflict: Time overlaps with ${ev.title} for Year ${targetYear}.`;
                 }
@@ -377,7 +389,6 @@
                 const yearKey = ev.extendedProps.year;
                 
                 if (mockDatabase[yearKey]) {
-                    // FIX: Match the type (Lec/Lab) too, so they don't overwrite each other
                     let dbEvent = mockDatabase[yearKey].events.find(e => 
                         e.title === ev.title && 
                         e.extendedProps.code === ev.extendedProps.code &&
@@ -385,7 +396,6 @@
                     );
                     
                     if (dbEvent) {
-                        // FIX: Format date strictly to local time to prevent the UTC timezone shift pushing classes into Sunday
                         const formatLocal = (d) => {
                             const pad = (n) => String(n).padStart(2, '0');
                             return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
@@ -393,6 +403,8 @@
                         
                         dbEvent.start = formatLocal(ev.start);
                         if (ev.end) dbEvent.end = formatLocal(ev.end);
+                        
+                        syncMemoryToStorage();
                     }
                 }
                 
@@ -401,33 +413,6 @@
             () => { 
                 info.revert();
             }
-        );
-    }
-
-    function deleteClass() {
-        if (!editingEvent) return;
-        
-        showCustomConfirm(
-            "Delete Class",
-            `Are you sure you want to permanently delete ${editingEvent.title}?`,
-            "Delete",
-            "Cancel",
-            () => { // <-- Runs if they click Delete
-                const yearKey = editingEvent.extendedProps.year;
-                
-                if (mockDatabase[yearKey]) {
-                    mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
-                        !(e.title === editingEvent.title && e.extendedProps.code === editingEvent.extendedProps.code)
-                    );
-                }
-                
-                editingEvent.remove();
-                updateKPIs(calendarInstance.getEvents());
-                
-                if (typeof showToast === 'function') showToast("Class deleted successfully.");
-                closeModal();
-            },
-            null // Do nothing if cancelled
         );
     }
 
@@ -500,7 +485,6 @@
         const type = document.getElementById('typeSelect').value;
         const sectionCode = document.getElementById('sectionCode').value;
 
-        // Convert day index to date
         const date = getNextDayOfWeek(day);
         const startDt = new Date(`${date}T${start}:00`);
         const endDt = new Date(`${date}T${end}:00`);
@@ -522,8 +506,8 @@
             title: subData.title,
             start: `${date}T${start}:00`,
             end: `${date}T${end}:00`,
-            backgroundColor: yearColor, // Now uses correct Year color instantly
-            borderColor: yearColor,     // Now uses correct Year color instantly
+            backgroundColor: yearColor, 
+            borderColor: yearColor,     
             extendedProps: {
                 code: subData.code,
                 sectionCode: sectionCode,
@@ -537,7 +521,6 @@
         if (editingEvent) {
             const oldYear = editingEvent.extendedProps.year;
             if (mockDatabase[oldYear]) { 
-                // FIX 2: Added e.extendedProps.type to ensure editing a Lecture doesn't delete the Lab!
                 mockDatabase[oldYear].events = mockDatabase[oldYear].events.filter(e => 
                     !(e.title === editingEvent.title && 
                       e.extendedProps.code === editingEvent.extendedProps.code &&
@@ -550,10 +533,10 @@
         if (!mockDatabase[modalYear]) mockDatabase[modalYear] = { color: yearColor, events: [] };
         mockDatabase[modalYear].events.push(newEvent);
 
+        syncMemoryToStorage();
+
         if (modalYear === currentActiveYear) {
-            calendarInstance.addEvent(newEvent);
-            updateKPIs(calendarInstance.getEvents());
-            toggleEmptyState(true); 
+            loadYearData(currentActiveYear);
         } else {
             if (typeof showToast === 'function') {
                 showToast(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
@@ -565,11 +548,9 @@
         Schedules.closeModal();
     }
 
-    // --- UPDATED: EXPORT TO EXCEL (WITH CALCULATED HOURS & COLORS) ---
     function exportToExcel() {
         let groupedData = {};
 
-        // 1. Group events and mathematically calculate the duration (hours)
         for (let year in mockDatabase) {
             if (mockDatabase[year] && mockDatabase[year].events) {
                 mockDatabase[year].events.forEach(ev => {
@@ -578,12 +559,8 @@
 
                     if (!groupedData[key]) {
                         groupedData[key] = {
-                            campus: "CARMEN",
-                            code: props.code || "",
-                            title: ev.title || "",
-                            course: `BSCPE-${props.year}`, 
-                            section: props.sectionCode || "",
-                            faculty: props.faculty || "",
+                            campus: "CARMEN", code: props.code || "", title: ev.title || "",
+                            course: `BSCPE-${props.year}`, section: props.sectionCode || "", faculty: props.faculty || "",
                             lecTimes: new Set(), lecDays: new Set(), lecRooms: new Set(), lecHrs: 0,
                             labTimes: new Set(), labDays: new Set(), labRooms: new Set(), labHrs: 0
                         };
@@ -591,16 +568,14 @@
 
                     let timeStr = "";
                     let dayStr = "";
-                    let durationHrs = 0; // Will hold the calculated hours
+                    let durationHrs = 0; 
 
                     if (ev.start && ev.end) {
                         const startDt = new Date(ev.start);
                         const endDt = new Date(ev.end);
                         
-                        // Calculate difference in exact hours (e.g., 1.5 for 1 hr 30 mins)
                         durationHrs = (endDt - startDt) / (1000 * 60 * 60);
                         
-                        // Strict format to "09:00AM"
                         const formatTime = (dt) => {
                             let hours = dt.getHours();
                             let minutes = dt.getMinutes();
@@ -616,31 +591,28 @@
                         dayStr = daysShort[startDt.getDay()];
                     }
 
-                    // Distribute data and append hours
                     if (props.type === 'lecture' || props.type === 'Lec') {
                         if (timeStr) groupedData[key].lecTimes.add(timeStr);
                         if (dayStr) groupedData[key].lecDays.add(dayStr);
                         if (props.room) groupedData[key].lecRooms.add(props.room);
-                        groupedData[key].lecHrs += durationHrs; // Add calculated time
+                        groupedData[key].lecHrs += durationHrs; 
                     } else {
                         if (timeStr) groupedData[key].labTimes.add(timeStr);
                         if (dayStr) groupedData[key].labDays.add(dayStr);
                         if (props.room) groupedData[key].labRooms.add(props.room);
-                        groupedData[key].labHrs += durationHrs; // Add calculated time
+                        groupedData[key].labHrs += durationHrs; 
                     }
                 });
             }
         }
 
-        // 2. Build the EXACT layout matching the CSV Template
         let aoa = [
             ["", "", "", "", "", "", "", "", "", "", "", "", "Time", "", "Days", "", "Room", "", "Faculty"],
             ["", "CAMPUS", "Code", "Descriptive Title", "Course", "Units", "", "", "Teaching Hours", "", "", "Section", "FACE TO FACE", "", "FACE TO FACE", "", "", "", ""],
             ["", "", "", "", "", "Lec", "Lab", "Total", "Lec", "Lab", "Total", "", "Lec", "LAB", "Lec", "LAB", "Lec", "Lab", ""],
-            [] // Empty row 4 just like the template
+            [] 
         ];
 
-        // 3. Process grouped data into rows
         Object.values(groupedData).forEach(row => {
             let lecDayFormat = Array.from(row.lecDays).join('/');
             let labDayFormat = Array.from(row.labDays).join('/');
@@ -658,31 +630,20 @@
             let lecRoomFormat = Array.from(row.lecRooms).join('/');
             let labRoomFormat = Array.from(row.labRooms).join('/');
 
-            // Calculate Units & Totals (Will default to 0 if none)
             let lecU = row.lecHrs || 0;
             let labU = row.labHrs || 0;
             let totalU = lecU + labU;
 
             aoa.push([
-                "", // Col 0 (Empty)
-                row.campus, 
-                row.code, 
-                row.title, 
-                row.course, 
-                lecU, labU, totalU,   // Calculated Units
-                lecU, labU, totalU,   // Calculated Teaching Hours
-                row.section, 
-                lecTimeFormat, 
-                labTimeFormat, 
-                lecDayFormat, 
-                labDayFormat, 
-                lecRoomFormat, 
-                labRoomFormat, 
-                row.faculty 
+                "", 
+                row.campus, row.code, row.title, row.course, 
+                lecU, labU, totalU,   
+                lecU, labU, totalU,   
+                row.section, lecTimeFormat, labTimeFormat, lecDayFormat, labDayFormat, 
+                lecRoomFormat, labRoomFormat, row.faculty 
             ]);
         });
 
-        // Abort if calendar is empty
         if (aoa.length <= 4) {
             if (typeof showToast === 'function') showToast("No classes found to export.");
             else alert("No classes found to export.");
@@ -691,18 +652,13 @@
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-        // Apply column merges
         ws['!merges'] = [
-            { s: {r:0, c:12}, e: {r:0, c:13} }, // Time
-            { s: {r:0, c:14}, e: {r:0, c:15} }, // Days
-            { s: {r:0, c:16}, e: {r:0, c:17} }, // Room
-            { s: {r:1, c:12}, e: {r:1, c:13} }, // FACE TO FACE (Time)
-            { s: {r:1, c:14}, e: {r:1, c:15} }, // FACE TO FACE (Days)
-            { s: {r:1, c:5}, e: {r:1, c:7} },   // Units
-            { s: {r:1, c:8}, e: {r:1, c:10} }   // Teaching Hours
+            { s: {r:0, c:12}, e: {r:0, c:13} }, { s: {r:0, c:14}, e: {r:0, c:15} },
+            { s: {r:0, c:16}, e: {r:0, c:17} }, { s: {r:1, c:12}, e: {r:1, c:13} },
+            { s: {r:1, c:14}, e: {r:1, c:15} }, { s: {r:1, c:5}, e: {r:1, c:7} },   
+            { s: {r:1, c:8}, e: {r:1, c:10} }   
         ];
 
-        // Ensure columns are perfectly spaced out
         ws['!cols'] = [
             { wch: 3 }, { wch: 10 }, { wch: 12 }, { wch: 40 }, { wch: 10 }, 
             { wch: 5 }, { wch: 5 }, { wch: 6 }, { wch: 5 }, { wch: 5 }, { wch: 6 }, 
@@ -710,41 +666,31 @@
             { wch: 15 }, { wch: 15 }, { wch: 30 }
         ];
 
-        // --- NEW: ADVANCED EXCEL CELL STYLING (COLORS & BORDERS) ---
         const headerStyle = {
-            fill: { fgColor: { rgb: "D9E1F2" } }, // Light professional blue background
+            fill: { fgColor: { rgb: "D9E1F2" } }, 
             font: { bold: true, color: { rgb: "000000" }, name: "Arial", sz: 10 },
             alignment: { horizontal: "center", vertical: "center", wrapText: true },
             border: {
-                top: { style: "thin", color: { rgb: "000000" } },
-                bottom: { style: "thin", color: { rgb: "000000" } },
-                left: { style: "thin", color: { rgb: "000000" } },
-                right: { style: "thin", color: { rgb: "000000" } }
+                top: { style: "thin", color: { rgb: "000000" } }, bottom: { style: "thin", color: { rgb: "000000" } },
+                left: { style: "thin", color: { rgb: "000000" } }, right: { style: "thin", color: { rgb: "000000" } }
             }
         };
 
         const dataStyle = {
-            alignment: { horizontal: "center", vertical: "center" },
-            font: { name: "Arial", sz: 10 }
+            alignment: { horizontal: "center", vertical: "center" }, font: { name: "Arial", sz: 10 }
         };
 
-        // Loop through the entire sheet to apply colors and alignment
         let range = XLSX.utils.decode_range(ws['!ref']);
         for (let R = range.s.r; R <= range.e.r; R++) {
             for (let C = range.s.c; C <= range.e.c; C++) {
                 let cellAddress = XLSX.utils.encode_cell({r: R, c: C});
                 if (!ws[cellAddress]) continue;
 
-                // First 3 rows get Header colors, everything else gets normal alignment
-                if (R <= 2) {
-                    ws[cellAddress].s = headerStyle;
-                } else {
-                    ws[cellAddress].s = dataStyle;
-                }
+                if (R <= 2) ws[cellAddress].s = headerStyle;
+                else ws[cellAddress].s = dataStyle;
             }
         }
 
-        // Generate and download
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Class Schedules");
         XLSX.writeFile(wb, "AERIS_Class_Schedules.xlsx");
@@ -753,22 +699,23 @@
     }
 
     function getNextDayOfWeek(dayIndex) {
-        // Base date: Feb 9 2026 is a Monday
         const baseDay = 9; 
-        const offset = dayIndex - 1; // Mon=1 -> offset=0
+        const offset = dayIndex - 1; 
         const targetDay = baseDay + offset;
         const dayStr = targetDay < 10 ? `0${targetDay}` : targetDay;
         return `2026-02-${dayStr}`;
     }
 
+    // --- FIX 2: PREVENT DOUBLE SOURCES ON THE CALENDAR ---
     function loadYearData(yearKey) {
         if (!calendarInstance) return;
         currentActiveYear = yearKey;
-        calendarInstance.removeAllEvents();
+        
+        // CRITICAL FIX: Destroys ALL old data layers before adding new ones so they never duplicate
+        calendarInstance.removeAllEventSources();
         
         let allEventsToDisplay = [];
 
-        // 1. Get all events for the selected year (or all years)
         if (yearKey === 'all') {
             for (let year in mockDatabase) {
                 const data = mockDatabase[year];
@@ -792,24 +739,19 @@
             }
         }
 
-        // --- NEW: APPLY DASHBOARD FILTERS ---
-        // Find the top filter dropdowns (Assuming Section is index 1, Faculty is index 2)
         const filterSelects = document.querySelectorAll('.controls-group select');
         const sectionFilter = filterSelects.length > 1 ? filterSelects[1].value : 'all';
         const facultyFilter = filterSelects.length > 2 ? filterSelects[2].value : 'all';
 
-        // Filter the events if a specific section or faculty is selected
         if (sectionFilter !== 'all' || facultyFilter !== 'all') {
             allEventsToDisplay = allEventsToDisplay.filter(ev => {
                 let matchSection = true;
                 let matchFaculty = true;
 
                 if (sectionFilter !== 'all') {
-                    // Make sure to handle potential undefined values gracefully
                     const evSection = ev.extendedProps.sectionCode || "";
                     matchSection = evSection.toUpperCase() === sectionFilter.toUpperCase();
                 }
-                
                 if (facultyFilter !== 'all') {
                     const evFaculty = ev.extendedProps.faculty || "";
                     matchFaculty = evFaculty.toUpperCase() === facultyFilter.toUpperCase();
@@ -818,12 +760,10 @@
                 return matchSection && matchFaculty;
             });
         }
-        // --- END OF FILTERING ---
 
-        // 3. Display the events
         if (allEventsToDisplay.length > 0) {
             calendarInstance.addEventSource(allEventsToDisplay);
-            updateKPIs(allEventsToDisplay); // KPIs will now reflect the filtered count!
+            updateKPIs(allEventsToDisplay); 
             toggleEmptyState(true); 
         } else {
             updateKPIs([]);
@@ -833,23 +773,19 @@
     }
 
     function jumpToUnassigned(year, code, section) {
-        // 1. Ensure the calendar is showing the correct year
         if (currentActiveYear !== year && currentActiveYear !== 'all') {
-            // Update the toggle UI visually
             document.querySelectorAll('.toggle-btn').forEach(btn => {
                 btn.classList.remove('active');
                 if (btn.dataset.year === String(year)) btn.classList.add('active');
             });
             
-            // Reset Dashboard dropdown filters so the class doesn't stay hidden
             const filterSelects = document.querySelectorAll('.controls-group select');
-            if (filterSelects.length > 1) filterSelects[1].value = 'all'; // Reset Section
-            if (filterSelects.length > 2) filterSelects[2].value = 'all'; // Reset Faculty
+            if (filterSelects.length > 1) filterSelects[1].value = 'all'; 
+            if (filterSelects.length > 2) filterSelects[2].value = 'all'; 
             
-            loadYearData(year); // Reload calendar with correct year
+            loadYearData(year); 
         }
 
-        // 2. Find the exact event object in the calendar
         const events = calendarInstance.getEvents();
         const targetEvent = events.find(ev => 
             ev.extendedProps.code === code && 
@@ -859,16 +795,13 @@
 
         if (!targetEvent) return;
 
-        // 3. Jump the calendar UI to the exact date of the class
         if (targetEvent.start) {
             calendarInstance.gotoDate(targetEvent.start);
         }
 
-        // 4. Collapse the alert panel so it gets out of the way
         const container = document.getElementById('unassigned-faculty-alert');
         if (container) container.classList.remove('expanded');
 
-        // 5. Open the Edit Modal automatically
         editingEvent = targetEvent; 
         const props = targetEvent.extendedProps;
         
@@ -878,14 +811,12 @@
         const errorBanner = document.getElementById('modalError');
         if (errorBanner) errorBanner.style.display = 'none';
         
-        // Update Modal Headers
         document.querySelector('#addClassModal .header-text h3').textContent = 'Assign Instructor';
         document.querySelector('#addClassModal .header-text p').textContent = `Resolving unassigned faculty for: ${targetEvent.title}`;
         
         const btnDelete = document.getElementById('btnDeleteClass');
         if (btnDelete) btnDelete.style.display = 'inline-flex';
         
-        // --- THE FIX: Auto-Detect Year & Semester FIRST ---
         document.getElementById('modalYear').value = props.year || currentActiveYear;
         
         if (props.code && typeof curriculumData !== 'undefined' && curriculumData.length > 0) {
@@ -899,9 +830,7 @@
         
         if (typeof filterSubjects === 'function') filterSubjects();
         
-        // --- THE FIX: Smart Dropdown Selection with Fallbacks ---
         setTimeout(() => {
-            // Select Subject
             const subjectSelect = document.getElementById('subjectSelect');
             if(subjectSelect && props.code) {
                 const cleanCode = props.code.trim().toUpperCase();
@@ -915,7 +844,6 @@
                 if (typeof onSubjectChange === 'function') onSubjectChange(); 
             }
             
-            // Select Section
             const savedSection = (props.sectionCode || '').trim();
             const modalSection = document.getElementById('modalSection');
             if (modalSection && savedSection) {
@@ -929,7 +857,6 @@
             }
             document.getElementById('sectionCode').value = savedSection;
 
-            // Select Faculty (Even though it's unassigned, this ensures any existing TBA text is handled)
             const facultySelect = document.getElementById('facultySelect');
             if (facultySelect && props.faculty && props.faculty.toUpperCase() !== 'TBA') {
                 let facFound = Array.from(facultySelect.options).find(opt => opt.value.trim().toUpperCase() === props.faculty.trim().toUpperCase());
@@ -940,14 +867,12 @@
                      facultySelect.value = props.faculty;
                 }
             } else if (facultySelect) {
-                facultySelect.value = ''; // Leave blank if TBA so they can immediately select one
+                facultySelect.value = ''; 
             }
 
-            // Fill remaining fields
             document.getElementById('typeSelect').value = props.type || 'lecture';
             document.getElementById('roomInput').value = props.room || '';
             
-            // Format Time and Day
             if (targetEvent.start) {
                 let dayIndex = targetEvent.start.getDay();
                 document.getElementById('daySelect').value = dayIndex === 0 ? 7 : dayIndex;
@@ -964,22 +889,21 @@
     }
 
     function toggleEmptyState(hasEvents) {
-    const emptyState = document.getElementById('empty-state');
-    const calendarWrapper = document.getElementById('calendar-wrapper');
+        const emptyState = document.getElementById('empty-state');
+        const calendarWrapper = document.getElementById('calendar-wrapper');
 
-    if (hasEvents) {
-        emptyState.style.display = 'none';
-        calendarWrapper.style.display = 'block';
-        
-        // Force FullCalendar to recalculate its size when it becomes visible again
-        if (calendarInstance) {
-            setTimeout(() => calendarInstance.updateSize(), 50);
+        if (hasEvents) {
+            emptyState.style.display = 'none';
+            calendarWrapper.style.display = 'block';
+            
+            if (calendarInstance) {
+                setTimeout(() => calendarInstance.updateSize(), 50);
+            }
+        } else {
+            emptyState.style.display = 'flex';
+            calendarWrapper.style.display = 'none';
         }
-    } else {
-        emptyState.style.display = 'flex';
-        calendarWrapper.style.display = 'none';
     }
-}
 
     function updateKPIs(events) {
         const totalEl = document.getElementById('kpi-total');
@@ -997,18 +921,16 @@
 
     function openModal() { 
         hideError();
-        editingEvent = null; // <-- Reset editing state
+        editingEvent = null; 
         
         const modal = document.getElementById('addClassModal');
         modal.style.display = 'flex';
         
-        // Reset UI to "Add Mode"
         document.querySelector('#addClassModal .header-text h3').textContent = 'Add New Class';
         document.querySelector('#addClassModal .header-text p').textContent = 'Enter class details based on Curriculum';
         const btnDelete = document.getElementById('btnDeleteClass');
-        if(btnDelete) btnDelete.style.display = 'none'; // Hide delete button
+        if(btnDelete) btnDelete.style.display = 'none'; 
         
-        // Clear all fields
         document.getElementById('modalYear').value = currentActiveYear;
         document.getElementById('sectionCode').value = '';
         document.getElementById('roomInput').value = '';
@@ -1026,17 +948,14 @@
         const dropZone = document.getElementById('dragDropZone');
         const fileInput = document.getElementById('modalFileInput');
 
-        // --- NEW: Listen for Dropdown Changes ---
         const filterSelects = document.querySelectorAll('.controls-group select');
         
-        // Section Dropdown Listener
         if (filterSelects.length > 1) {
             filterSelects[1].addEventListener('change', function() {
                 loadYearData(currentActiveYear);
             });
         }
         
-        // Faculty Dropdown Listener
         if (filterSelects.length > 2) {
             filterSelects[2].addEventListener('change', function() {
                 loadYearData(currentActiveYear);
@@ -1052,39 +971,35 @@
         }
 
         if (dropZone) {
-    // Prevent default browser behavior (which is to open the file in a new tab)
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-            });
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+                });
 
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
             }
 
-    // Add highlight effect when dragging over
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
-        });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+            });
 
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
-        });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+            });
 
-    // Handle dropped files
-        dropZone.addEventListener('drop', function(e) {
-            let dt = e.dataTransfer;
-            let files = dt.files;
+            dropZone.addEventListener('drop', function(e) {
+                let dt = e.dataTransfer;
+                let files = dt.files;
 
-        if (files.length) {
-            // Assign the dropped file to the hidden input
-            fileInput.files = files;
-            // Manually trigger your existing handleImport event
-            const event = new Event('change');
-            fileInput.dispatchEvent(event);
+                if (files.length) {
+                    fileInput.files = files;
+                    const event = new Event('change');
+                    fileInput.dispatchEvent(event);
+                }
+            });
         }
-    });
-}
+        
         const container = document.getElementById('schedules');
         if (container) {
             container.addEventListener('click', function(e) {
@@ -1096,11 +1011,9 @@
                     loadYearData(year);
                     updateSelectDropdowns();
 
-                    // Safely check for the dropdown to prevent future null errors
                     const semDropdown = document.querySelector('.sched-select');
                     const semText = semDropdown && semDropdown.value === "1st Semester" ? "1st Sem" : "2nd Sem";
 
-                    // Prevent the subtitle from saying "allth Year" when clicking 'All'
                     if (year === 'all') {
                         document.getElementById('sched-subtitle').textContent = `All Years • All Sections • ${semText}`;
                     } else {
@@ -1109,10 +1022,8 @@
                 }
             });
         }
-        
     }
 
-    // --- NEW: Dynamic Alert Card Logic ---
     function toggleUnassignedAlert() {
         const container = document.getElementById('unassigned-faculty-alert');
         if (container) container.classList.toggle('expanded');
@@ -1121,13 +1032,11 @@
     function updateUnassignedAlert() {
         let pendingSubjects = {};
 
-        // 1. Scan the database to group unassigned classes
         for (let year in mockDatabase) {
             if (mockDatabase[year] && mockDatabase[year].events) {
                 mockDatabase[year].events.forEach(ev => {
                     let props = ev.extendedProps;
                     
-                    // Filter: Class has no assigned faculty
                     if (!props.faculty || props.faculty.toUpperCase() === 'TBA') {
                         let key = `${props.year}_${props.code}_${props.sectionCode}`;
                         
@@ -1142,7 +1051,6 @@
                             };
                         }
 
-                        // Format Time logic exactly to HH:MM AM/PM
                         let timeStr = "";
                         if (ev.start && ev.end) {
                             const startDt = new Date(ev.start);
@@ -1179,13 +1087,11 @@
 
         const count = subjectsWithoutInstructor.length;
 
-        // 2. Hide component if no pending assignments exist
         if (count === 0) {
             container.classList.add('hidden');
             return;
         }
 
-        // 3. Render Component Data
         container.classList.remove('hidden');
         titleEl.textContent = `${count} Subject${count > 1 ? 's' : ''} Without Instructor`;
         badgeEl.textContent = `${count} Pending`;
@@ -1214,9 +1120,38 @@
         });
     }
 
-    // Expose public methods
-    window.Schedules = {
+    function deleteClass() {
+        if (!editingEvent) return;
         
+        showCustomConfirm(
+            "Delete Class",
+            `Are you sure you want to permanently delete ${editingEvent.title}?`,
+            "Delete",
+            "Cancel",
+            () => { 
+                const yearKey = editingEvent.extendedProps.year;
+                
+                if (mockDatabase[yearKey]) {
+                    mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
+                        !(e.title === editingEvent.title && 
+                          e.extendedProps.code === editingEvent.extendedProps.code &&
+                          e.extendedProps.type === editingEvent.extendedProps.type)
+                    );
+                }
+                
+                syncMemoryToStorage();
+
+                editingEvent.remove();
+                updateKPIs(calendarInstance.getEvents());
+                
+                if (typeof showToast === 'function') showToast("Class deleted successfully.");
+                closeModal();
+            },
+            null 
+        );
+    }
+
+    window.Schedules = {
         init, 
         addEvent: openModal, 
         closeModal, 
@@ -1232,16 +1167,16 @@
         jumpToUnassigned
     };
     
-    // Auto-init if the calendar div exists immediately (for safety)
     if(document.getElementById('calendar')) {
         init();
     }
+    
     let pendingFile = null;
 
     function triggerImport() {
         const modal = document.getElementById('importModal');
         if (modal) {
-            resetImportModal(); // Ensure it's clean when opened
+            resetImportModal(); 
             modal.style.display = 'flex';
         }
     }
@@ -1249,13 +1184,12 @@
     function closeImportModal() {
         const modal = document.getElementById('importModal');
         if (modal) modal.style.display = 'none';
-        resetImportModal(); // Clean up state when closing
+        resetImportModal(); 
     }
 
     function resetImportModal() {
         pendingFile = null;
         
-        // Reset UI Elements
         const dropZone = document.getElementById('dropZoneDefault');
         if (dropZone) dropZone.style.display = ''; 
         
@@ -1268,20 +1202,18 @@
         const fileInput = document.getElementById('modalFileInput');
         if (fileInput) fileInput.value = ''; 
 
-        // --- THE FIX: Unified function to safely trigger the file picker ---
         function triggerFileSelect(e) {
             if (e) {
                 e.preventDefault();
-                e.stopPropagation(); // Stops the "double click" bug
+                e.stopPropagation(); 
             }
             if (fileInput) {
-                fileInput.value = null; // Wipe memory right before opening
-                fileInput.onchange = handleImport; // Force the event listener to attach
+                fileInput.value = null; 
+                fileInput.onchange = handleImport; 
                 fileInput.click();
             }
         }
 
-        // Attach to the primary Import Button
         const importBtn = document.querySelector('#importModal .btn-primary');
         if (importBtn) {
             importBtn.disabled = false;
@@ -1289,10 +1221,8 @@
             importBtn.onclick = triggerFileSelect;
         }
 
-        // Attach to the Drag & Drop Zone Area
         if (dropZone) {
             dropZone.onclick = function(e) {
-                // Ensure clicking the button inside the zone doesn't trigger this twice
                 if (e.target !== importBtn && !importBtn.contains(e.target)) {
                     triggerFileSelect(e);
                 }
@@ -1306,20 +1236,18 @@
 
         pendingFile = file;
 
-        // 1. Update UI to show the selected file
         document.getElementById('dropZoneDefault').style.display = 'none';
         document.getElementById('fileInfoDisplay').style.display = 'block';
         document.getElementById('fileNameText').textContent = file.name;
         document.getElementById('fileSizeText').textContent = (file.size / 1024).toFixed(1) + " KB";
         document.getElementById('importSuccessBanner').style.display = 'none';
 
-        // 2. Change the primary button to process the import on click
         const importBtn = document.querySelector('#importModal .btn-primary');
         if (importBtn) {
-            importBtn.disabled = false; // <-- NEW: Ensure it's clickable
+            importBtn.disabled = false; 
             importBtn.innerHTML = `<i class='bx bx-check-circle'></i> Finish Import`;
             importBtn.onclick = function(e) {
-                if (e) e.preventDefault(); // <-- NEW: Prevent form submission/page reload
+                if (e) e.preventDefault(); 
                 executeImport();
             };
         }
@@ -1328,7 +1256,6 @@
     function executeImport() {
         if (!pendingFile) return;
 
-        // --- NEW: Block double-clicks and show loading state ---
         const importBtn = document.querySelector('#importModal .btn-primary');
         if (importBtn) {
             importBtn.innerHTML = `<i class='bx bx-loader bx-spin'></i> Processing...`;
@@ -1344,17 +1271,12 @@
             
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
             
-            // Process data quietly (silent = true)
             const count = processExcelData(jsonData, true);
             
             if (count > 0) {
-                // Instantly close the modal upon success
                 closeImportModal();
-                
-                // --- THE FIX: Use the new professional popup ---
                 showToast(`Successfully imported ${count} CPE schedule entries.`);
             } else {
-                // Show Error Banner if formatting is wrong
                 const banner = document.getElementById('importSuccessBanner');
                 const msg = document.getElementById('successMessageText');
 
@@ -1364,7 +1286,6 @@
                 banner.style.borderColor = '#f8b4b4';
                 banner.style.color = '#c53030';
                 
-                // --- NEW: Re-enable the button if it failed so they can try again ---
                 if (importBtn) {
                     importBtn.disabled = false;
                     importBtn.innerHTML = `<i class='bx bx-upload'></i> Try Again`;
@@ -1378,7 +1299,6 @@
         reader.readAsArrayBuffer(pendingFile);
     }
 
-    // --- NEW: SUGGESTION 4 (Resilient Excel parsing) ---
     function processExcelData(data, silent = false) {
         let count = 0;
         let colMap = { code: 2, title: 3, course: 4, section: 11, timeLec: 12, timeLab: 13, dayLec: 14, dayLab: 15, roomLec: 16, roomLab: 17, faculty: 18 };
@@ -1395,8 +1315,6 @@
                 if (text.includes("DESCRIPTIVE TITLE")) colMap.title = index;
             });
         });
-
-        let allNewEvents = []; // Hold all events before committing them
 
         for (let i = 3; i < data.length; i++) {
             const row = data[i];
@@ -1426,168 +1344,124 @@
             if (targetYear == "3") yearColor = '#10b981'; 
             if (targetYear == "4") yearColor = '#8b5cf6'; 
 
+            if (!mockDatabase[targetYear]) mockDatabase[targetYear] = { color: yearColor, events: [] };
+
             let rowEvents = [];
 
             extractAndAddEvent('lecture', row[colMap.timeLec], row[colMap.dayLec], row[colMap.roomLec], code, title, section, faculty, rowEvents, yearColor);
             extractAndAddEvent('lab', row[colMap.timeLab], row[colMap.dayLab], row[colMap.roomLab], code, title, section, faculty, rowEvents, yearColor);
 
+            // --- FIX 3: PREVENT DUPLICATES ON RE-IMPORT ---
             if (rowEvents.length > 0) {
-                rowEvents.forEach(ev => ev.extendedProps.year = targetYear);
-                allNewEvents = allNewEvents.concat(rowEvents);
+                rowEvents.forEach(ev => {
+                    ev.extendedProps.year = targetYear;
+                    
+                    // Safely check if this EXACT class already exists before pushing
+                    let isDuplicate = mockDatabase[targetYear].events.some(e => 
+                        e.start === ev.start && 
+                        e.extendedProps.code === ev.extendedProps.code && 
+                        e.extendedProps.sectionCode === ev.extendedProps.sectionCode &&
+                        e.extendedProps.type === ev.extendedProps.type
+                    );
+
+                    if (!isDuplicate) {
+                        mockDatabase[targetYear].events.push(ev);
+                        count++;
+                    }
+                });
             }
         }
 
-        if (allNewEvents.length > 0) {
-            // THE FIX: Overwrite Old File Data. Prevent "amplifying" same subjects 
-            // by purging matching class signatures before inserting the newly imported ones.
-            const importedSignatures = new Set(allNewEvents.map(ev => 
-                `${ev.extendedProps.year}_${ev.extendedProps.code}_${ev.extendedProps.sectionCode}_${ev.extendedProps.type}`
-            ));
-
-            for (let year in mockDatabase) {
-                if (mockDatabase[year] && mockDatabase[year].events) {
-                    mockDatabase[year].events = mockDatabase[year].events.filter(existing => {
-                        const sig = `${existing.extendedProps.year}_${existing.extendedProps.code}_${existing.extendedProps.sectionCode}_${existing.extendedProps.type}`;
-                        return !importedSignatures.has(sig); // Remove if it's being updated by this Excel import
-                    });
-                }
-            }
-
-            // Commit New Events
-            allNewEvents.forEach(ev => {
-                const year = ev.extendedProps.year;
-                if (!mockDatabase[year]) mockDatabase[year] = { color: ev.backgroundColor, events: [] };
-                mockDatabase[year].events.push(ev);
-            });
-
-            count = allNewEvents.length;
-
+        if (count > 0) {
             updateSelectDropdowns();
+            syncMemoryToStorage();
             loadYearData(currentActiveYear);
             
-            let allEvents = [];
-            for (let year in mockDatabase) {
-                if (mockDatabase[year] && mockDatabase[year].events) {
-                    allEvents = allEvents.concat(mockDatabase[year].events);
-                }
-            }
-            
-            localStorage.setItem('aeris_imported_schedule', JSON.stringify(allEvents));
-            if (typeof window.updateInstructorsFromImport === 'function') {
-                window.updateInstructorsFromImport(allEvents);
-            }
-
-            if (!silent) showToast(`Successfully imported ${count} CPE entries and sorted them by Year Level.`);
+            if (!silent) showToast(`Successfully imported ${count} new CPE entries.`);
             return count;
+        } else if (!silent) {
+            showToast(`All imported classes already exist. No duplicates added.`);
+            return 0;
         }
         return 0;
     }
 
-    // --- NEW HELPER FUNCTION ---
     function updateSelectDropdowns() {
-    const sectionSelect = document.getElementById('modalSection');
-    const filterSelects = document.querySelectorAll('.controls-group select');
-    let filterSection = filterSelects.length > 1 ? filterSelects[1] : null;
+        const sectionSelect = document.getElementById('modalSection');
+        const filterSelects = document.querySelectorAll('.controls-group select');
+        let filterSection = filterSelects.length > 1 ? filterSelects[1] : null;
 
-    // Get the year currently selected in the Add/Edit Modal
-    const modalYearSelect = document.getElementById('modalYear');
-    const modalYear = modalYearSelect ? modalYearSelect.value : currentActiveYear;
+        const modalYearSelect = document.getElementById('modalYear');
+        const modalYear = modalYearSelect ? modalYearSelect.value : currentActiveYear;
 
-    // 1. Populate Modal Sections (Filtered by modalYear)
-    if (sectionSelect && importedSections.size > 0) {
-        sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
-        Array.from(importedSections).sort().forEach(sec => {
-            const secYear = getYearFromSection(sec);
-            // Show if it matches the modal's year, or if the format didn't have a year (safety fallback)
-            if (secYear === String(modalYear) || !secYear) {
-                sectionSelect.innerHTML += `<option value="${sec}">${sec}</option>`;
-            }
-        });
+        if (sectionSelect && importedSections.size > 0) {
+            sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
+            Array.from(importedSections).sort().forEach(sec => {
+                const secYear = getYearFromSection(sec);
+                if (secYear === String(modalYear) || !secYear) {
+                    sectionSelect.innerHTML += `<option value="${sec}">${sec}</option>`;
+                }
+            });
+        }
+
+        if (filterSection && importedSections.size > 0) {
+            filterSection.innerHTML = '<option value="all">All Sections</option>';
+            Array.from(importedSections).sort().forEach(sec => {
+                const secYear = getYearFromSection(sec);
+                if (currentActiveYear === 'all' || secYear === String(currentActiveYear) || !secYear) {
+                    filterSection.innerHTML += `<option value="${sec}">${sec}</option>`;
+                }
+            });
+        }
+
+        populateFaculty();
     }
 
-    // 2. Populate Dashboard Filter Sections (Filtered by currentActiveYear)
-    if (filterSection && importedSections.size > 0) {
-        filterSection.innerHTML = '<option value="all">All Sections</option>';
-        Array.from(importedSections).sort().forEach(sec => {
-            const secYear = getYearFromSection(sec);
-            // Show all if viewing 'all' years, otherwise filter by the active dashboard tab
-            if (currentActiveYear === 'all' || secYear === String(currentActiveYear) || !secYear) {
-                filterSection.innerHTML += `<option value="${sec}">${sec}</option>`;
-            }
-        });
-    }
-
-    // Trigger populateFaculty to merge and update the faculty dropdowns
-    populateFaculty();
-}
-
-    function extractAndAddEvent(type, timeStr, dayStr, roomStr, code, title, section, faculty, importedEvents, color) {
+    function extractAndAddEvent(type, timeStr, dayStr, roomStr, code, title, section, faculty, importedEvents, colorHash) {
         if (!timeStr || !dayStr || String(timeStr).trim() === '' || String(dayStr).trim() === '') return;
+        const times = parseAdvancedTime(String(timeStr));
+        if (!times) return; 
+        const days = parseAdvancedDays(String(dayStr));
         
-        // THE FIX: Properly pair corresponding times to corresponding days to prevent amplification
-        const timeParts = String(timeStr).split('/').map(s => s.trim()).filter(Boolean);
-        const dayParts = String(dayStr).split('/').map(s => s.trim()).filter(Boolean);
-        const roomParts = String(roomStr).split('/').map(s => s.trim()).filter(Boolean);
-        
-        dayParts.forEach((dayGroup, index) => {
-            // Match corresponding time/room, fallback to the first one if length differs
-            const targetTimeStr = timeParts[index] || timeParts[0];
-            const targetRoomStr = roomParts[index] || roomParts[0] || 'TBA';
-            
-            const times = parseAdvancedTime(targetTimeStr);
-            if (!times) return; 
-            
-            const days = parseAdvancedDays(dayGroup);
-            
-            days.forEach(date => {
-                // Secondary check: Deduplicate identical overlapping segments within the same Excel row
-                const isDuplicate = importedEvents.some(ev => 
-                    ev.extendedProps.code === code &&
-                    ev.extendedProps.sectionCode === section &&
-                    ev.extendedProps.type === type &&
-                    ev.start === `${date}T${times.start}:00` &&
-                    ev.end === `${date}T${times.end}:00`
-                );
+        const color = hashColor(code + type);
 
-                if (!isDuplicate) {
-                    importedEvents.push({
-                        title: title,
-                        start: `${date}T${times.start}:00`,
-                        end: `${date}T${times.end}:00`,
-                        backgroundColor: color,
-                        borderColor: color,
-                        extendedProps: {
-                            code: code,
-                            sectionCode: section,
-                            type: type,
-                            room: targetRoomStr,
-                            faculty: faculty
-                        }
-                    });
+        days.forEach(date => {
+            importedEvents.push({
+                title: title,
+                start: `${date}T${times.start}:00`,
+                end: `${date}T${times.end}:00`,
+                backgroundColor: color,
+                borderColor: color,
+                extendedProps: {
+                    code: code,
+                    sectionCode: section,
+                    type: type,
+                    room: roomStr ? String(roomStr).trim() : 'TBA',
+                    faculty: faculty
                 }
             });
         });
     }
 
     function getYearFromSection(sectionCode) {
-    if (!sectionCode) return null;
-    
-    // Split the format: COC-FA2-CPE2-01
-    const parts = String(sectionCode).trim().split('-');
-    
-    if (parts.length >= 3) {
-        const programYear = parts[2]; // Target the "CPE2" or "ESM3" part
-        const match = programYear.match(/\d/); // Find the first digit in that string
-        if (match) return match[0];
+        if (!sectionCode) return null;
+        
+        const parts = String(sectionCode).trim().split('-');
+        
+        if (parts.length >= 3) {
+            const programYear = parts[2]; 
+            const match = programYear.match(/\d/); 
+            if (match) return match[0];
+        }
+        return null; 
     }
-    return null; // Fallback if format is unexpected
-}
 
     function parseAdvancedTime(timeStr) {
         if (!timeStr) return null;
         
-        // Match just a single parsed time boundary block since it's already split by extractAndAddEvent
-        const match = String(timeStr).trim().match(/(\d{1,2})[:]+(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2})[:]+(\d{2})\s*(AM|PM)/i);
+        const part = String(timeStr).split('/')[0].trim();
+        
+        const match = part.match(/(\d{1,2})[:]+(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2})[:]+(\d{2})\s*(AM|PM)/i);
         if (!match) return null;
 
         let startH = parseInt(match[1]);
@@ -1613,18 +1487,18 @@
 
     function parseAdvancedDays(daysStr) {
         if (!daysStr) return [];
-        let dates = [];
-        // Support comma and space separation within the day group
-        const tokens = String(daysStr).replace(/[,]/g, ' ').split(/\s+/).filter(Boolean);
         
-        tokens.forEach(day => {
-            const d = day.toUpperCase();
-            if (d === 'MON' || d === 'MONDAY' || d === 'M') dates.push('2026-02-09');
-            if (d === 'TUE' || d === 'TUESDAY' || d === 'T') dates.push('2026-02-10');
-            if (d === 'WED' || d === 'WEDNESDAY' || d === 'W') dates.push('2026-02-11');
-            if (d === 'THU' || d === 'THURSDAY' || d === 'TH') dates.push('2026-02-12');
-            if (d === 'FRI' || d === 'FRIDAY' || d === 'F') dates.push('2026-02-13');
-            if (d === 'SAT' || d === 'SATURDAY' || d === 'S') dates.push('2026-02-14');
+        const splitDays = String(daysStr).split(/[/,]/).map(d => d.trim().toUpperCase()).filter(Boolean);
+        
+        let dates = [];
+        
+        splitDays.forEach(day => {
+            if (day === 'MON' || day === 'MONDAY' || day === 'M') dates.push('2026-02-09');
+            if (day === 'TUE' || day === 'TUESDAY' || day === 'T') dates.push('2026-02-10');
+            if (day === 'WED' || day === 'WEDNESDAY' || day === 'W') dates.push('2026-02-11');
+            if (day === 'THU' || day === 'THURSDAY' || day === 'TH') dates.push('2026-02-12');
+            if (day === 'FRI' || day === 'FRIDAY' || day === 'F') dates.push('2026-02-13');
+            if (day === 'SAT' || day === 'SATURDAY' || day === 'S') dates.push('2026-02-14');
         });
 
         return [...new Set(dates)];
@@ -1633,7 +1507,6 @@
     function showCustomConfirm(title, message, confirmText, cancelText, onConfirm, onCancel) {
         let modal = document.getElementById('aerisConfirmModal');
         
-        // Inject the HTML if it doesn't exist yet
         if (!modal) {
             const html = `
             <div id="aerisConfirmModal" class="aeris-confirm-overlay">
@@ -1657,25 +1530,21 @@
             modal = document.getElementById('aerisConfirmModal');
         }
 
-        // Update Text
         document.getElementById('aerisConfirmTitle').textContent = title;
         document.getElementById('aerisConfirmMessage').textContent = message;
         document.getElementById('aerisConfirmOk').textContent = confirmText || 'Confirm';
         document.getElementById('aerisConfirmCancel').textContent = cancelText || 'Cancel';
 
-        // Show Modal
         modal.style.display = 'flex';
 
         const btnOk = document.getElementById('aerisConfirmOk');
         const btnCancel = document.getElementById('aerisConfirmCancel');
 
-        // Clone and replace buttons to strip out any old event listeners from previous popups
         const newBtnOk = btnOk.cloneNode(true);
         const newBtnCancel = btnCancel.cloneNode(true);
         btnOk.parentNode.replaceChild(newBtnOk, btnOk);
         btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
 
-        // Attach new click events
         newBtnOk.addEventListener('click', () => {
             modal.style.display = 'none';
             if (onConfirm) onConfirm();
@@ -1688,79 +1557,33 @@
     }
 
     function showToast(message) {
-        // Remove existing toast if user imports multiple times quickly
         const existingToast = document.getElementById('custom-toast');
         if (existingToast) existingToast.remove();
 
-        // Create the notification element
         const toast = document.createElement('div');
         toast.id = 'custom-toast';
         toast.innerHTML = `<i class='bx bx-check-circle' style='font-size: 1.2rem; margin-right: 8px;'></i> ${message}`;
         
-        // Professional Styling (Modern, clean, floating)
         Object.assign(toast.style, {
-            position: 'fixed',
-            bottom: '30px',
-            right: '30px',
-            backgroundColor: '#10B981', // Emerald green success color
-            color: 'white',
-            padding: '14px 24px',
-            borderRadius: '8px',
+            position: 'fixed', bottom: '30px', right: '30px', backgroundColor: '#10B981',
+            color: 'white', padding: '14px 24px', borderRadius: '8px',
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            fontSize: '14px',
-            fontWeight: '500',
-            zIndex: '9999',
-            display: 'flex',
-            alignItems: 'center',
-            opacity: '0',
-            transform: 'translateY(20px)',
-            transition: 'opacity 0.3s ease, transform 0.3s ease'
+            fontFamily: 'system-ui, -apple-system, sans-serif', fontSize: '14px',
+            fontWeight: '500', zIndex: '9999', display: 'flex', alignItems: 'center',
+            opacity: '0', transform: 'translateY(20px)', transition: 'opacity 0.3s ease, transform 0.3s ease'
         });
 
         document.body.appendChild(toast);
 
-        // Animate In
         requestAnimationFrame(() => {
             toast.style.opacity = '1';
             toast.style.transform = 'translateY(0)';
         });
 
-        // Auto-remove after 3.5 seconds
         setTimeout(() => {
             toast.style.opacity = '0';
             toast.style.transform = 'translateY(20px)';
-            setTimeout(() => toast.remove(), 300); // wait for fade out to finish before deleting
+            setTimeout(() => toast.remove(), 300); 
         }, 3500);
-    }
-
-    function deleteClass() {
-        if (!editingEvent) return;
-        
-        showCustomConfirm(
-            "Delete Class",
-            `Are you sure you want to permanently delete ${editingEvent.title}?`,
-            "Delete",
-            "Cancel",
-            () => { 
-                const yearKey = editingEvent.extendedProps.year;
-                
-                if (mockDatabase[yearKey]) {
-                    // FIX: Added extendedProps.type check here too!
-                    mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
-                        !(e.title === editingEvent.title && 
-                          e.extendedProps.code === editingEvent.extendedProps.code &&
-                          e.extendedProps.type === editingEvent.extendedProps.type)
-                    );
-                }
-                
-                editingEvent.remove();
-                updateKPIs(calendarInstance.getEvents());
-                
-                if (typeof showToast === 'function') showToast("Class deleted successfully.");
-                closeModal();
-            },
-            null 
-        );
     }
 })();
