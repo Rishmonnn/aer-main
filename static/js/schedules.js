@@ -257,6 +257,17 @@
         });
 
         calendarInstance.render();
+        const calendarWrapper = document.getElementById('calendar-wrapper');
+        if (calendarWrapper) {
+            const resizeObserver = new ResizeObserver(() => {
+                // This triggers whenever the wrapper's width changes (e.g., sidebar toggles)
+                if (calendarInstance) {
+                    // A tiny timeout ensures the CSS transition of your sidebar finishes first
+                    setTimeout(() => calendarInstance.updateSize(), 150); 
+                }
+            });
+            resizeObserver.observe(calendarWrapper);
+        }
         
         setTimeout(() => {
             calendarInstance.updateSize();
@@ -1141,7 +1152,7 @@
         titleEl.textContent = `${count} Subject${count > 1 ? 's' : ''} Without Instructor`;
         document.querySelector('#unassigned-faculty-alert p').textContent = "These classes need a faculty assignment before the schedule is finalized.";
         badgeEl.textContent = `${count} Pending`;
-        
+
         listContainer.innerHTML = '';
         subjectsWithoutInstructor.forEach(sub => {
             let detailsText = `Section: ${sub.section}`;
@@ -1432,12 +1443,11 @@
 
     function updateSelectDropdowns() {
         const sectionSelect = document.getElementById('modalSection');
-        const filterFaculty = document.getElementById('facultyFilterSelect');
-        let filterSection = filterSelects.length > 1 ? filterSelects[1] : null;
-
+        const filterSection = document.getElementById('sectionFilterSelect'); // NEW ID
         const modalYearSelect = document.getElementById('modalYear');
         const modalYear = modalYearSelect ? modalYearSelect.value : currentActiveYear;
 
+        // Populate the Add/Edit Modal section dropdown
         if (sectionSelect && importedSections.size > 0) {
             sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
             Array.from(importedSections).sort().forEach(sec => {
@@ -1448,6 +1458,7 @@
             });
         }
 
+        // Populate the Dashboard Filter section dropdown
         if (filterSection && importedSections.size > 0) {
             filterSection.innerHTML = '<option value="all">All Sections</option>';
             Array.from(importedSections).sort().forEach(sec => {

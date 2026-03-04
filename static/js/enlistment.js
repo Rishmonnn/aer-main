@@ -1,3 +1,46 @@
+// =======================================================
+// GLOBAL IMPORTS: CONFETTI & TOASTS
+// =======================================================
+
+// Dynamically load the Canvas Confetti library
+const confettiScript = document.createElement('script');
+confettiScript.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+document.head.appendChild(confettiScript);
+
+function showToast(message, type = 'success') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+        
+        container.style.position = 'fixed';
+        container.style.top = '20px';
+        container.style.right = '20px';
+        container.style.zIndex = '9999';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '10px';
+    }
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    const icon = type === 'success' ? 'bx-check-circle' : 'bx-error-circle';
+    
+    toast.innerHTML = `<i class='bx ${icon}'></i> <span>${message}</span>`;
+    
+    toast.style.background = '#fff';
+    toast.style.borderLeft = `5px solid ${type === 'success' ? '#10b981' : '#ef4444'}`;
+    toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    toast.style.padding = '15px 20px';
+    toast.style.borderRadius = '4px';
+    toast.style.display = 'flex';
+    toast.style.alignItems = 'center';
+    toast.style.gap = '10px';
+    
+    container.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 3500);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     loadEnlistmentData();
 });
@@ -7,7 +50,6 @@ function loadEnlistmentData() {
     fetch('/api/enlistment/pending')
         .then(res => res.json())
         .then(data => {
-            // Clear all tables first
             document.querySelectorAll('.enlistment-table tbody').forEach(el => el.innerHTML = '');
 
             data.forEach(student => {
@@ -36,55 +78,72 @@ function loadEnlistmentData() {
         });
 }
 
-// --- GLOBAL VARIABLES ---
 let currentStudent = {};
 let selectedUnits = 0;
 
-// --- MODAL LOGIC ---
+// --- MODAL LOGIC & SKELETONS ---
 function openEnlistmentModal(studentData) {
     currentStudent = studentData;
     selectedUnits = 0;
 
-    // 1. Populate New Profile Grid Info
     document.getElementById('modalName').innerText = studentData.name;
     document.getElementById('modalID').innerText = studentData.id;
-    document.getElementById('maxUnits').innerText = studentData.maxUnits || 21;
+    
+    const maxUnits = studentData.maxUnits || 23; 
+    document.getElementById('maxUnits').innerText = maxUnits;
+    document.getElementById('footerMaxUnits').innerText = maxUnits;
     document.getElementById('modalStanding').innerText = studentData.year_level;
 
-    // Badge styling for status
     const typeLabel = studentData.type || 'Regular';
     const typeClass = typeLabel.toLowerCase() === 'irregular' ? 'irregular' : 'regular';
     document.getElementById('modalStatus').innerHTML = `<span class="status-pill ${typeClass}">${typeLabel}</span>`;
 
-
-    // 2. Clear Previous Data & Reset Select All Button
     document.getElementById('enlistmentAlerts').innerHTML = ''; 
-    document.getElementById('subjectListBody').innerHTML = '<div style="padding:20px; text-align:center;">Loading subjects...</div>';
     
-    // RESET BUTTON TEXT
+    // Inject Dynamic Skeleton Loaders
+    const skeletonSubjectHtml = `
+        <div class="skeleton-subject">
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <div class="skeleton-box" style="width: 24px; height: 24px; border-radius: 50%;"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                    <div class="skeleton-box" style="width: 50%;"></div>
+                    <div class="skeleton-box" style="width: 30%;"></div>
+                </div>
+                <div class="skeleton-box" style="width: 120px;"></div>
+            </div>
+        </div>
+    `.repeat(4);
+    document.getElementById('subjectListBody').innerHTML = skeletonSubjectHtml;
+    
     const btnSelect = document.getElementById('btnSelectAll');
     if(btnSelect) btnSelect.innerText = "Select All";
     
+    document.getElementById('modalSubjectSearch').value = ''; // Reset modal search
+    document.getElementById('cartDrawer').classList.remove('active'); // Close cart
+
     document.getElementById('enlistmentModal').classList.add('active');
 
-    // 3. FETCH REAL SUBJECTS FROM API
-    fetch(`/api/enlistment/subjects/${studentData.id}`)
-        .then(res => res.json())
-        .then(subjects => {
-            renderSubjects(subjects);
-            updateSummary();
-        })
-        .catch(err => {
-            console.error(err);
-            document.getElementById('subjectListBody').innerHTML = '<div style="color:red; padding:20px;">Error loading subjects.</div>';
-        });
+    // Simulate slight network delay to make skeleton aesthetic visible
+    setTimeout(() => {
+        fetch(`/api/enlistment/subjects/${studentData.id}`)
+            .then(res => res.json())
+            .then(subjects => {
+                renderSubjects(subjects);
+                updateSummary();
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('subjectListBody').innerHTML = '<div style="color:red; padding:20px;">Error loading subjects.</div>';
+            });
+    }, 400); 
 }
 
 function closeEnlistmentModal() {
     document.getElementById('enlistmentModal').classList.remove('active');
+    document.getElementById('cartDrawer').classList.remove('active');
 }
 
-// --- RENDER SUBJECTS (Dynamic Data) ---
+// --- RENDER SUBJECTS ---
 function renderSubjects(subjects) {
     const list = document.getElementById('subjectListBody');
     list.innerHTML = '';
@@ -99,15 +158,11 @@ function renderSubjects(subjects) {
         
         const lockedClass = sub.locked ? 'subject-locked' : '';
         row.className = `subject-row ${lockedClass}`;
-        
         row.dataset.units = sub.units; 
         row.dataset.code = sub.code;
 
         if (sub.locked) {
-            row.onclick = () => alert(`Cannot take ${sub.code}: ${sub.warning}`);
-            row.style.opacity = '0.6';
-            row.style.cursor = 'not-allowed';
-            row.style.background = '#f8fafc';
+            row.onclick = () => showToast(`Cannot take ${sub.code}: ${sub.warning}`, 'error');
         } else {
             row.onclick = () => toggleSubject(row, sub);
         }
@@ -126,16 +181,14 @@ function renderSubjects(subjects) {
             ? `<div style="font-size:0.75rem; color:#ef4444; margin-top:4px; font-weight:500;"><i class='bx bxs-error-circle'></i> ${sub.warning}</div>` 
             : '';
 
-        // --- NEW: Generate Dropdown Options for Sections ---
         let optionsHtml = '';
         if (sub.sections && sub.sections.length > 0) {
             sub.sections.forEach(sec => {
-                // Formatting it nicely: "Section A (Room 101 | Instructor Name)"
-                optionsHtml += `<option value="${sec.id}">Section ${sec.name} (${sec.room} | ${sec.faculty})</option>`;
+                // If the backend eventually sends sec.days and sec.time, we map them into data attributes here!
+                optionsHtml += `<option value="${sec.id}" data-days="${sec.days || ''}" data-time="${sec.time || ''}" data-room="${sec.room || 'TBA'}">Section ${sec.name} (${sec.room} | ${sec.faculty})</option>`;
             });
         }
         
-        // Use onclick stopPropagation so picking a dropdown item doesn't toggle the subject
         let sectionDropdownHtml = sub.locked ? '' : `
             <select class="section-select" onclick="event.stopPropagation()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 0.8rem; background: white; color: #475569; outline: none; cursor: pointer;">
                 ${optionsHtml}
@@ -157,43 +210,83 @@ function renderSubjects(subjects) {
                 </div>
             </div>
         `;
-        
         list.appendChild(row);
     });
 }
 
-// --- TOGGLE ALL FUNCTION ---
-function toggleAllSubjects() {
-    // 1. Get all UNLOCKED rows
+// --- NEW: IN-MODAL SEARCH FUNCTION ---
+function filterModalSubjects() {
+    const val = document.getElementById('modalSubjectSearch').value.toLowerCase();
+    document.querySelectorAll('.subject-row').forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(val) ? '' : 'none';
+    });
+}
+
+// --- CART DRAWER TOGGLE ---
+function toggleCartDrawer() {
+    document.getElementById('cartDrawer').classList.toggle('active');
+}
+
+// --- AUTO-FILL BLOCK FUNCTION ---
+function autoFillBlock() {
     const rows = document.querySelectorAll('.subject-row:not(.subject-locked)');
     if (rows.length === 0) return;
 
-    // 2. Check current state (If any row is unselected, we go to Select All mode)
-    const allSelected = Array.from(rows).every(r => r.dataset.selected === 'true');
-    const targetState = !allSelected; // True = Select All, False = Deselect All
+    selectedUnits = 0; 
+    
+    rows.forEach(row => {
+        const selectEl = row.querySelector('.section-select');
+        if (selectEl && selectEl.options.length > 0) {
+            let targetIndex = 0;
+            for(let i=0; i<selectEl.options.length; i++) {
+                if(selectEl.options[i].text.includes('Section A')) {
+                    targetIndex = i;
+                    break;
+                }
+            }
+            selectEl.selectedIndex = targetIndex;
+        }
 
-    // 3. Iterate and Update
-    selectedUnits = 0; // Reset count to calculate fresh
+        row.dataset.selected = 'true';
+        row.classList.add('selected');
+        const iconSpan = row.querySelector('.selection-icon');
+        iconSpan.innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
+        
+        selectedUnits += (parseInt(row.dataset.units) || 0);
+    });
+
+    const btn = document.getElementById('btnSelectAll');
+    if(btn) btn.innerText = "Deselect All";
+
+    showToast("Block auto-filled successfully!", "success");
+    updateSummary();
+}
+
+function toggleAllSubjects() {
+    const rows = document.querySelectorAll('.subject-row:not(.subject-locked)');
+    if (rows.length === 0) return;
+
+    const allSelected = Array.from(rows).every(r => r.dataset.selected === 'true');
+    const targetState = !allSelected; 
+
+    selectedUnits = 0; 
 
     rows.forEach(row => {
         const iconSpan = row.querySelector('.selection-icon');
         const units = parseInt(row.dataset.units) || 0;
 
         if (targetState) {
-            // Select
             row.dataset.selected = 'true';
             row.classList.add('selected');
             iconSpan.innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
             selectedUnits += units;
         } else {
-            // Deselect
             row.dataset.selected = 'false';
             row.classList.remove('selected');
             iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
         }
     });
 
-    // 4. Update Button Text
     const btn = document.getElementById('btnSelectAll');
     if(btn) btn.innerText = targetState ? "Deselect All" : "Select All";
 
@@ -205,20 +298,17 @@ function toggleSubject(rowElement, subject) {
     const iconSpan = rowElement.querySelector('.selection-icon');
     
     if (isSelected) {
-        // Deselect
         rowElement.dataset.selected = 'false';
         rowElement.classList.remove('selected');
         iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
         selectedUnits -= subject.units;
     } else {
-        // Select
         rowElement.dataset.selected = 'true';
         rowElement.classList.add('selected');
         iconSpan.innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
         selectedUnits += subject.units;
     }
     
-    // Update "Select All" button text logic
     const rows = document.querySelectorAll('.subject-row:not(.subject-locked)');
     const allSelected = Array.from(rows).every(r => r.dataset.selected === 'true');
     const btn = document.getElementById('btnSelectAll');
@@ -227,33 +317,170 @@ function toggleSubject(rowElement, subject) {
     updateSummary();
 }
 
+// --- ENHANCED: SUMMARY, CART & SCHEDULE BOARD ---
 function updateSummary() {
-    document.getElementById('unitCounter').innerText = selectedUnits;
-    document.getElementById('summaryCount').innerText = document.querySelectorAll('.subject-row[data-selected="true"]').length;
+    const maxUnits = parseInt(currentStudent.maxUnits) || 23;
+    const unitCounter = document.getElementById('unitCounter');
+    const progressBar = document.getElementById('unitProgressBar');
+    const btnEnlist = document.getElementById('btnEnlist');
+    
+    unitCounter.innerText = selectedUnits;
+    
+    const boardUnitCount = document.getElementById('boardUnitCount');
+    if (boardUnitCount) boardUnitCount.innerText = `${selectedUnits} Units`;
+
+    const selectedRows = document.querySelectorAll('.subject-row[data-selected="true"]');
+    document.getElementById('summaryCount').innerText = selectedRows.length;
+    
+    // Progress Bar Math
+    let percentage = (selectedUnits / maxUnits) * 100;
+    
+    if (percentage > 100) {
+        progressBar.style.width = '100%';
+        progressBar.classList.add('overload');
+        unitCounter.style.color = '#ef4444'; 
+        btnEnlist.disabled = true;
+        btnEnlist.style.opacity = '0.5';
+        btnEnlist.style.cursor = 'not-allowed';
+    } else {
+        progressBar.style.width = `${percentage}%`;
+        progressBar.classList.remove('overload');
+        unitCounter.style.color = '#10b981'; 
+        btnEnlist.disabled = false;
+        btnEnlist.style.opacity = '1';
+        btnEnlist.style.cursor = 'pointer';
+    }
+
+    renderScheduleBoard(selectedRows);
+    updateCartDrawer(selectedRows);
 }
 
+// Update the Expandable Cart Drawer
+function updateCartDrawer(selectedRows) {
+    const cartList = document.getElementById('cartDrawerList');
+    if (!cartList) return;
+
+    if (selectedRows.length === 0) {
+        cartList.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 10px;">Cart is empty.</div>';
+        return;
+    }
+
+    cartList.innerHTML = '';
+    selectedRows.forEach(row => {
+        cartList.innerHTML += `
+            <div class="cart-item">
+                <strong>${row.dataset.code}</strong>
+                <span>${row.dataset.units} Units</span>
+            </div>
+        `;
+    });
+}
+
+// --- THE GANTT CHART PARSER & RENDERER ---
+function parseTimeToDecimal(timeStr) {
+    // Converts "01:30PM" to 13.5
+    const match = timeStr.trim().match(/(\d{2}):(\d{2})\s*([APM]{2})/i);
+    if(!match) return null;
+    let hours = parseInt(match[1]);
+    const minutes = parseInt(match[2]);
+    const period = match[3].toUpperCase();
+    
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours + (minutes / 60);
+}
+
+function renderScheduleBoard(selectedRows) {
+    // 1. Clear previous blocks and TBA tray
+    ['MON','TUE','WED','THU','FRI','SAT'].forEach(day => {
+        const col = document.getElementById(`col-${day}`);
+        if(col) col.innerHTML = '';
+    });
+    
+    const tbaList = document.getElementById('tbaList');
+    const tbaTray = document.getElementById('tbaTray');
+    if(tbaList) tbaList.innerHTML = '';
+    let hasTBA = false;
+
+    const cardColors = ['#90242d', '#0284c7', '#059669', '#d97706', '#7c3aed', '#db2777'];
+
+    selectedRows.forEach((row, index) => {
+        const code = row.dataset.code;
+        const selectEl = row.querySelector('.section-select');
+        const color = cardColors[index % cardColors.length];
+
+        let isPlotted = false;
+
+        if (selectEl && selectEl.options.length > 0) {
+            const option = selectEl.options[selectEl.selectedIndex];
+            const rawDays = option.getAttribute('data-days'); // e.g., "MON / WED"
+            const rawTime = option.getAttribute('data-time'); // e.g., "09:00AM-10:30AM"
+            const room = option.getAttribute('data-room');
+
+            // If we have valid days and time, try to plot it
+            if (rawDays && rawTime && rawTime.includes('-')) {
+                const daysArr = rawDays.split(/[\/,]/).map(d => d.trim().substring(0,3).toUpperCase());
+                const [startStr, endStr] = rawTime.split('-');
+                
+                const startDec = parseTimeToDecimal(startStr);
+                const endDec = parseTimeToDecimal(endStr);
+
+                if (startDec !== null && endDec !== null) {
+                    // Timeline is 7:00 AM (7.0) to 9:00 PM (21.0) -> 14 hours total
+                    const topPercent = ((startDec - 7) / 14) * 100;
+                    const heightPercent = ((endDec - startDec) / 14) * 100;
+
+                    // Plot a block for every day in the array
+                    daysArr.forEach(day => {
+                        const col = document.getElementById(`col-${day}`);
+                        if (col) {
+                            const block = document.createElement('div');
+                            block.className = 'gantt-block';
+                            block.style.background = color;
+                            block.style.top = `${topPercent}%`;
+                            block.style.height = `${heightPercent}%`;
+                            block.innerHTML = `
+                                <div class="gantt-code">${code}</div>
+                                <div class="gantt-room">${room}</div>
+                            `;
+                            col.appendChild(block);
+                            isPlotted = true;
+                        }
+                    });
+                }
+            }
+        }
+
+        // If the backend didn't provide time (or parsing failed), put it in TBA tray
+        if (!isPlotted) {
+            hasTBA = true;
+            const tbaPill = document.createElement('div');
+            tbaPill.className = 'tba-pill';
+            tbaPill.innerHTML = `<span style="color:${color}">●</span> ${code}`;
+            if(tbaList) tbaList.appendChild(tbaPill);
+        }
+    });
+
+    if(tbaTray) tbaTray.style.display = hasTBA ? 'block' : 'none';
+}
+// --- SUBMIT WITH CONFETTI CELEBRATION ---
 function submitEnlistment() {
     const btn = document.getElementById('btnEnlist');
     
     if (selectedUnits === 0) {
-        alert("Please select at least one subject.");
+        showToast("Please select at least one subject.", "error");
         return;
     }
 
     const selectedRows = document.querySelectorAll('.subject-row[data-selected="true"]');
-    const subjectsData = []; // Changed to an array of objects
+    const subjectsData = []; 
     
     selectedRows.forEach(row => {
         const code = row.dataset.code;
         if (code) {
-            // Find the select element in this specific row and get its value
             const selectEl = row.querySelector('.section-select');
             const sectionId = selectEl ? selectEl.value : null;
-            
-            subjectsData.push({
-                code: code,
-                section_id: sectionId
-            });
+            subjectsData.push({ code: code, section_id: sectionId });
         }
     });
 
@@ -265,31 +492,62 @@ function submitEnlistment() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             student_id: currentStudent.id,
-            subjects: subjectsData  // Send the object array instead of strings
+            subjects: subjectsData
         })
     })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            alert("Student Successfully Enlisted! They have been moved to the Enrolled list.");
+            showToast("Student Successfully Enlisted!", "success");
             closeEnlistmentModal();
             loadEnlistmentData(); 
-            if (typeof loadStudentJourney === 'function') {
-                loadStudentJourney();
+            if (typeof loadStudentJourney === 'function') loadStudentJourney();
+            
+            // 🔥 FIRE CONFETTI! 🔥
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 },
+                    colors: ['#90242d', '#10b981', '#fbbf24', '#3b82f6'],
+                    zIndex: 9999
+                });
             }
         } else {
-            alert("Error: " + data.message);
+            showToast("Error: " + data.message, "error");
         }
     })
     .catch(err => {
         console.error(err);
-        alert("Server Error occurred.");
+        showToast("Server Error occurred.", "error");
     })
     .finally(() => {
         btn.innerHTML = "<i class='bx bx-check-circle'></i> Enlist Student";
         btn.disabled = false;
     });
 }
+
+function initCalendarGrid() {
+    const timeCol = document.getElementById('calTimeCol');
+    if(!timeCol) return;
+    timeCol.innerHTML = '';
+    // Draw hours from 7 AM to 9 PM (14 hours total)
+    for(let hour = 7; hour <= 21; hour++) {
+        const percent = ((hour - 7) / 14) * 100;
+        const displayHour = hour > 12 ? `${hour-12} PM` : (hour === 12 ? '12 PM' : `${hour} AM`);
+        
+        const label = document.createElement('div');
+        label.className = 'time-label';
+        label.style.top = `${percent}%`;
+        label.innerText = displayHour;
+        timeCol.appendChild(label);
+    }
+}
+// Trigger it on load
+document.addEventListener('DOMContentLoaded', function() {
+    initCalendarGrid();
+    loadEnlistmentData();
+});
 
 function filterEnlistment() {
     const val = document.getElementById('enlistmentSearch').value.toLowerCase();
