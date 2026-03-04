@@ -258,17 +258,16 @@
 
         calendarInstance.render();
         const calendarWrapper = document.getElementById('calendar-wrapper');
-        if (calendarWrapper) {
+        if (calendarWrapper && window.ResizeObserver) {
             const resizeObserver = new ResizeObserver(() => {
-                // This triggers whenever the wrapper's width changes (e.g., sidebar toggles)
                 if (calendarInstance) {
-                    // A tiny timeout ensures the CSS transition of your sidebar finishes first
-                    setTimeout(() => calendarInstance.updateSize(), 150); 
+                    calendarInstance.updateSize();
                 }
             });
             resizeObserver.observe(calendarWrapper);
         }
-        
+        // -------------------------------
+
         setTimeout(() => {
             calendarInstance.updateSize();
         }, 200);
@@ -387,7 +386,9 @@
         }
 
         for (let ev of eventsToCheck) {
-            if (excludeEvent && ev.title === excludeEvent.title && ev.start.getTime() === new Date(excludeEvent.startStr).getTime()) {
+            if (excludeEvent && 
+                ev.extendedProps?.code === excludeEvent.extendedProps?.code && 
+                ev.extendedProps?.sectionCode === excludeEvent.extendedProps?.sectionCode) {
                 continue;
             }
             if (newStart < ev.end && newEnd > ev.start) {
@@ -1513,27 +1514,32 @@
 
     function parseAdvancedTime(timeStr) {
         if (!timeStr) return null;
-        
         const part = String(timeStr).split('/')[0].trim();
         
-        const match = part.match(/(\d{1,2})[:]+(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2})[:]+(\d{2})\s*(AM|PM)/i);
+        // The more forgiving regex: Allows missing minutes and missing first AM/PM
+        const match = part.match(/(\d{1,2})(?:[:]+(\d{2}))?\s*(AM|PM)?\s*[-–]\s*(\d{1,2})(?:[:]+(\d{2}))?\s*(AM|PM)/i);
         if (!match) return null;
 
         let startH = parseInt(match[1]);
-        const startM = match[2]; 
-        const startMeridiem = match[3].toUpperCase();
+        // match[2] is the start minutes. If missing, default to "00"
+        const startM = match[2] || "00"; 
         
         let endH = parseInt(match[4]);
-        const endM = match[5]; 
+        // match[5] is the end minutes. If missing, default to "00"
+        const endM = match[5] || "00"; 
         const endMeridiem = match[6].toUpperCase();
+        
+        // match[3] is the start AM/PM. If missing (e.g. "7-9 PM"), inherit the end AM/PM
+        const startMeridiem = match[3] ? match[3].toUpperCase() : endMeridiem;
 
         if (startMeridiem === 'PM' && startH !== 12) startH += 12;
         if (startMeridiem === 'AM' && startH === 12) startH = 0;
+        
         if (endMeridiem === 'PM' && endH !== 12) endH += 12;
         if (endMeridiem === 'AM' && endH === 12) endH = 0;
 
         const formatHHMM = (h, m) => `${h.toString().padStart(2, '0')}:${m}`;
-
+        
         return {
             start: formatHHMM(startH, startM),
             end: formatHHMM(endH, endM)

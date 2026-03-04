@@ -457,14 +457,17 @@ def save_bulk_schedules():
         ScheduleEvent.query.filter_by(academic_term=term).delete() 
         
         for item in data:
+            # --- THE FIX: Safely extract extendedProps to prevent KeyErrors ---
+            props = item.get('extendedProps', {})
+            
             event = ScheduleEvent(
                 title=item.get('title', 'Unknown'),
-                subject_code=item['extendedProps'].get('code', ''),
-                section_code=item['extendedProps'].get('sectionCode', ''),
-                faculty_name=item['extendedProps'].get('faculty', 'TBA'),
-                room=item['extendedProps'].get('room', 'TBA'),
-                type=item['extendedProps'].get('type', 'lecture'),
-                year_level=str(item['extendedProps'].get('year', '1')),
+                subject_code=props.get('code', ''),
+                section_code=props.get('sectionCode', ''),
+                faculty_name=props.get('faculty', 'TBA'),
+                room=props.get('room', 'TBA'),
+                type=props.get('type', 'lecture'),
+                year_level=str(props.get('year', '1')),
                 start_time=item.get('start'),
                 end_time=item.get('end'),
                 color=item.get('backgroundColor', '#3b82f6'),
