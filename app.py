@@ -410,24 +410,66 @@ def get_all_schedules():
     """Fetches all schedules from the database formatted for FullCalendar."""
     events = ScheduleEvent.query.all()
     output = []
+    
     for ev in events:
+        # BUG FIX: Force dates into the strict ISO format FullCalendar requires
+        start_str = ev.start_time
+        end_str = ev.end_time
+        if hasattr(start_str, 'isoformat'): start_str = start_str.isoformat()
+        if hasattr(end_str, 'isoformat'): end_str = end_str.isoformat()
+
         output.append({
             'id': ev.id,
             'title': ev.title,
-            'start': ev.start_time,
-            'end': ev.end_time,
-            'backgroundColor': ev.color,
-            'borderColor': ev.color,
+            'start': start_str,
+            'end': end_str,
+            # Failsafe in case your database column is named differently
+            'backgroundColor': getattr(ev, 'color', '#3b82f6'),
+            'borderColor': getattr(ev, 'color', '#3b82f6'),
             'extendedProps': {
-                'code': ev.subject_code,
-                'sectionCode': ev.section_code,
-                'faculty': ev.faculty_name,
-                'room': ev.room,
-                'type': ev.type,
-                'year': ev.year_level
+                'code': getattr(ev, 'subject_code', ''),
+                'sectionCode': getattr(ev, 'section_code', ''),
+                'faculty': getattr(ev, 'faculty_name', 'TBA'),
+                'room': getattr(ev, 'room', 'TBA'),
+                'type': getattr(ev, 'type', 'lecture'),
+                'year': getattr(ev, 'year_level', '1')
             }
         })
     return jsonify(output)
+
+@app.route('/api/schedules/bulk', methods=['POST'])
+@login_required
+def save_bulk_schedules():
+    """Saves hundreds of classes from Excel instantly to the DB."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': 'No data provided'}), 400
+        
+    try:
+        # Clear old imported schedules to prevent duplicates on re-import
+        ScheduleEvent.query.delete() 
+        
+        for item in data:
+            event = ScheduleEvent(
+                title=item.get('title', 'Unknown'),
+                subject_code=item['extendedProps'].get('code', ''),
+                section_code=item['extendedProps'].get('sectionCode', ''),
+                faculty_name=item['extendedProps'].get('faculty', 'TBA'),
+                room=item['extendedProps'].get('room', 'TBA'),
+                type=item['extendedProps'].get('type', 'lecture'),
+                year_level=str(item['extendedProps'].get('year', '1')),
+                start_time=item.get('start'),
+                end_time=item.get('end'),
+                color=item.get('backgroundColor', '#3b82f6')
+            )
+            db.session.add(event)
+            
+        db.session.commit()
+        return jsonify({'success': True, 'count': len(data)})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Bulk Import Error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/schedules', methods=['POST'])
 @login_required
@@ -932,7 +974,7 @@ def get_student_available_subjects(student_id):
     student = Student.query.get(student_id)
     if not student: return jsonify([])
 
-    ACTIVE_SEMESTER = "1st Semester" 
+    ACTIVE_SEMESTER = "2nd Semester" 
   
     failed_records = Enrollment.query.filter_by(student_id=student_id)\
         .filter((Enrollment.grade > 3.0) | (Enrollment.status == 'Failed')).all()
@@ -965,7 +1007,20 @@ def get_student_available_subjects(student_id):
     output = []
     for sub in all_subjects:
         # --- NEW: Fetch Sections from the Scheduling System (ScheduleEvent) ---
-        events = ScheduleEvent.query.filter_by(subject_code=sub.code).all()
+        # --- ULTRA SAFE MATCHING ---
+        all_events = ScheduleEvent.query.all()
+        events = []
+        
+        for ev in all_events:
+            if ev.subject_code and sub.code:
+                # Remove ALL spaces and make lowercase for bulletproof comparison
+                clean_ev_code = ev.subject_code.replace(" ", "").lower()
+                clean_sub_code = sub.code.replace(" ", "").lower()
+                
+                # If the core code exists anywhere inside the scheduled code, link it!
+                if clean_sub_code in clean_ev_code:
+                    events.append(ev)
+                    
         unique_sections = {}
         
         for ev in events:
@@ -983,10 +1038,10 @@ def get_student_available_subjects(student_id):
         # Fallback if the subject hasn't been scheduled on the calendar yet
         if not section_list:
             section_list.append({
-                'id': 'TBA',
-                'name': 'TBA',
-                'faculty': 'TBA',
-                'room': 'TBA'
+                'id': 'Unscheduled',
+                'name': 'Not Yet Scheduled',
+                'faculty': 'No Instructor Assigned',
+                'room': 'No Room'
             })
 
         # --- CRITICAL LOGIC: CHECK PREREQUISITES ---
@@ -1035,14 +1090,57 @@ def submit_student_enlistment():
         # 2. Process each subject
         for item in subjects_data:
             code = item.get('code')
-            section_code = item.get('section_id') # This is the section_code string now ('A', 'B', etc)
+            section_code = item.get('section_id') # E.g., 'A', 'B'
             
             # Check if this exact section already exists in the Section table
             section = Section.query.filter_by(subject_code=code, name=section_code).first()
             
             if not section:
-                # Sync it to the Section table so Enrollment has a valid foreign key
-                section = Section(name=section_code or "TBA", subject_code=code, room="TBA", schedule="TBA")
+                # --- ULTRA SAFE MATCHING: Fetch real scheduling data ---
+                all_scheduled = ScheduleEvent.query.all()
+                schedule_events = []
+                
+                for ev in all_scheduled:
+                    if ev.subject_code and code and ev.section_code and section_code:
+                        clean_ev_code = ev.subject_code.replace(" ", "").lower()
+                        clean_code = code.replace(" ", "").lower()
+                        clean_ev_sec = ev.section_code.replace(" ", "").lower()
+                        clean_sec = section_code.replace(" ", "").lower()
+                        
+                        if (clean_code in clean_ev_code) and (clean_sec == clean_ev_sec):
+                            schedule_events.append(ev)
+                
+                room_val = "TBA"
+                schedule_val = "TBA"
+                faculty_id_val = None
+                
+                if schedule_events:
+                    # Use the first schedule block for base info
+                    primary_event = schedule_events[0]
+                    room_val = primary_event.room or "TBA"
+                    
+                    # Extract time from FullCalendar ISO format (e.g., "2024-01-01T10:00:00" -> "10:00")
+                    def get_time(ts):
+                        return ts.split('T')[1][:5] if 'T' in ts else ts
+                    
+                    start = get_time(primary_event.start_time)
+                    end = get_time(primary_event.end_time)
+                    schedule_val = f"{start} - {end}"
+                    
+                    # Try to link the actual Faculty User account by name
+                    if primary_event.faculty_name:
+                        faculty_user = User.query.filter(User.name.ilike(f"%{primary_event.faculty_name}%")).first()
+                        if faculty_user:
+                            faculty_id_val = faculty_user.id
+                
+                # Sync it to the Section table using the REAL schedule data
+                section = Section(
+                    name=section_code or "Unscheduled", 
+                    subject_code=code, 
+                    room=room_val, 
+                    schedule=schedule_val,
+                    faculty_id=faculty_id_val
+                )
                 db.session.add(section)
                 db.session.commit() # Commit needed to generate section.id
             

@@ -1,14 +1,12 @@
 (function() {
     let calendarInstance = null;
-    let currentActiveYear = "1"; 
+    let currentActiveYear = "all"; // THE FIX: Default to showing all classes instantly on reload!
     let importedFaculty = new Set();
     let importedSections = new Set();
     let editingEvent = null;
     
-    // 2. FULL CURRICULUM DATA
     let curriculumData = [];
 
-    // 3. MOCK DATABASE
     const mockDatabase = {
         "1": { color: '#ef4444', events: [] }, 
         "2": { color: '#3b82f6', events: [] }, 
@@ -41,7 +39,6 @@
         }
     }
 
-    // --- FIX 1: RESTORE DROPDOWN MEMORY SO CLASSES DON'T TURN INVISIBLE ---
     function loadInitialSchedules() {
         const savedEvents = localStorage.getItem('aeris_imported_schedule');
         
@@ -49,7 +46,6 @@
             try {
                 const parsedEvents = JSON.parse(savedEvents);
                 
-                // Clear the mock database and Sets
                 for (let year in mockDatabase) mockDatabase[year].events = [];
                 importedFaculty.clear();
                 importedSections.clear();
@@ -59,7 +55,6 @@
                     if (!mockDatabase[year]) mockDatabase[year] = { color: ev.backgroundColor || '#3b82f6', events: [] };
                     mockDatabase[year].events.push(ev);
 
-                    // CRITICAL: Rebuild the memory for dropdowns!
                     if (ev.extendedProps.faculty && ev.extendedProps.faculty.toUpperCase() !== 'TBA') {
                         importedFaculty.add(ev.extendedProps.faculty);
                     }
@@ -103,7 +98,19 @@
             return;
         }
 
-        if (calendarInstance) calendarInstance.destroy();
+        // THE FIX: Do not destroy calendar when switching tabs. Just resize it!
+        if (calendarInstance) {
+            setTimeout(() => calendarInstance.updateSize(), 50);
+            return;
+        }
+
+        // Auto-detect which UI button is active
+        const activeBtn = document.querySelector('.toggle-btn.active');
+        if (activeBtn) {
+            currentActiveYear = activeBtn.getAttribute('data-year') || 'all';
+        } else {
+            currentActiveYear = 'all';
+        }
 
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGridWeek',
@@ -706,13 +713,19 @@
         return `2026-02-${dayStr}`;
     }
 
-    // --- FIX 2: PREVENT DOUBLE SOURCES ON THE CALENDAR ---
+    // --- THE ANTI-FLASH FIX: ADD EVENTS ONE-BY-ONE INSTEAD OF DESTROYING GRID ---
     function loadYearData(yearKey) {
         if (!calendarInstance) return;
         currentActiveYear = yearKey;
         
-        // CRITICAL FIX: Destroys ALL old data layers before adding new ones so they never duplicate
-        calendarInstance.removeAllEventSources();
+        // Sync the HTML toggle buttons so they match the loaded data
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.year === String(yearKey)) btn.classList.add('active');
+        });
+        
+        // Instantly clears the calendar classes without destroying the entire layout grid
+        calendarInstance.removeAllEvents();
         
         let allEventsToDisplay = [];
 
@@ -762,7 +775,8 @@
         }
 
         if (allEventsToDisplay.length > 0) {
-            calendarInstance.addEventSource(allEventsToDisplay);
+            // Instantly injects classes into the existing grid so the screen never blinks white!
+            allEventsToDisplay.forEach(ev => calendarInstance.addEvent(ev));
             updateKPIs(allEventsToDisplay); 
             toggleEmptyState(true); 
         } else {
@@ -893,15 +907,15 @@
         const calendarWrapper = document.getElementById('calendar-wrapper');
 
         if (hasEvents) {
-            emptyState.style.display = 'none';
-            calendarWrapper.style.display = 'block';
+            if (emptyState) emptyState.style.display = 'none';
+            if (calendarWrapper) calendarWrapper.style.display = 'block';
             
             if (calendarInstance) {
                 setTimeout(() => calendarInstance.updateSize(), 50);
             }
         } else {
-            emptyState.style.display = 'flex';
-            calendarWrapper.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'flex';
+            if (calendarWrapper) calendarWrapper.style.display = 'none';
         }
     }
 
@@ -931,7 +945,7 @@
         const btnDelete = document.getElementById('btnDeleteClass');
         if(btnDelete) btnDelete.style.display = 'none'; 
         
-        document.getElementById('modalYear').value = currentActiveYear;
+        document.getElementById('modalYear').value = currentActiveYear === 'all' ? '1' : currentActiveYear;
         document.getElementById('sectionCode').value = '';
         document.getElementById('roomInput').value = '';
         document.getElementById('startTime').value = '07:30';
@@ -1335,7 +1349,7 @@
             if (faculty && faculty !== 'undefined') importedFaculty.add(faculty);
             if (section && section !== 'undefined') importedSections.add(section);
 
-            let targetYear = currentActiveYear; 
+            let targetYear = currentActiveYear === 'all' ? '1' : currentActiveYear; 
             const yearMatch = course.match(/-(\d)/); 
             if (yearMatch) targetYear = yearMatch[1];
             
@@ -1351,12 +1365,10 @@
             extractAndAddEvent('lecture', row[colMap.timeLec], row[colMap.dayLec], row[colMap.roomLec], code, title, section, faculty, rowEvents, yearColor);
             extractAndAddEvent('lab', row[colMap.timeLab], row[colMap.dayLab], row[colMap.roomLab], code, title, section, faculty, rowEvents, yearColor);
 
-            // --- FIX 3: PREVENT DUPLICATES ON RE-IMPORT ---
             if (rowEvents.length > 0) {
                 rowEvents.forEach(ev => {
                     ev.extendedProps.year = targetYear;
                     
-                    // Safely check if this EXACT class already exists before pushing
                     let isDuplicate = mockDatabase[targetYear].events.some(e => 
                         e.start === ev.start && 
                         e.extendedProps.code === ev.extendedProps.code && 
@@ -1398,7 +1410,7 @@
             sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
             Array.from(importedSections).sort().forEach(sec => {
                 const secYear = getYearFromSection(sec);
-                if (secYear === String(modalYear) || !secYear) {
+                if (secYear === String(modalYear) || !secYear || modalYear === 'all') {
                     sectionSelect.innerHTML += `<option value="${sec}">${sec}</option>`;
                 }
             });
