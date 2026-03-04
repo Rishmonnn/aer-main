@@ -1038,14 +1038,51 @@ def get_student_available_subjects(student_id):
             # Fallback to "A" if section_code is completely empty in the DB
             sec_val = ev.section_code if ev.section_code else "A" 
             
-            # Group by section_code to avoid duplicates if a section has multiple schedule blocks (e.g. MWF)
+            # --- START OF SMART TIME EXTRACTOR ---
+            start_str = str(ev.start_time or "")
+            end_str = str(ev.end_time or "")
+            day_name = ""
+            time_span = ""
+            
+            if "T" in start_str:
+                try:
+                    # Extract from FullCalendar ISO Format (e.g. "2024-02-12T09:00:00")
+                    clean_start = start_str.split('+')[0].split('Z')[0].split('.')[0]
+                    clean_end = end_str.split('+')[0].split('Z')[0].split('.')[0]
+                    
+                    dt_start = datetime.strptime(clean_start, "%Y-%m-%dT%H:%M:%S")
+                    dt_end = datetime.strptime(clean_end, "%Y-%m-%dT%H:%M:%S")
+                    
+                    day_name = dt_start.strftime("%a").upper() # Outputs 'MON', 'TUE'
+                    time_span = f"{dt_start.strftime('%I:%M%p')}-{dt_end.strftime('%I:%M%p')}"
+                except Exception as e:
+                    time_span = "TBA"
+            else:
+                # Extract from raw CSV imports (e.g. start="09:00AM-10:30AM", end="MON / WED")
+                if "-" in start_str and any(d in end_str.upper() for d in ['MON','TUE','WED','THU','FRI','SAT']):
+                    time_span = start_str
+                    day_name = end_str.upper()
+                else:
+                    time_span = f"{start_str}-{end_str}"
+            
+            # Group by section_code and build the data package
             if sec_val not in unique_sections:
                 unique_sections[sec_val] = {
                     'id': sec_val, 
                     'name': sec_val,
                     'faculty': ev.faculty_name or "TBA",
-                    'room': ev.room or "TBA"
+                    'room': ev.room or "TBA",
+                    'days': day_name,
+                    'time': time_span
                 }
+            else:
+                # If section exists (e.g. a 2nd schedule block for Wednesday), append the day!
+                if day_name and day_name not in unique_sections[sec_val].get('days', ''):
+                    if unique_sections[sec_val].get('days'):
+                        unique_sections[sec_val]['days'] += f" / {day_name}"
+                    else:
+                        unique_sections[sec_val]['days'] = day_name
+            # --- END OF SMART TIME EXTRACTOR ---
                 
         section_list = list(unique_sections.values())
         

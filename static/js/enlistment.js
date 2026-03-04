@@ -184,7 +184,7 @@ function renderSubjects(subjects) {
         let optionsHtml = '';
         if (sub.sections && sub.sections.length > 0) {
             sub.sections.forEach(sec => {
-                // If the backend eventually sends sec.days and sec.time, we map them into data attributes here!
+                // Notice the data-days and data-time attributes here!
                 optionsHtml += `<option value="${sec.id}" data-days="${sec.days || ''}" data-time="${sec.time || ''}" data-room="${sec.room || 'TBA'}">Section ${sec.name} (${sec.room} | ${sec.faculty})</option>`;
             });
         }
