@@ -649,6 +649,41 @@ def get_all_students():
         print(f"Error fetching students: {e}")
         return jsonify([])
     
+@app.route('/api/faculty/my-sections', methods=['GET'])
+@login_required
+def get_my_sections():
+    try:
+        # 1. Get the logged-in user's email from the session
+        user_email = session.get('user')
+        current_user = User.query.filter_by(email=user_email).first()
+        
+        if not current_user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        # 2. Find all sections assigned to this instructor
+        my_sections = Section.query.filter_by(faculty_id=current_user.id).all()
+        
+        output = []
+        for sec in my_sections:
+            # Join with the Subject table to get the descriptive title
+            subject = Subject.query.get(sec.subject_code)
+            sub_title = subject.description if subject else "Unknown Subject"
+            
+            output.append({
+                'section_id': sec.id,
+                'section_name': sec.name,          # e.g., "A" or "CPE-3A"
+                'subject_code': sec.subject_code,  # e.g., "CPE 101"
+                'subject_title': sub_title,
+                'schedule': sec.schedule or "TBA",
+                'room': sec.room or "TBA"
+            })
+            
+        return jsonify({'success': True, 'data': output})
+        
+    except Exception as e:
+        print(f"Error fetching faculty sections: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+    
     
 # --- 2. NEW ROUTE (Add this for Class Records) ---
 @app.route('/api/faculty/class-records/students', methods=['GET'])
