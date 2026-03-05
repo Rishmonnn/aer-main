@@ -442,6 +442,10 @@ def get_retention_data():
                 
                 if fail_count >= 2: critical_risk_count += 1
                 else: high_risk_count += 1
+
+                # --- NEW: Extract failed subject codes to generate a reason ---
+                failed_subjects = [f.section.subject_code for f in failed_records if f.section]
+                risk_reason = f"Failed {fail_count} subject(s): {', '.join(failed_subjects)}" if failed_subjects else "Failing Grades"
                     
                 at_risk_students.append({
                     'id': s.id,
@@ -449,7 +453,8 @@ def get_retention_data():
                     'program': s.program,
                     'year_level': s.year_level,
                     'risk_level': risk_level,
-                    'risk_class': risk_class
+                    'risk_class': risk_class,
+                    'risk_reason': risk_reason # <--- NEW DATA
                 })
             else:
                 regular_count += 1
@@ -648,41 +653,6 @@ def get_all_students():
     except Exception as e:
         print(f"Error fetching students: {e}")
         return jsonify([])
-    
-@app.route('/api/faculty/my-sections', methods=['GET'])
-@login_required
-def get_my_sections():
-    try:
-        # 1. Get the logged-in user's email from the session
-        user_email = session.get('user')
-        current_user = User.query.filter_by(email=user_email).first()
-        
-        if not current_user:
-            return jsonify({'success': False, 'message': 'User not found'}), 404
-
-        # 2. Find all sections assigned to this instructor
-        my_sections = Section.query.filter_by(faculty_id=current_user.id).all()
-        
-        output = []
-        for sec in my_sections:
-            # Join with the Subject table to get the descriptive title
-            subject = Subject.query.get(sec.subject_code)
-            sub_title = subject.description if subject else "Unknown Subject"
-            
-            output.append({
-                'section_id': sec.id,
-                'section_name': sec.name,          # e.g., "A" or "CPE-3A"
-                'subject_code': sec.subject_code,  # e.g., "CPE 101"
-                'subject_title': sub_title,
-                'schedule': sec.schedule or "TBA",
-                'room': sec.room or "TBA"
-            })
-            
-        return jsonify({'success': True, 'data': output})
-        
-    except Exception as e:
-        print(f"Error fetching faculty sections: {e}")
-        return jsonify({'success': False, 'message': 'Server error'}), 500
     
     
 # --- 2. NEW ROUTE (Add this for Class Records) ---

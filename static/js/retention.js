@@ -61,7 +61,7 @@ function fetchRetentionData() {
             if(tbody) {
                 tbody.innerHTML = ''; 
                 if (data.at_risk_students.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color: #64748b;">No students are currently at risk.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color: #64748b;">No students are currently at risk.</td></tr>`;
                 } else {
                     data.at_risk_students.forEach(student => {
                         tbody.innerHTML += `
@@ -71,7 +71,7 @@ function fetchRetentionData() {
                                 <td>${student.program}</td>
                                 <td>${student.year_level}</td>
                                 <td><span class="risk-pill ${student.risk_class}">${student.risk_level}</span></td>
-                                <td><button class="btn-advise" onclick="openAdvisingModal('${student.id}', \`${student.name}\`)">ADVISE</button></td>
+                                <td style="color: #ef4444; font-size: 0.85rem; font-weight: 500;">${student.risk_reason}</td> <td><button class="btn-advise" onclick="openAdvisingModal('${student.id}', \`${student.name}\`)">ADVISE</button></td>
                             </tr>
                         `;
                     });
