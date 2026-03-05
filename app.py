@@ -6,9 +6,11 @@ import random
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime # Make sure to import datetime
 from models import db, User, Student, Subject, Section, Enrollment, ScheduleEvent, AdvisingRecord
-
 from dotenv import load_dotenv
 from groq import Groq
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Load the environment variables from the .env file BEFORE configuring the API
 load_dotenv()
@@ -205,15 +207,114 @@ def add_advising_record(student_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
-
-# --- NEW: Instructors API ---
-
+    
 # --- NEW: Instructors API ---
 @app.route('/api/instructors', methods=['GET'])
 @login_required
 def get_instructors():
-    """Returns the central list of instructors for both modules."""
-    return jsonify(INSTRUCTORS_DATA)
+    """Dynamically builds the instructors list based on imported schedules and registered accounts."""
+    try:
+        events = ScheduleEvent.query.all()
+        faculty_loads = {}
+        
+        for ev in events:
+            fac_name = ev.faculty_name
+            if not fac_name or fac_name.strip() == '' or fac_name.upper() == 'TBA':
+                continue
+                
+            fac_name = fac_name.strip().upper()
+            
+            if fac_name not in faculty_loads:
+                faculty_loads[fac_name] = {
+                    'id': fac_name, 
+                    'name': fac_name,
+                    'department': 'Unassigned',
+                    'classes': 0,
+                    'lec': 0,
+                    'lab': 0,
+                    'schedule': [] # <--- NEW: This holds the actual classes for the modal
+                }
+            
+            # 1. Calculate hours (3 hours of lab = 1 unit)
+            try:
+                start_dt = datetime.fromisoformat(ev.start_time.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(ev.end_time.replace('Z', '+00:00'))
+                hours = (end_dt - start_dt).total_seconds() / 3600
+            except:
+                hours = 0
+            
+            is_lab = ev.type and 'lab' in ev.type.lower()
+            
+            if is_lab:
+                faculty_loads[fac_name]['lab'] += (hours / 3) if hours > 0 else 1
+            else:
+                faculty_loads[fac_name]['lec'] += hours if hours > 0 else 3
+                
+            faculty_loads[fac_name]['classes'] += 1
+            
+            # --- 2. NEW: Build the Schedule Data for the Modal ---
+            day_idx = 0
+            start_time_str = "TBA"
+            end_time_str = "TBA"
+            day_long = "Unknown"
+            days_long_map = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            
+            if ev.start_time and 'T' in ev.start_time:
+                try:
+                    s_dt = datetime.fromisoformat(ev.start_time.replace('Z', '+00:00'))
+                    e_dt = datetime.fromisoformat(ev.end_time.replace('Z', '+00:00'))
+                    
+                    day_idx = s_dt.weekday() # 0 = Monday, 6 = Sunday
+                    if day_idx < len(days_long_map):
+                        day_long = days_long_map[day_idx]
+                        
+                    # Format to 12-hour AM/PM (e.g. "8:00 AM")
+                    start_time_str = s_dt.strftime('%I:%M %p').lstrip('0')
+                    end_time_str = e_dt.strftime('%I:%M %p').lstrip('0')
+                except Exception as e:
+                    pass
+            else:
+                # Fallback for raw imports without timestamps
+                start_time_str = ev.start_time or "TBA"
+                end_time_str = ev.end_time or "TBA"
+
+            # Attach this specific class to the instructor's schedule list
+            faculty_loads[fac_name]['schedule'].append({
+                'subjectCode': ev.subject_code or 'TBA',
+                'subjectDesc': ev.title or 'Unknown Subject',
+                'room': ev.room or 'TBA',
+                'startTime': start_time_str,
+                'endTime': end_time_str,
+                'dayIndex': day_idx,
+                'dayLong': day_long,
+                'type': 'Lab' if is_lab else 'Lec'
+            })
+            # ------------------------------------------------------
+
+        # 3. Merge with registered faculty accounts
+        registered_faculty = User.query.filter(User.role.ilike('faculty')).all()
+        
+        for user in registered_faculty:
+            fac_name = user.name.upper()
+            if fac_name in faculty_loads:
+                faculty_loads[fac_name]['id'] = user.id
+                faculty_loads[fac_name]['department'] = getattr(user, 'department', 'Unassigned')
+            else:
+                faculty_loads[fac_name] = {
+                    'id': user.id,
+                    'name': fac_name,
+                    'department': getattr(user, 'department', 'Unassigned'),
+                    'classes': 0,
+                    'lec': 0,
+                    'lab': 0,
+                    'schedule': []
+                }
+                
+        return jsonify(list(faculty_loads.values()))
+
+    except Exception as e:
+        print(f"Error generating instructors list: {e}")
+        return jsonify([])
 
 @app.route('/api/enrollment', methods=['POST'])
 @login_required
@@ -934,6 +1035,103 @@ def get_enlistment_candidates():
         })
     return jsonify(output)
 
+@app.route('/api/send-otp', methods=['POST'])
+def send_otp():
+    data = request.get_json()
+    email_addr = data.get('email')
+    
+    if not email_addr:
+        return jsonify({'success': False, 'message': 'Email is required'}), 400
+
+    # 1. Generate a 6-digit random OTP
+    otp = str(random.randint(100000, 999999))
+    
+    # 2. Store OTP and the associated email in the session
+    session['reg_otp'] = otp
+    session['reg_email'] = email_addr.lower()
+
+    # 3. Setup Email Sender (Uses environment variables from your .env)
+    SMTP_SERVER = "smtp.gmail.com"
+    SMTP_PORT = 587
+    SENDER_EMAIL = os.environ.get("MAIL_USERNAME")
+    SENDER_PASSWORD = os.environ.get("MAIL_PASSWORD")
+
+    if not SENDER_EMAIL or not SENDER_PASSWORD:
+        return jsonify({'success': False, 'message': 'System email is not configured.'}), 500
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"AERIS System <{SENDER_EMAIL}>"
+        msg['To'] = email_addr
+        msg['Subject'] = "AERIS Account Creation - OTP Verification"
+        
+        # HTML Email Template
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="color: #7a001e; margin: 0; letter-spacing: 2px;">A E R I S</h2>
+                    <p style="font-size: 12px; color: #666; margin: 5px 0 0 0; text-transform: uppercase;">College of Engineering and Architecture</p>
+                </div>
+                
+                <p>Hello,</p>
+                
+                <p>You recently requested to create an account on the AERIS portal. Please use the following One-Time Password (OTP) to complete your registration:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <span style="display: inline-block; font-size: 32px; font-weight: bold; color: #7a001e; letter-spacing: 5px; padding: 15px 30px; background-color: #f5f5f5; border-radius: 8px; border: 1px dashed #7a001e;">
+                        {otp}
+                    </span>
+                </div>
+                
+                <p style="font-size: 14px; color: #555;"><strong>Note:</strong> This code is valid for a limited time. Please do not share this code with anyone. If you did not request this, you can safely ignore this email.</p>
+                
+                <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                
+                <p style="font-size: 12px; color: #999; text-align: center;">
+                    This is an automated message from the Academic Evaluation, Records & Information Systems. Please do not reply to this email.
+                </p>
+            </body>
+        </html>
+        """
+        
+        # Attach as HTML instead of plain text
+        msg.attach(MIMEText(html_body, 'html'))
+        
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        
+        return jsonify({'success': True, 'message': 'OTP sent successfully!'})
+        
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        
+        return jsonify({'success': True, 'message': 'OTP sent successfully!'})
+    except Exception as e:
+        print(f"Error sending OTP: {e}")
+        return jsonify({'success': False, 'message': 'Failed to send OTP. Please try again.'}), 500
+
+@app.route('/api/verify-otp', methods=['POST'])
+def verify_otp():
+    """Checks the OTP in the background before allowing the form to submit."""
+    data = request.get_json()
+    email = data.get('email', '').lower()
+    otp_input = data.get('otp', '')
+    
+    stored_otp = session.get('reg_otp')
+    stored_email = session.get('reg_email')
+    
+    if not stored_otp or stored_otp != otp_input or stored_email != email:
+        return jsonify({'success': False, 'message': 'Incorrect OTP. Please try again.'})
+        
+    return jsonify({'success': True})
+
 @app.route('/register', methods=['POST'])
 def register():
     # Get data from the form
@@ -942,9 +1140,18 @@ def register():
     role = request.form.get('role')
     department = request.form.get('department')
     password = request.form.get('password')
+    otp_input = request.form.get('otp') # <--- Get the OTP input
 
     if email:
         email = email.lower()
+
+    # --- NEW: Verify OTP ---
+    stored_otp = session.get('reg_otp')
+    stored_email = session.get('reg_email')
+
+    if not stored_otp or stored_otp != otp_input or stored_email != email:
+        return render_template('index.html', error="Invalid or expired OTP. Please try again.")
+    # -----------------------
 
     # Basic check if user already exists
     existing_user = User.query.filter_by(email=email).first()
@@ -965,6 +1172,10 @@ def register():
         db.session.add(new_user)
         db.session.commit()
 
+        # --- NEW: Clear OTP from session after successful registration ---
+        session.pop('reg_otp', None)
+        session.pop('reg_email', None)
+
         # Automatically log them in after registration
         session['user'] = email
         session['role'] = role
@@ -976,7 +1187,6 @@ def register():
 
     except Exception as e:
         db.session.rollback()
-        # === THIS LINE WILL SHOW THE REAL ERROR IN YOUR TERMINAL ===
         print(f"\n❌ REGISTRATION ERROR: {str(e)}\n") 
         return render_template('index.html', error=f"Registration failed: {str(e)}")
 

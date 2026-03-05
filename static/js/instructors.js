@@ -181,8 +181,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 let typeStr = props.type || ''; 
                 let isLab = typeStr.toLowerCase().includes('lab');
                 
-                if (isLab) facultyMap[facName].lab += hours;
-                else facultyMap[facName].lec += hours;
+                // --- NEW: 3 hours of lab = 1 unit ---
+                if (isLab) {
+                    facultyMap[facName].lab += (hours / 3); 
+                } else {
+                    facultyMap[facName].lec += hours;
+                }
                 
                 facultyMap[facName].classes += 1;
                 

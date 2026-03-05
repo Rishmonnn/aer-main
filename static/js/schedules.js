@@ -659,15 +659,19 @@
             let lecRoomFormat = Array.from(row.lecRooms).join('/');
             let labRoomFormat = Array.from(row.labRooms).join('/');
 
-            let lecU = row.lecHrs || 0;
-            let labU = row.labHrs || 0;
+            let lecTeachHrs = row.lecHrs || 0;
+            let labTeachHrs = row.labHrs || 0;
+            let totalTeachHrs = lecTeachHrs + labTeachHrs;
+
+            let lecU = lecTeachHrs;             // 1 hour lec = 1 unit
+            let labU = labTeachHrs / 3;         // 3 hours lab = 1 unit
             let totalU = lecU + labU;
 
             aoa.push([
                 "", 
                 row.campus, row.code, row.title, row.course, 
-                lecU, labU, totalU,   
-                lecU, labU, totalU,   
+                lecU, labU, totalU,                           // Column: Units
+                lecTeachHrs, labTeachHrs, totalTeachHrs,      // Column: Teaching Hours
                 row.section, lecTimeFormat, labTimeFormat, lecDayFormat, labDayFormat, 
                 lecRoomFormat, labRoomFormat, row.faculty 
             ]);
