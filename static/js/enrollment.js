@@ -288,16 +288,44 @@ function openEnrollmentModal(event, data) {
     document.getElementById('modalStudentEmail').innerText = data.email || 'N/A';
     document.getElementById('modalStudentContact').innerText = data.contact || 'N/A';
 
-    // 2. Display Failed Subjects (if any)
+    // 2. Display Failed Subjects (if any) & Dynamic Warning Box
     const warningsDiv = document.getElementById('modalWarnings');
+    const warningBox = document.getElementById('modalWarningBox');
+    const warningTitle = document.getElementById('modalWarningTitle');
+    const warningDesc = document.getElementById('modalWarningDesc');
+    const warningIcon = document.getElementById('modalWarningIcon');
     const failedSubjectsContainer = document.getElementById('modalFailedSubjects');
     
     if (data.hasWarnings && data.failed_subjects && data.failed_subjects.length > 0) {
         warningsDiv.style.display = 'block';
         failedSubjectsContainer.innerHTML = '';
         
+        // Check if actually retained, or just promoted conditionally
+        const isRetained = data.decision.includes('Retained');
+
+        if (isRetained) {
+            // RED BOX for Retained
+            warningBox.style.backgroundColor = "#fef2f2";
+            warningBox.style.border = "1px solid #fecaca";
+            warningBox.style.color = "#991b1b";
+            warningIcon.className = 'bx bx-error-circle';
+            warningTitle.innerText = "Student Retained: Academic Probation";
+            warningDesc.innerText = "This student cannot be promoted to the next year level due to failing grades in the following subjects:";
+        } else {
+            // ORANGE BOX for Conditional Promotion
+            warningBox.style.backgroundColor = "#fffbeb";
+            warningBox.style.border = "1px solid #fde68a";
+            warningBox.style.color = "#92400e";
+            warningIcon.className = 'bx bx-error';
+            warningTitle.innerText = "Warning: Failed Subjects Detected";
+            warningDesc.innerText = "This student is promoted, but has deficiencies in the following subjects that must be retaken:";
+        }
+        
+        // Add the subject tags
         data.failed_subjects.forEach(subject => {
-            failedSubjectsContainer.innerHTML += `<span class="tag critical" style="background: white; border-color: #fecaca; color: #ef4444;"><i class='bx bx-book'></i> ${subject}</span>`;
+            const tagColor = isRetained ? "#ef4444" : "#d97706";
+            const borderColor = isRetained ? "#fecaca" : "#fde68a";
+            failedSubjectsContainer.innerHTML += `<span class="tag" style="background: white; border: 1px solid ${borderColor}; color: ${tagColor}; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600;"><i class='bx bx-book'></i> ${subject}</span>`;
         });
     } else {
         warningsDiv.style.display = 'none';
@@ -313,12 +341,12 @@ function openEnrollmentModal(event, data) {
     const fullCard = document.getElementById('decision-card-container');
     const iconContainer = document.getElementById('decision-icon-container');
 
-    const isRetained = data.decision.includes('Retained');
-    const isConditional = data.decision.includes('Retake') || data.decision.includes('Conditional');
+    const isRetainedCard = data.decision.includes('Retained');
+    const isConditionalCard = data.decision.includes('Retake') || data.decision.includes('Conditional');
 
     let decisionIcon, decisionText, badgeColor;
 
-    if (isRetained) {
+    if (isRetainedCard) {
         // RED CARD: Academic Probation / Retained
         decisionIcon = "bx-minus-circle";
         decisionText = data.decision.toUpperCase();
@@ -329,7 +357,7 @@ function openEnrollmentModal(event, data) {
             iconContainer.style.background = "#ffe4e6"; 
             iconContainer.style.color = "#e11d48"; 
         }
-    } else if (isConditional) {
+    } else if (isConditionalCard) {
         // YELLOW/ORANGE CARD: Promoted but with Warnings
         decisionIcon = "bx-error";
         decisionText = data.decision.toUpperCase();

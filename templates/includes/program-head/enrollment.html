@@ -177,14 +177,14 @@
             </div>
 
             <div id="modalWarnings" style="display: none;">
-                <div class="alert-box danger" style="flex-direction: column; gap: 8px;">
+                <div id="modalWarningBox" class="alert-box" style="flex-direction: column; gap: 8px; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <i class='bx bx-error-circle'></i>
-                        <h4 style="margin: 0;">Student Retained: Academic Deficiencies</h4>
+                        <i id="modalWarningIcon" class='bx bx-error-circle' style="font-size: 1.2rem;"></i>
+                        <h4 id="modalWarningTitle" style="margin: 0;">-</h4>
                     </div>
-                    <p style="margin-left: 32px;">This student cannot be promoted to the next year level due to failing grades in the following subjects:</p>
+                    <p id="modalWarningDesc" style="margin-left: 32px; font-size: 0.9rem; margin-bottom: 0;">-</p>
                     <div id="modalFailedSubjects" style="margin-left: 32px; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
-                        </div>
+                    </div>
                 </div>
             </div>
 

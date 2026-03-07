@@ -914,6 +914,9 @@ def get_pending_enrollment():
         has_major_failure = False
         
         for enroll in recent_enrollments:
+            if enroll.status in ['Pending', 'Enrolled', 'Enlisting']:
+                continue
+            
             section = db.session.get(Section, enroll.section_id)
             if not section: continue
             
