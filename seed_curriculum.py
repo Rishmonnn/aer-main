@@ -5,7 +5,8 @@ from models import db, Subject
 from sqlalchemy import text
 
 def seed_subjects():
-    filename = 'CPECUR-MAJORS.csv'
+    # 1. Update the filename to your new full curriculum file
+    filename = 'FULL CPE_Curriculum_Complete.csv'
     
     base_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(base_dir, filename)
@@ -33,7 +34,6 @@ def seed_subjects():
                     
                     code = str(row['Course Code']).strip()
                     
-                    # INJECTABLE QUERY: Using the correct plural 'subjects' table
                     raw_query = f"SELECT * FROM subjects WHERE code = '{code}'"
                     subject = db.session.query(Subject).from_statement(text(raw_query)).first()
                     
@@ -52,6 +52,7 @@ def seed_subjects():
                         except:
                             stype = 'Lecture'
 
+                        # 2. Add the Category field during creation
                         new_sub = Subject(
                             code=code,
                             description=str(row['Subject Title']).strip(),
@@ -59,7 +60,8 @@ def seed_subjects():
                             semester=s_map.get(str(row['Semester']).strip(), "1st Semester"),
                             year_level=y_map.get(str(row['Year']).strip(), "1st Year"),
                             type=stype,
-                            prerequisite=raw_prereq
+                            prerequisite=raw_prereq,
+                            category=str(row.get('Category', 'Major')).strip() # <--- NEW
                         )
                         db.session.add(new_sub)
                         count += 1

@@ -49,6 +49,7 @@ class Subject(db.Model):
     year_level = db.Column(db.String(20)) # "1st Year", etc.
     type = db.Column(db.String(20)) # "Lecture", "Laboratory"
     prerequisite = db.Column(db.String(100), nullable=True)
+    category = db.Column(db.String(50), nullable=True, default='Major')
 
 # 4. SECTIONS (Actual Scheduled Classes)
 class Section(db.Model):

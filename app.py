@@ -900,36 +900,78 @@ def get_student_journey_data(student_id):
 @app.route('/api/enrollment/pending', methods=['GET'])
 @login_required
 def get_pending_enrollment():
-    """Fetches students who are waiting to be enrolled (Status: Pending)."""
+    """Evaluates students waiting for enrollment confirmation based on robust standards."""
     students = Student.query.filter_by(status='Pending').all()
     
     output = []
     for s in students:
-        # 1. Check for Failures in the Database
-        failed_enrollments = Enrollment.query.filter_by(student_id=s.id)\
-            .filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') )\
-            .all()
+        # Get all recent/active enrollments to calculate total units
+        recent_enrollments = Enrollment.query.filter_by(student_id=s.id).all()
         
-        is_retained = len(failed_enrollments) > 0
-        decision = 'Retained' if is_retained else 'Promoted'
+        total_units_taken = 0
+        failed_units = 0
+        failed_subjects = []
+        has_major_failure = False
         
-        # Extract the exact subject codes they failed
-        failed_subjects = [f.section.subject_code for f in failed_enrollments if f.section]
+        for enroll in recent_enrollments:
+            section = db.session.get(Section, enroll.section_id)
+            if not section: continue
+            
+            subject = db.session.get(Subject, section.subject_code)
+            if not subject: continue
+            
+            total_units_taken += subject.units
+            
+            # Check if this subject is failed
+            if (enroll.grade and enroll.grade > 3.0) or (enroll.status == 'Failed'):
+                failed_units += subject.units
+                failed_subjects.append(subject.code)
+                
+                # Flag if it's a bottleneck Major
+                if subject.category == 'Major':
+                    has_major_failure = True
 
+        # --- THE NEW RETENTION & PROMOTION ALGORITHM ---
+        
+        # Determine Academic Status
+        academic_status = 'Irregular' if len(failed_subjects) > 0 else 'Regular'
+        
+        # Determine Promotion Decision
+        decision = 'Promoted'
+        is_retained = False
+        
+        if total_units_taken > 0:
+            failure_ratio = failed_units / total_units_taken
+            
+            # 1. Automatic Retention: Failed more than 50% of units
+            if failure_ratio > 0.50:
+                decision = 'Retained (Academic Probation)'
+                is_retained = True
+            
+            # 2. Conditional Promotion: Failed a Major, but < 50% of load
+            elif has_major_failure:
+                decision = 'Promoted (Conditional)'
+                is_retained = False # They advance, but downstream majors will be locked
+                
+            # 3. Standard Promotion: Failed only Minors/GenEds
+            elif len(failed_subjects) > 0:
+                decision = 'Promoted (Retake Minors)'
+                is_retained = False
+        
         output.append({
             'id': s.id,
             'name': s.name,
             'program': s.program,
             'year_level': s.year_level,
             'status': s.status,
-            'type': 'Irregular' if is_retained else 'Regular',
+            'type': academic_status,
             'decision': decision,
-            'hasWarnings': is_retained,
-            # --- NEW DATA FOR MODAL ---
+            'hasWarnings': is_retained or len(failed_subjects) > 0,
             'email': s.email or 'No email provided',
             'contact': s.contact_number or 'No contact provided',
             'failed_subjects': failed_subjects
         })
+        
     return jsonify(output)
 
 
@@ -949,16 +991,25 @@ def confirm_bulk_enrollment():
         if not student:
             continue
 
-        # 1. Check for Failures (Retention Logic)
-        failed_enrollments = Enrollment.query.filter_by(student_id=student.id)\
-            .filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') )\
-            .all()
+        # Re-evaluate retention logic based on >50% rule to know if we bump the year level
+        all_enrollments = Enrollment.query.filter_by(student_id=student.id).all()
+        total_units = 0
+        failed_units = 0
         
-        is_retained = len(failed_enrollments) > 0
+        for enroll in all_enrollments:
+            if enroll.section and enroll.section.subject:
+                sub = enroll.section.subject
+                total_units += sub.units
+                if (enroll.grade and enroll.grade > 3.0) or (enroll.status == 'Failed'):
+                    failed_units += sub.units
+                    
+        is_retained = (failed_units / total_units > 0.50) if total_units > 0 else False
+        
+        # Advance them to Enlisting
         student.status = 'Enlisting'
 
+        # Bump Year Level only if they are Promoted (not retained)
         if not is_retained:
-            # Bump Year Level if promoted
             if student.year_level == '1st Year': student.year_level = '2nd Year'
             elif student.year_level == '2nd Year': student.year_level = '3rd Year'
             elif student.year_level == '3rd Year': student.year_level = '4th Year'
@@ -967,10 +1018,7 @@ def confirm_bulk_enrollment():
         
     db.session.commit()
     
-    return jsonify({
-        'success': True, 
-        'count': success_count
-    })
+    return jsonify({'success': True, 'count': success_count})
     
     
 @app.route('/api/enrollment/confirm', methods=['POST'])
