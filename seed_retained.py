@@ -19,7 +19,7 @@ def get_or_create_faculty():
 
 def seed_test_scenarios():
     with app.app_context():
-        print("--- Injecting Advanced Testing Scenarios ---")
+        print("--- Injecting Advanced Testing Scenarios with History Data ---")
         faculty = get_or_create_faculty()
 
         # Define our Test Students and their exact conditions
@@ -62,6 +62,14 @@ def seed_test_scenarios():
             }
         ]
 
+        mock_barangays = [
+            "Carmen, Cagayan de Oro City", 
+            "Lapasan, Cagayan de Oro City", 
+            "Bulua, Cagayan de Oro City", 
+            "Macasandig, Cagayan de Oro City", 
+            "Kauswagan, Cagayan de Oro City"
+        ]
+
         for s_data in scenarios:
             s_id = s_data["id"]
             
@@ -70,6 +78,15 @@ def seed_test_scenarios():
             student = db.session.query(Student).from_statement(text(raw_query)).first()
             
             if not student:
+                random_contact = f"09{random.randint(100000000, 999999999)}"
+                random_address = random.choice(mock_barangays)
+                random_gender = random.choice(["Male", "Female"])
+                
+                year = random.randint(2003, 2005)
+                month = random.randint(1, 12)
+                day = random.randint(1, 28)
+                random_birthdate = f"{year}-{month:02d}-{day:02d}"
+
                 student = Student(
                     id=s_id,
                     name=s_data["name"],
@@ -77,7 +94,10 @@ def seed_test_scenarios():
                     year_level=s_data["year_level"],
                     status="Pending", # Set to pending so they appear on the Enrollment Dashboard
                     email=s_data["email"],
-                    contact_number=f"09{random.randint(100000000, 999999999)}"
+                    contact_number=random_contact,
+                    address=random_address,
+                    birthdate=random_birthdate,
+                    gender=random_gender
                 )
                 db.session.add(student)
                 db.session.commit()
@@ -95,7 +115,13 @@ def seed_test_scenarios():
                     section = Section.query.filter_by(name=sec_name).first()
                     
                     if not section:
-                        section = Section(name=sec_name, subject_code=sub.code, faculty_id=faculty.id, schedule="Done")
+                        section = Section(
+                            name=sec_name, 
+                            subject_code=sub.code, 
+                            faculty_id=faculty.id, 
+                            schedule="Done",
+                            room="Rm 101"
+                        )
                         db.session.add(section)
                         db.session.commit()
                     
@@ -104,16 +130,28 @@ def seed_test_scenarios():
                     if not exists:
                         # Check if this subject is in their "Fail" list
                         if sub.code in s_data["subjects_to_fail"]:
-                            grade = 5.00
+                            p1_grade = 5.0
+                            p2_grade = 5.0
+                            p3_grade = 5.0
+                            final_grade = 5.0
                             status = "Failed"
                         else:
-                            grade = 1.75 # Random passing grade
+                            # Generate random passing grades
+                            choices = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0]
+                            p1_grade = random.choice(choices)
+                            p2_grade = random.choice(choices)
+                            p3_grade = random.choice(choices)
+                            average_grade = (p1_grade + p2_grade + p3_grade) / 3.0
+                            final_grade = round(average_grade, 2)
                             status = "Passed"
                         
                         enrollment = Enrollment(
                             student_id=s_id,
                             section_id=section.id,
-                            grade=grade,
+                            grade=final_grade,
+                            p1_grade=p1_grade,
+                            p2_grade=p2_grade,
+                            p3_grade=p3_grade,
                             status=status,
                             date_enrolled=datetime.utcnow() - timedelta(days=90)
                         )
