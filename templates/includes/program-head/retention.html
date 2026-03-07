@@ -233,18 +233,15 @@
                 <div class="adv-header-icon">
                     <i class='bx bx-message-square-detail'></i>
                 </div>
-                <div class="adv-header-text">
-                    <h2>Student Advising & Intervention</h2>
-                    <p>Session log for <strong id="adv-student-name" style="color: white;">-</strong> (<span id="adv-student-id">-</span>)</p>
-                </div>
 
                 <div class="adv-header-text">
                     <h2>Student Advising & Intervention</h2>
-                    <p>Session log for <strong id="adv-student-name" style="color: white;">-</strong> (<span id="adv-student-id">-</span>)</p>
-                    <p style="color: #fca5a5; font-size: 0.85rem; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
-                        <i class='bx bx-error-circle'></i> 
-                        <span id="adv-student-reason">No active flags</span>
-                    </p>
+                    <p style="margin-bottom: 8px;">Session log for <strong id="adv-student-name" style="color: white;">-</strong> (<span id="adv-student-id">-</span>)</p>
+                    
+                    <div style="background-color: rgba(220, 38, 38, 0.15); border: 1px solid rgba(248, 113, 113, 0.4); color: #fecaca; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; letter-spacing: 0.3px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <i class='bx bx-error-circle' style="font-size: 1.1rem; color: #f87171;"></i> 
+                        <span>System Flag: <span id="adv-student-reason" style="color: #ffffff;">No active flags</span></span>
+                    </div>
                 </div>
 
                 <span id="close-adv-modal" class="modal-close" style="margin-left: auto; cursor: pointer; font-size: 1.5rem; color: #fff;" onclick="closeAdvisingModal()">&times;</span>

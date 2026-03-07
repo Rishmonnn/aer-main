@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (advActionPlan) advActionPlan.addEventListener('input', function() { autoResizeTextarea(this); });
 });
 
-function openAdvisingModal(studentId, studentName) {
+function openAdvisingModal(studentId, studentName, riskReason = "No active flags") {
     currentAdviseStudentId = studentId;
     
     document.getElementById('adv-student-id').innerText = studentId;
