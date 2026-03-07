@@ -96,7 +96,8 @@ function loadEnrollmentData() {
                 
                 groupedData[yearIndex].push(student);
 
-                if (student.decision === 'Retained') reviewCount++;
+                // --- UPDATED COUNTER LOGIC ---
+                if (student.decision.includes('Retained')) reviewCount++;
                 else promoteCount++;
             });
 
@@ -134,9 +135,17 @@ function loadEnrollmentData() {
                         const row = document.createElement('tr');
                         row.className = 'student-row';
 
-                        let remarksHtml = student.decision === 'Retained' 
-                            ? '<span class="tag critical"><i class="bx bx-error-circle"></i> Retained</span>' 
-                            : '<span class="tag success"><i class="bx bx-check"></i> Cleared</span>';
+                        // --- UPDATED REMARKS HTML (Handles 3 Colors now) ---
+                        let remarksHtml = '';
+                        if (student.decision === 'Promoted') {
+                            remarksHtml = '<span class="tag success"><i class="bx bx-check"></i> Cleared</span>';
+                        } else if (student.decision.includes('Retake') || student.decision.includes('Conditional')) {
+                            // Orange tag for Conditional Promotion
+                            remarksHtml = `<span class="tag warning" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a;"><i class="bx bx-error"></i> ${student.decision}</span>`;
+                        } else {
+                            // Red tag for Academic Probation / Retained
+                            remarksHtml = '<span class="tag critical"><i class="bx bx-error-circle"></i> Retained</span>';
+                        }
 
                         const studentDataStr = JSON.stringify({
                             id: student.id, name: student.name, program: student.program, type: student.type, 
@@ -270,6 +279,7 @@ function confirmBulkEnrollment() {
 function openEnrollmentModal(event, data) {
     if (event) event.stopPropagation();
     
+    // 1. Populate Basic Student Information
     document.getElementById('modalStudentId').innerText = data.id || '-';
     document.getElementById('modalStudentName').innerText = data.name || '-';
     document.getElementById('modalStudentProgram').innerText = data.program || '-';
@@ -278,8 +288,10 @@ function openEnrollmentModal(event, data) {
     document.getElementById('modalStudentEmail').innerText = data.email || 'N/A';
     document.getElementById('modalStudentContact').innerText = data.contact || 'N/A';
 
+    // 2. Display Failed Subjects (if any)
     const warningsDiv = document.getElementById('modalWarnings');
     const failedSubjectsContainer = document.getElementById('modalFailedSubjects');
+    
     if (data.hasWarnings && data.failed_subjects && data.failed_subjects.length > 0) {
         warningsDiv.style.display = 'block';
         failedSubjectsContainer.innerHTML = '';
@@ -291,41 +303,64 @@ function openEnrollmentModal(event, data) {
         warningsDiv.style.display = 'none';
     }
     
+    // 3. Set Regular vs Irregular Badge
     const typeLabel = data.type || 'Regular';
     const typeClass = typeLabel.toLowerCase() === 'irregular' ? 'irregular' : 'regular';
     document.getElementById('modalStudentType').innerHTML = `<span class="status-pill ${typeClass}">${typeLabel}</span>`;
     
+    // 4. Apply The 3-Color Decision Card Logic
     const decisionEl = document.getElementById('modalStudentDecision');
-    const isRetained = data.decision === 'Retained';
-    const decisionIcon = isRetained ? "bx-minus-circle" : "bx-chevrons-up";
-    const decisionClass = isRetained ? "badge-retain" : "badge-promote";
-    const decisionText = isRetained ? "RETAINED" : "PROMOTING TO NEXT YEAR";
-    
     const fullCard = document.getElementById('decision-card-container');
     const iconContainer = document.getElementById('decision-icon-container');
-    
+
+    const isRetained = data.decision.includes('Retained');
+    const isConditional = data.decision.includes('Retake') || data.decision.includes('Conditional');
+
+    let decisionIcon, decisionText, badgeColor;
+
     if (isRetained) {
+        // RED CARD: Academic Probation / Retained
+        decisionIcon = "bx-minus-circle";
+        decisionText = data.decision.toUpperCase();
+        badgeColor = "#e11d48";
         fullCard.style.background = "#fff1f2";
         fullCard.style.borderColor = "#fecdd3";
-        if (iconContainer) {
-            iconContainer.style.background = "#ffe4e6";
-            iconContainer.style.color = "#e11d48";
+        if (iconContainer) { 
+            iconContainer.style.background = "#ffe4e6"; 
+            iconContainer.style.color = "#e11d48"; 
+        }
+    } else if (isConditional) {
+        // YELLOW/ORANGE CARD: Promoted but with Warnings
+        decisionIcon = "bx-error";
+        decisionText = data.decision.toUpperCase();
+        badgeColor = "#d97706";
+        fullCard.style.background = "#fffbeb";
+        fullCard.style.borderColor = "#fde68a";
+        if (iconContainer) { 
+            iconContainer.style.background = "#fef3c7"; 
+            iconContainer.style.color = "#d97706"; 
         }
     } else {
+        // GREEN CARD: Clean Slate Promoted
+        decisionIcon = "bx-chevrons-up";
+        decisionText = "PROMOTING TO NEXT YEAR";
+        badgeColor = "#16a34a";
         fullCard.style.background = "#f0fdf4";
         fullCard.style.borderColor = "#bbf7d0";
-        if (iconContainer) {
-            iconContainer.style.background = "#dcfce7";
-            iconContainer.style.color = "#16a34a";
+        if (iconContainer) { 
+            iconContainer.style.background = "#dcfce7"; 
+            iconContainer.style.color = "#16a34a"; 
         }
     }
 
+    // Output the chosen badge design
     decisionEl.innerHTML = `
-        <span class="badge-status ${decisionClass}" style="font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+        <span style="color: ${badgeColor}; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; font-size: 0.95rem;">
             <i class='bx ${decisionIcon}'></i> ${decisionText}
         </span>
     `;
 
+    // 5. Open the Modal & Bind ID to Confirmation Button
     document.getElementById('enrollmentModal').classList.add('active');
     const btn = document.getElementById('btn-confirm-enroll');
     btn.setAttribute('data-id', data.id);
