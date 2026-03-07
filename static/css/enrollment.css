@@ -92,17 +92,38 @@
 .header-teal { background-color: #ccfbf1; border-bottom: 1px solid #99f6e4; }
 
 /* --- Aligned Tables --- */
-.year-table { width: 100%; border-collapse: collapse; }
+.year-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    table-layout: fixed; /* NEW: Forces columns to strictly obey width rules */
+}
+
+/* NEW: Explicitly define uniform column widths for all 6 columns */
+.year-table th:nth-child(1), .year-table td:nth-child(1) { width: 5%; text-align: center; } /* Checkbox */
+.year-table th:nth-child(2), .year-table td:nth-child(2) { width: 18%; } /* Student ID */
+.year-table th:nth-child(3), .year-table td:nth-child(3) { width: 30%; } /* Name */
+.year-table th:nth-child(4), .year-table td:nth-child(4) { width: 15%; } /* Program */
+.year-table th:nth-child(5), .year-table td:nth-child(5) { width: 15%; } /* Remarks / Status */
+.year-table th:nth-child(6), .year-table td:nth-child(6) { width: 17%; text-align: center; } /* Actions / Promote */
+
 .year-table th { 
-    background-color: #f8fafc; text-align: left; padding: 14px 24px; 
+    background-color: #f8fafc; text-align: left; padding: 14px 15px; /* Slightly reduced padding to fit 6 cols cleanly */
     font-size: 0.8rem; color: #64748b; font-weight: 600; 
     text-transform: uppercase; letter-spacing: 0.5px; 
     border-bottom: 2px solid #e2e8f0; 
 }
+
+/* Re-align specific headers to match their data */
+.year-table th:nth-child(6) { text-align: center; }
+
 .year-table td { 
-    padding: 16px 24px; font-size: 0.95rem; border-bottom: 1px solid #f1f5f9; 
+    padding: 16px 15px; font-size: 0.95rem; border-bottom: 1px solid #f1f5f9; 
     background: white; color: #334155; vertical-align: middle; 
+    white-space: nowrap; /* Prevents text from awkwardly wrapping */
+    overflow: hidden; 
+    text-overflow: ellipsis; /* Adds "..." if content is too long */
 }
+
 .year-table tbody tr { cursor: pointer; transition: background 0.1s; }
 .year-table tbody tr:hover { background-color: #f8fafc; }
 .student-name { color: #90242d; font-weight: 600; }

@@ -57,16 +57,35 @@
 .header-teal { background-color: #ccfbf1; border-bottom: 1px solid #99f6e4; }
 
 /* --- Aligned Tables --- */
-.journey-table { width: 100%; border-collapse: collapse; }
+.journey-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    table-layout: fixed; /* NEW: Forces columns to strictly obey width rules */
+}
+
+/* NEW: Explicitly define uniform column widths for all accordions */
+.journey-table th:nth-child(1), .journey-table td:nth-child(1) { width: 22%; } /* ID */
+.journey-table th:nth-child(2), .journey-table td:nth-child(2) { width: 43%; } /* Name */
+.journey-table th:nth-child(3), .journey-table td:nth-child(3) { width: 15%; } /* Program */
+.journey-table th:nth-child(4), .journey-table td:nth-child(4) { width: 20%; text-align: center; } /* Action */
+
 .journey-table th { 
     background-color: #f8fafc; text-align: left; padding: 14px 24px; 
     font-size: 0.8rem; color: #64748b; font-weight: 600; 
     text-transform: uppercase; letter-spacing: 0.5px; 
     border-bottom: 2px solid #e2e8f0; 
 }
+/* Re-align the 4th column header to match the centered buttons */
+.journey-table th:nth-child(4) {
+    text-align: center;
+}
+
 .journey-table td { 
     padding: 16px 24px; font-size: 0.95rem; border-bottom: 1px solid #f1f5f9; 
     background: white; color: #334155; vertical-align: middle; 
+    white-space: nowrap; /* Prevents text from awkwardly wrapping */
+    overflow: hidden; 
+    text-overflow: ellipsis; /* Adds "..." if a name is too long */
 }
 .journey-table tbody tr { transition: background 0.1s; }
 .journey-table tbody tr:hover { background-color: #f8fafc; }
@@ -76,8 +95,9 @@
     background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 14px; 
     border-radius: 6px; font-size: 0.8rem; font-weight: 600; 
     cursor: pointer; color: #334155; transition: all 0.2s; 
+    width: 100%; max-width: 130px; /* Keeps button sizes uniform */
 }
-.btn-view-action:hover { background: #90242d; color: white; border-color: #90242d; } /* Accent Hover */
+.btn-view-action:hover { background: #90242d; color: white; border-color: #90242d; }
 
 
 /* ========================================= */

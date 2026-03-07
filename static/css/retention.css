@@ -174,13 +174,52 @@
 .retention-table-container { background: #e0e0e0; padding: 20px; border-radius: 12px; }
 .table-search { background: #dcdcdc; border-radius: 8px; padding: 12px 15px; display: flex; align-items: center; gap: 10px; margin-bottom: 15px; border: 1px solid #ccc; }
 .table-search input { background: transparent; border: none; outline: none; width: 100%; font-size: 0.95rem; }
-.retention-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
-.retention-table th { background: #e0e0e0; color: #555; font-size: 0.8rem; font-weight: 700; text-align: left; padding: 15px 25px; text-transform: uppercase; }
-.retention-table td { padding: 15px 25px; border-bottom: 1px solid #eee; font-size: 0.9rem; color: #333; font-weight: 500; }
+
+/* --- Base Alignment & Truncation --- */
+.retention-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    background: white; 
+    border-radius: 8px; 
+    overflow: hidden; 
+    table-layout: fixed; /* NEW: Forces columns to strictly obey width rules */
+}
+
+.retention-table th { 
+    background: #e0e0e0; color: #555; font-size: 0.8rem; font-weight: 700; 
+    text-align: left; padding: 14px 15px; text-transform: uppercase; 
+}
+
+.retention-table td { 
+    padding: 14px 15px; border-bottom: 1px solid #eee; font-size: 0.9rem; 
+    color: #333; font-weight: 500; vertical-align: middle;
+    white-space: nowrap; /* Prevents text from awkwardly wrapping */
+    overflow: hidden; 
+    text-overflow: ellipsis; /* Adds "..." if content is too long */
+}
 .retention-table tbody tr:hover { background: #f9f9f9; }
+
+/* --- Specific Widths: Main Retention Table (7 Columns) --- */
+.retention-table-container .retention-table th:nth-child(1), .retention-table-container .retention-table td:nth-child(1) { width: 12%; } /* ID */
+.retention-table-container .retention-table th:nth-child(2), .retention-table-container .retention-table td:nth-child(2) { width: 22%; } /* NAME */
+.retention-table-container .retention-table th:nth-child(3), .retention-table-container .retention-table td:nth-child(3) { width: 12%; } /* PROGRAM */
+.retention-table-container .retention-table th:nth-child(4), .retention-table-container .retention-table td:nth-child(4) { width: 12%; } /* YEAR LEVEL */
+.retention-table-container .retention-table th:nth-child(5), .retention-table-container .retention-table td:nth-child(5) { width: 12%; } /* STATUS */
+.retention-table-container .retention-table th:nth-child(6), .retention-table-container .retention-table td:nth-child(6) { width: 18%; } /* REASON */
+.retention-table-container .retention-table th:nth-child(7), .retention-table-container .retention-table td:nth-child(7) { width: 12%; text-align: center; } /* ACTION */
+.retention-table-container .retention-table th:nth-child(7) { text-align: center; }
+
+/* --- Specific Widths: Drop History Table (5 Columns) --- */
+.history-table-wrapper .retention-table th:nth-child(1), .history-table-wrapper .retention-table td:nth-child(1) { width: 18%; } /* Student ID */
+.history-table-wrapper .retention-table th:nth-child(2), .history-table-wrapper .retention-table td:nth-child(2) { width: 30%; } /* Name */
+.history-table-wrapper .retention-table th:nth-child(3), .history-table-wrapper .retention-table td:nth-child(3) { width: 17%; } /* Status */
+.history-table-wrapper .retention-table th:nth-child(4), .history-table-wrapper .retention-table td:nth-child(4) { width: 20%; } /* Reason */
+.history-table-wrapper .retention-table th:nth-child(5), .history-table-wrapper .retention-table td:nth-child(5) { width: 15%; } /* Date */
+
+/* Existing Utility Classes */
 .risk-pill { padding: 5px 15px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
 .risk-pill.high { background: #f6ad55; color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.2); }
-.btn-advise { border: 1px solid #90242d; color: #90242d; background: #fff0f0; padding: 6px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.btn-advise { border: 1px solid #90242d; color: #90242d; background: #fff0f0; padding: 6px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; white-space: nowrap; }
 .btn-advise:hover { background: #90242d; color: white; }
 
 /* ========================================= */

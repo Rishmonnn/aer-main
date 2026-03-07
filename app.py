@@ -1280,29 +1280,67 @@ def get_student_available_subjects(student_id):
     student = Student.query.get(student_id)
     if not student: return jsonify([])
 
-    ACTIVE_SEMESTER = "2nd Semester" 
-  
+    # --- NEW LOGIC: DETECT NEXT SEMESTER BASED ON STUDENT JOURNEY ---
+    # Define the standard progression order
+    term_order = [
+        ("1st Year", "1st Semester"),
+        ("1st Year", "2nd Semester"),
+        ("2nd Year", "1st Semester"),
+        ("2nd Year", "2nd Semester"),
+        ("3rd Year", "1st Semester"),
+        ("3rd Year", "2nd Semester"),
+        ("4th Year", "1st Semester"),
+        ("4th Year", "2nd Semester")
+    ]
+
+    # Fetch all previous enrollments to find their current standing
+    enrollments = Enrollment.query.filter_by(student_id=student_id).all()
+    latest_index = -1
+
+    for enroll in enrollments:
+        section = db.session.get(Section, enroll.section_id)
+        if section:
+            subject = db.session.get(Subject, section.subject_code)
+            if subject:
+                term_tuple = (subject.year_level, subject.semester)
+                if term_tuple in term_order:
+                    idx = term_order.index(term_tuple)
+                    if idx > latest_index:
+                        latest_index = idx
+
+    # Calculate the target (next) semester
+    if latest_index == -1:
+        target_year = "1st Year"
+        target_sem = "1st Semester"
+    elif latest_index < len(term_order) - 1:
+        target_year = term_order[latest_index + 1][0]
+        target_sem = term_order[latest_index + 1][1]
+    else:
+        # If they are already at the end of the progression
+        target_year = term_order[-1][0]
+        target_sem = term_order[-1][1]
+
+    print(f"DEBUG: Enlistment for {student.name}. Detected target term: {target_year} - {target_sem}")
+    # ----------------------------------------------------------------
+
+    # 1. Fetch Failed Subjects for Retakes
     failed_records = Enrollment.query.filter_by(student_id=student_id)\
         .filter((Enrollment.grade > 3.0) | (Enrollment.status == 'Failed')).all()
     
     failed_codes = [f.section.subject_code for f in failed_records if f.section]
 
-    # 2. Determine Scope of Subjects to Show
-    target_year = student.year_level
-    
-    print(f"DEBUG: Enlistment for {student.name} ({target_year}) - Active Sem: {ACTIVE_SEMESTER}")
-
+    # 2. Fetch Regular Subjects based on dynamically detected Year and Semester
     regular_subjects = Subject.query.filter_by(
         year_level=target_year, 
-        semester=ACTIVE_SEMESTER
+        semester=target_sem
     ).all()
 
-   
+    # 3. Fetch Back Subjects (Retakes)
     back_subjects = []
     if failed_codes:
+        # We fetch all failed subjects regardless of semester so they can be shown as options
         back_subjects = Subject.query.filter(
-            Subject.code.in_(failed_codes),
-            Subject.semester == ACTIVE_SEMESTER
+            Subject.code.in_(failed_codes)
         ).all()
 
     # Combine lists (Use a dictionary comp to remove duplicates based on code)
@@ -1313,30 +1351,23 @@ def get_student_available_subjects(student_id):
     output = []
     for sub in all_subjects:
         # --- NEW: Fetch Sections from the Scheduling System (ScheduleEvent) ---
-        # --- ULTRA SAFE MATCHING V2: Checks Title too! ---
         all_events = ScheduleEvent.query.all()
         events = []
         
         for ev in all_events:
-            # Combine subject_code and title. If code is missing, we catch it in the title!
             ev_string = str(ev.subject_code or "") + " " + str(ev.title or "")
-            
             if ev_string and sub.code:
-                # Remove ALL spaces and make lowercase for bulletproof comparison
                 clean_ev_string = ev_string.replace(" ", "").lower()
                 clean_sub_code = sub.code.replace(" ", "").lower()
                 
-                # If the core code exists anywhere inside the scheduled code or title, link it!
                 if clean_sub_code in clean_ev_string:
                     events.append(ev)
                     
         unique_sections = {}
         
         for ev in events:
-            # Fallback to "A" if section_code is completely empty in the DB
             sec_val = ev.section_code if ev.section_code else "A" 
             
-            # --- START OF SMART TIME EXTRACTOR ---
             start_str = str(ev.start_time or "")
             end_str = str(ev.end_time or "")
             day_name = ""
@@ -1344,26 +1375,23 @@ def get_student_available_subjects(student_id):
             
             if "T" in start_str:
                 try:
-                    # Extract from FullCalendar ISO Format (e.g. "2024-02-12T09:00:00")
                     clean_start = start_str.split('+')[0].split('Z')[0].split('.')[0]
                     clean_end = end_str.split('+')[0].split('Z')[0].split('.')[0]
                     
                     dt_start = datetime.strptime(clean_start, "%Y-%m-%dT%H:%M:%S")
                     dt_end = datetime.strptime(clean_end, "%Y-%m-%dT%H:%M:%S")
                     
-                    day_name = dt_start.strftime("%a").upper() # Outputs 'MON', 'TUE'
+                    day_name = dt_start.strftime("%a").upper() 
                     time_span = f"{dt_start.strftime('%I:%M%p')}-{dt_end.strftime('%I:%M%p')}"
                 except Exception as e:
                     time_span = "TBA"
             else:
-                # Extract from raw CSV imports (e.g. start="09:00AM-10:30AM", end="MON / WED")
                 if "-" in start_str and any(d in end_str.upper() for d in ['MON','TUE','WED','THU','FRI','SAT']):
                     time_span = start_str
                     day_name = end_str.upper()
                 else:
                     time_span = f"{start_str}-{end_str}"
             
-            # Group by section_code and build the data package
             if sec_val not in unique_sections:
                 unique_sections[sec_val] = {
                     'id': sec_val, 
@@ -1374,17 +1402,14 @@ def get_student_available_subjects(student_id):
                     'time': time_span
                 }
             else:
-                # If section exists (e.g. a 2nd schedule block for Wednesday), append the day!
                 if day_name and day_name not in unique_sections[sec_val].get('days', ''):
                     if unique_sections[sec_val].get('days'):
                         unique_sections[sec_val]['days'] += f" / {day_name}"
                     else:
                         unique_sections[sec_val]['days'] = day_name
-            # --- END OF SMART TIME EXTRACTOR ---
                 
         section_list = list(unique_sections.values())
         
-        # Fallback if the subject hasn't been scheduled on the calendar yet
         if not section_list:
             section_list.append({
                 'id': 'Unscheduled',
@@ -1410,12 +1435,11 @@ def get_student_available_subjects(student_id):
             'name': sub.description,
             'units': sub.units,
             'type': type_tag,
-            'sections': section_list, # <--- Now populated from ScheduleEvent
+            'sections': section_list,
             'locked': is_locked,   
             'warning': warning_msg 
         })
     
-    # Sort: Retakes/Unlocked first, Locked last
     output.sort(key=lambda x: x['locked'])
     
     return jsonify(output)
@@ -1435,6 +1459,25 @@ def submit_student_enlistment():
     try:
         # 1. Update Student Status
         student.status = 'Enrolled' 
+        
+        # --- NEW: DYNAMICALLY UPDATE YEAR LEVEL ---
+        # Scan the subjects they just enlisted in to find their new year level.
+        # We use weights to ensure we only promote them (never demote if they take lower-year retakes).
+        year_weights = {"1st Year": 1, "2nd Year": 2, "3rd Year": 3, "4th Year": 4, "5th Year": 5}
+        new_year_level = student.year_level
+        
+        for item in subjects_data:
+            code = item.get('code')
+            subject = db.session.get(Subject, code) 
+            
+            if subject and subject.year_level in year_weights:
+                if year_weights[subject.year_level] > year_weights.get(new_year_level, 0):
+                    new_year_level = subject.year_level
+                    
+        # Apply the new year level
+        student.year_level = new_year_level
+        print(f"DEBUG: Promoted {student.name} to {new_year_level} upon enlistment.")
+        # ------------------------------------------
         
         # 2. Process each subject
         for item in subjects_data:
