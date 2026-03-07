@@ -1052,19 +1052,33 @@ def confirm_single_enrollment():
         return jsonify({'success': False, 'error': 'Student not found'}), 404
 
     try:
-        # 1. Check for Failures (Retention Logic)
-        failed_enrollments = Enrollment.query.filter_by(student_id=student.id)\
-            .filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') )\
-            .all()
+        # --- THE STRICT ENGINEERING RULE FOR SINGLE ENROLLMENT ---
+        all_enrollments = Enrollment.query.filter_by(student_id=student.id).all()
+        total_units = 0
+        failed_units = 0
+        has_major_failure = False
         
-        is_retained = len(failed_enrollments) > 0
+        for enroll in all_enrollments:
+            if enroll.status in ['Pending', 'Enrolled', 'Enlisting']:
+                continue
+                
+            if enroll.section and enroll.section.subject:
+                sub = enroll.section.subject
+                total_units += sub.units
+                if (enroll.grade and enroll.grade > 3.0) or (enroll.status == 'Failed'):
+                    failed_units += sub.units
+                    if sub.category == 'Major':
+                        has_major_failure = True
+                        
+        ratio_failed = (failed_units / total_units > 0.50) if total_units > 0 else False
+        is_retained = ratio_failed or has_major_failure
         
-        # 2. Update status to move them to the next step
+        # Update status to move them to the next step
         student.status = 'Enlisting'
 
-        # 3. Bump Year Level if promoted
+        # Bump Year Level if promoted
         if not is_retained:
-            # Disabled for 2nd Semester enrollment
+            # Note: You have this commented out for 2nd Sem, which is perfectly fine!
             pass
             # if student.year_level == '1st Year': student.year_level = '2nd Year'
             # elif student.year_level == '2nd Year': student.year_level = '3rd Year'
