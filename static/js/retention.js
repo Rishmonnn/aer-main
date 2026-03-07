@@ -71,7 +71,8 @@ function fetchRetentionData() {
                                 <td>${student.program}</td>
                                 <td>${student.year_level}</td>
                                 <td><span class="risk-pill ${student.risk_class}">${student.risk_level}</span></td>
-                                <td style="color: #ef4444; font-size: 0.85rem; font-weight: 500;">${student.risk_reason}</td> <td><button class="btn-advise" onclick="openAdvisingModal('${student.id}', \`${student.name}\`)">ADVISE</button></td>
+                                <td style="color: #ef4444; font-size: 0.85rem; font-weight: 500;">${student.risk_reason}</td>
+                                <td><button class="btn-advise" onclick="openAdvisingModal('${student.id}', \`${student.name}\`, \`${student.risk_reason}\`)">ADVISE</button></td>
                             </tr>
                         `;
                     });
@@ -394,6 +395,11 @@ function openAdvisingModal(studentId, studentName) {
     
     document.getElementById('adv-student-id').innerText = studentId;
     document.getElementById('adv-student-name').innerText = studentName;
+
+    const reasonElement = document.getElementById('adv-student-reason');
+    if (reasonElement) {
+        reasonElement.innerText = riskReason;
+    }
     
     resetAdvisingForm(); // Ensure the form starts blank
     
