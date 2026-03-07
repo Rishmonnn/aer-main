@@ -936,6 +936,8 @@ def get_pending_enrollment():
 
         # --- THE NEW RETENTION & PROMOTION ALGORITHM ---
         
+        # --- THE STRICT ENGINEERING RETENTION ALGORITHM ---
+        
         # Determine Academic Status
         academic_status = 'Irregular' if len(failed_subjects) > 0 else 'Regular'
         
@@ -951,10 +953,10 @@ def get_pending_enrollment():
                 decision = 'Retained (Academic Probation)'
                 is_retained = True
             
-            # 2. Conditional Promotion: Failed a Major, but < 50% of load
+            # 2. STRICT RULE: Failed ANY Major Subject (Prerequisite Bottleneck)
             elif has_major_failure:
-                decision = 'Promoted (Conditional)'
-                is_retained = False # They advance, but downstream majors will be locked
+                decision = 'Retained (Major Deficiency)'
+                is_retained = True 
                 
             # 3. Standard Promotion: Failed only Minors/GenEds
             elif len(failed_subjects) > 0:
@@ -994,19 +996,30 @@ def confirm_bulk_enrollment():
         if not student:
             continue
 
-        # Re-evaluate retention logic based on >50% rule to know if we bump the year level
+        # Re-evaluate retention logic based on the strict rule
         all_enrollments = Enrollment.query.filter_by(student_id=student.id).all()
         total_units = 0
         failed_units = 0
+        has_major_failure = False
         
         for enroll in all_enrollments:
+            # --- THE MATH BUG FIX: Skip unfinished subjects ---
+            if enroll.status in ['Pending', 'Enrolled', 'Enlisting']:
+                continue
+                
             if enroll.section and enroll.section.subject:
                 sub = enroll.section.subject
                 total_units += sub.units
                 if (enroll.grade and enroll.grade > 3.0) or (enroll.status == 'Failed'):
                     failed_units += sub.units
+                    # Flag if it is a major prerequisite bottleneck
+                    if sub.category == 'Major':
+                        has_major_failure = True
                     
-        is_retained = (failed_units / total_units > 0.50) if total_units > 0 else False
+        # --- THE STRICT ENGINEERING RULE ---
+        # Check if they failed > 50% OR failed ANY Major subject
+        ratio_failed = (failed_units / total_units > 0.50) if total_units > 0 else False
+        is_retained = ratio_failed or has_major_failure
         
         # Advance them to Enlisting
         student.status = 'Enlisting'
