@@ -350,44 +350,6 @@ const ClassRecords = (function() {
         }).join('');
     }
 
-    function approveItem(id) {
-        const item = approvalQueue.find(q => q.id === id);
-        
-        // Failsafes
-        if (!item) return false;
-        if (item.status === 'Approved') {
-            alert(`${item.subject} is already approved.`);
-            return false;
-        }
-
-        // 1. Add a strict confirmation prompt
-        if (confirm(`Are you sure you want to officially approve the grades for ${item.subject}? \n\nThis action will finalize the grades for all students in this section and cannot be undone.`)) {
-            
-            // 2. Update the status
-            item.status = 'Approved'; 
-            
-            // 3. Re-render the UI to change the buttons to the "Approved" badge
-            renderApprovalQueue(); 
-            
-            // 4. Show a clear success message
-            alert(`✅ Success! The grades for ${item.subject} have been officially approved and finalized.`);
-            return true; // Return true so the Review Modal knows it succeeded
-        }
-        
-        return false; // Return false if they clicked "Cancel"
-    }
-
-    // --- REVIEW MODAL LOGIC ---
-    function approveFromReview() {
-        if (currentReviewId) {
-            // Only close the review modal IF they actually confirmed the approval
-            const wasApproved = approveItem(currentReviewId);
-            if (wasApproved) {
-                closeReviewModal();
-            }
-        }
-    }
-
     // --- REVIEW MODAL LOGIC ---
     function reviewItem(id) {
         currentReviewId = id;
@@ -441,13 +403,6 @@ const ClassRecords = (function() {
 
     function closeReviewModal() {
         document.getElementById('reviewModal').style.display = 'none';
-    }
-
-    function approveFromReview() {
-        if (currentReviewId) {
-            approveItem(currentReviewId);
-            closeReviewModal();
-        }
     }
 
     // --- CALCULATION HELPERS ---
@@ -559,77 +514,142 @@ const ClassRecords = (function() {
         closeConfigModal(); switchPeriod(currentPeriod); alert("Configuration Saved!");
     }
     function resetGrades() { if(confirm("Reset grades?")) { scores={}; switchPeriod(currentPeriod); } }
+    
+    // --- PROFESSIONAL CUSTOM CONFIRM MODAL ---
+    function showCustomConfirm(title, message, confirmText, isApproveMode, onConfirm) {
+        let modal = document.getElementById('crCustomConfirmModal');
+        
+        // Dynamically inject the HTML if it doesn't exist yet
+        if (!modal) {
+            const html = `
+            <div id="crCustomConfirmModal" class="cr-confirm-overlay">
+                <div class="cr-confirm-card">
+                    <div class="cr-confirm-header">
+                        <div class="cr-confirm-icon" id="crConfirmIcon"></div>
+                        <h3 id="crConfirmTitle"></h3>
+                    </div>
+                    <div class="cr-confirm-body">
+                        <p id="crConfirmMessage"></p>
+                    </div>
+                    <div class="cr-confirm-actions">
+                        <button id="crConfirmCancel" class="cr-confirm-btn-cancel">Cancel</button>
+                        <button id="crConfirmOk" class="cr-confirm-btn-ok"></button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+            modal = document.getElementById('crCustomConfirmModal');
+        }
+
+        // Set Texts
+        document.getElementById('crConfirmTitle').textContent = title;
+        document.getElementById('crConfirmMessage').textContent = message;
+        
+        // Style based on mode (Green for Approve, Red for Send)
+        const btnOk = document.getElementById('crConfirmOk');
+        const iconDiv = document.getElementById('crConfirmIcon');
+        
+        if(isApproveMode) {
+            iconDiv.style.background = '#d1fae5'; iconDiv.style.color = '#059669';
+            iconDiv.innerHTML = "<i class='bx bx-check-shield'></i>";
+            btnOk.style.background = '#10b981';
+            btnOk.innerHTML = `<i class='bx bx-check-shield'></i> ${confirmText}`;
+        } else {
+            iconDiv.style.background = '#fee2e2'; iconDiv.style.color = '#dc2626';
+            iconDiv.innerHTML = "<i class='bx bx-send'></i>";
+            btnOk.style.background = '#dc2626';
+            btnOk.innerHTML = `<i class='bx bx-send'></i> ${confirmText}`;
+        }
+
+        modal.style.display = 'flex';
+
+        // Button Listeners (Clone to remove old event listeners)
+        const btnCancel = document.getElementById('crConfirmCancel');
+        const newBtnOk = btnOk.cloneNode(true);
+        const newBtnCancel = btnCancel.cloneNode(true);
+        btnOk.parentNode.replaceChild(newBtnOk, btnOk);
+        btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+
+        newBtnOk.addEventListener('click', () => {
+            modal.style.display = 'none';
+            if (onConfirm) onConfirm();
+        });
+
+        newBtnCancel.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
+
     function sendForApproval() {
         const subjectSelect = document.getElementById('cr-subject-select');
         const sectionSelect = document.getElementById('cr-section-select');
         
-        if (!subjectSelect || !sectionSelect || !sectionSelect.value) {
-            alert("Please select a valid subject and section first.");
-            return;
-        }
+        if (!subjectSelect || !sectionSelect || !sectionSelect.value) return alert("Select a valid subject/section first.");
         
         const subjectName = subjectSelect.options[subjectSelect.selectedIndex].text;
         const sectionName = sectionSelect.options[sectionSelect.selectedIndex].text;
 
-        if(confirm(`Are you sure you want to send the final grades for ${sectionName} to the Program Head?`)) {
-            
-            // =========================================================
-            // --- NEW: Snapshot the live grades for the Review Modal
-            // =========================================================
-            reviewData = studentInfoData.map(student => {
-                const p1 = getCalculatedGrade(student.id, 'p1');
-                const p2 = getCalculatedGrade(student.id, 'p2');
-                const p3 = getCalculatedGrade(student.id, 'p3');
-                
-                const w1 = gradeConfig.periodWeights.p1 / 100;
-                const w2 = gradeConfig.periodWeights.p2 / 100;
-                const w3 = gradeConfig.periodWeights.p3 / 100;
-                
-                const finalGrade = (p1 * w1) + (p2 * w2) + (p3 * w3);
-                const { status } = getMarkAndStatus(finalGrade);
+        // TRIGGER THE NEW BEAUTIFUL MODAL (Red Mode)
+        showCustomConfirm(
+            "Send for Approval",
+            `Are you sure you want to send the final grades for ${sectionName} to the Program Head? You will not be able to edit them once submitted.`,
+            "Yes, Send Grades",
+            false, // false = Red Warning Mode
+            () => {
+                // ... Snapshot data logic ...
+                reviewData = studentInfoData.map(student => {
+                    const p1 = getCalculatedGrade(student.id, 'p1');
+                    const p2 = getCalculatedGrade(student.id, 'p2');
+                    const p3 = getCalculatedGrade(student.id, 'p3');
+                    const w1 = gradeConfig.periodWeights.p1 / 100;
+                    const w2 = gradeConfig.periodWeights.p2 / 100;
+                    const w3 = gradeConfig.periodWeights.p3 / 100;
+                    const finalGrade = (p1 * w1) + (p2 * w2) + (p3 * w3);
+                    const { status } = getMarkAndStatus(finalGrade);
 
-                return {
-                    id: student.id,
-                    name: student.name,
-                    course: student.course || 'N/A',
-                    year: student.year || 'N/A',
-                    p1: p1.toFixed(2),
-                    p2: p2.toFixed(2),
-                    p3: p3.toFixed(2),
-                    final: finalGrade.toFixed(2),
-                    status: status
-                };
-            });
-            // =========================================================
+                    return {
+                        id: student.id, name: student.name, course: student.course || 'N/A', year: student.year || 'N/A',
+                        p1: p1.toFixed(2), p2: p2.toFixed(2), p3: p3.toFixed(2), final: finalGrade.toFixed(2), status: status
+                    };
+                });
 
-            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            
-            approvalQueue.push({
-                id: Date.now(), 
-                subject: subjectName,
-                info: `${sectionName} • Submitted by Faculty`,
-                date: today,
-                status: 'Pending'
-            });
-            
-            renderApprovalQueue();
-            
-            alert(`Success! Grades for ${sectionName} have been sent for approval.`);
-            
-            const badge = document.querySelector('.badge-draft');
-            if(badge) { badge.textContent = 'Pending'; badge.style.backgroundColor = '#f59e0b'; badge.style.color = '#fff'; }
-            
-            const btnSendApproval = document.getElementById('btn-send-approval');
-            if (btnSendApproval) btnSendApproval.style.display = 'none';
-            
-            const btnSave = document.querySelector('.btn-grade-action.save');
-            if (btnSave) btnSave.style.display = 'none';
-            
-            document.querySelectorAll('.grade-input').forEach(input => {
-                input.disabled = true;
-                input.style.backgroundColor = '#f3f4f6';
-            });
-        }
+                const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                
+                approvalQueue.push({ id: Date.now(), subject: subjectName, info: `${sectionName} • Submitted by Faculty`, date: today, status: 'Pending' });
+                renderApprovalQueue();
+                
+                // Hide buttons and lock UI
+                const badge = document.querySelector('.badge-draft');
+                if(badge) { badge.textContent = 'Pending'; badge.style.backgroundColor = '#f59e0b'; badge.style.color = '#fff'; }
+                const btnSendApproval = document.getElementById('btn-send-approval');
+                if (btnSendApproval) btnSendApproval.style.display = 'none';
+                const btnSave = document.querySelector('.btn-grade-action.save');
+                if (btnSave) btnSave.style.display = 'none';
+                document.querySelectorAll('.grade-input').forEach(input => { input.disabled = true; input.style.backgroundColor = '#f3f4f6'; });
+            }
+        );
+    }
+
+    function approveItem(id) {
+        const item = approvalQueue.find(q => q.id === id);
+        if (!item || item.status === 'Approved') return;
+
+        // TRIGGER THE NEW BEAUTIFUL MODAL (Green Mode)
+        showCustomConfirm(
+            "Approve & Finalize Grades",
+            `Are you sure you want to officially approve the grades for ${item.subject}? \n\nThis action will finalize the grades for all students in this section and cannot be undone.`,
+            "Approve & Finalize",
+            true, // true = Green Success Mode
+            () => {
+                item.status = 'Approved'; 
+                renderApprovalQueue(); 
+                closeReviewModal(); // Auto-close review modal if it's open
+            }
+        );
+    }
+
+    function approveFromReview() {
+        if (currentReviewId) approveItem(currentReviewId);
     }
     return {
         init, switchMainTab, switchSubTab, switchPeriod, handleInput,

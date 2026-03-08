@@ -11,7 +11,7 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(20), nullable=False) # 'head' or 'faculty'
-    department = db.Column(db.String(100), nullable=True) # <--- ADD THIS LINE
+    department = db.Column(db.String(100), nullable=True)
     
     # Relationships
     classes_handled = db.relationship('Section', backref='instructor', lazy=True)
