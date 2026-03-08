@@ -11,20 +11,8 @@ const ClassRecords = (function() {
     let attendanceRecords = {};
     const TOTAL_SESSIONS = 14;
 
-    const approvalQueue = [
-        { id: 1, subject: 'CPE 038 - Web Development', info: 'CPE 3A • Submitted by Engr. Amir Hasan Bunza', date: 'Jan 21, 2026', status: 'Pending' },
-        { id: 2, subject: 'CPE 039 - Data Structures', info: 'CPE 3B • Submitted by Engr. Maria Santos', date: 'Jan 20, 2026', status: 'Pending' },
-        { id: 3, subject: 'MATH 101 - Calculus I', info: 'CE 2A • Submitted by Prof. Ana Reyes', date: 'Jan 18, 2026', status: 'Approved' }
-    ];
-
-    // --- MOCK DATA FOR REVIEW MODAL (Matches "When review is pressed.png") ---
-    const reviewData = [
-        { id: '2021-00001', name: 'Martinez, Recmar A.', course: 'CPE', year: '3rd', q1: 92, q2: 88, q3: 95, mid: 89, fin: 91, proj: 94, final: 91.5, status: 'PASSED' },
-        { id: '2021-00002', name: 'Jupiter, Mami B.', course: 'CPE', year: '3rd', q1: 85, q2: 90, q3: 87, mid: 88, fin: 86, proj: 90, final: 87.7, status: 'PASSED' },
-        { id: '2021-00003', name: 'Alfonso, Brader C.', course: 'CPE', year: '3rd', q1: 70, q2: 65, q3: 72, mid: 68, fin: 70, proj: 75, final: 70.0, status: 'PASSED' },
-        { id: '2021-00004', name: 'Santos, John D.', course: 'CE', year: '3rd', q1: 78, q2: 82, q3: 80, mid: 75, fin: 79, proj: 85, final: 79.8, status: 'PASSED' },
-        { id: '2021-00005', name: 'Reyes, Anna E.', course: 'CPE', year: '3rd', q1: 60, q2: 55, q3: 58, mid: 52, fin: 48, proj: 65, final: 56.3, status: 'FAILED' }
-    ];
+    let approvalQueue = [];
+    let reviewData = [];
 
     // --- CONFIG & SCORES ---
     const defaultCategories = [
@@ -35,20 +23,110 @@ const ClassRecords = (function() {
     ];
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
     let gradeConfig = {
-        passingGrade: 75,
+        passingGrade: 60,
         periodWeights: { p1: 33, p2: 33, p3: 34 },
         periods: { p1: clone(defaultCategories), p2: clone(defaultCategories), p3: clone(defaultCategories) }
     };
     let scores = {};
+// --- NEW STATE VARIABLES ---
+    let availableSections = [];
 
     function init() {
         console.log("Class Records Initialized");
-        // ONLY call fetchStudents here. Everything else must wait for it to finish!
-        fetchStudents();
+        fetchSections(); // Fetch sections first instead of fetching all students
     }
 
-    function fetchStudents() {
-        fetch('/api/faculty/class-records/students') 
+    // --- NEW: Dynamic Dropdown Logic ---
+    function fetchSections() {
+        fetch('/api/faculty/sections')
+            .then(res => res.json())
+            .then(data => {
+                availableSections = data;
+                populateDropdowns();
+            })
+            .catch(err => console.error("Error loading sections:", err));
+    }
+
+    function populateDropdowns() {
+        const subjectSelect = document.getElementById('cr-subject-select');
+        const sectionSelect = document.getElementById('cr-section-select');
+        if(!subjectSelect || !sectionSelect) return;
+
+        subjectSelect.innerHTML = '';
+        sectionSelect.innerHTML = '';
+
+        if (availableSections.length === 0) {
+            subjectSelect.innerHTML = '<option value="">No subjects assigned</option>';
+            sectionSelect.innerHTML = '<option value="">No sections</option>';
+            return;
+        }
+
+        // Get unique subjects handled by the user
+        const uniqueSubjects = [];
+        availableSections.forEach(sec => {
+            if(!uniqueSubjects.some(s => s.code === sec.subject_code)) {
+                uniqueSubjects.push({code: sec.subject_code, title: sec.subject_title});
+            }
+        });
+
+        // Populate Subjects
+        uniqueSubjects.forEach(sub => {
+            subjectSelect.innerHTML += `<option value="${sub.code}">${sub.code} - ${sub.title}</option>`;
+        });
+
+        // Event Listeners
+        subjectSelect.addEventListener('change', () => {
+            updateSectionDropdown(subjectSelect.value);
+        });
+        
+        sectionSelect.addEventListener('change', () => {
+            const secId = sectionSelect.value;
+            updateBanner(secId);
+            fetchStudentsForSection(secId);
+        });
+
+        // Initialize view with first subject
+        updateSectionDropdown(uniqueSubjects[0].code);
+    }
+
+    function updateSectionDropdown(subjectCode) {
+        const sectionSelect = document.getElementById('cr-section-select');
+        sectionSelect.innerHTML = '';
+        
+        const filteredSections = availableSections.filter(s => s.subject_code === subjectCode);
+        filteredSections.forEach(sec => {
+            sectionSelect.innerHTML += `<option value="${sec.id}">${sec.name}</option>`;
+        });
+
+        if (filteredSections.length > 0) {
+            updateBanner(filteredSections[0].id);
+            fetchStudentsForSection(filteredSections[0].id);
+        } else {
+            // Clear table if no sections
+            studentInfoData = [];
+            const infoBody = document.getElementById('cr-table-body');
+            if (infoBody) renderInfoTable(infoBody);
+        }
+    }
+
+    function updateBanner(sectionId) {
+        const sec = availableSections.find(s => s.id == sectionId);
+        if(!sec) return;
+        
+        const subElem = document.getElementById('cr-info-subject');
+        const secElem = document.getElementById('cr-info-section');
+        const facElem = document.getElementById('cr-info-faculty');
+        const badgeElem = document.querySelector('.badge-subject');
+
+        if(subElem) subElem.textContent = `${sec.subject_code} - ${sec.subject_title}`;
+        if(secElem) secElem.textContent = sec.name;
+        if(facElem) facElem.textContent = sec.faculty_name || 'TBA';
+        if(badgeElem) badgeElem.textContent = sec.subject_code;
+    }
+
+    // --- UPDATED: Fetch Students Based on Section ---
+    function fetchStudentsForSection(sectionId) {
+        fetch(`/api/faculty/class-records/sections/${sectionId}/students`) 
             .then(response => response.json())
             .then(data => {
                 studentInfoData = data.map(s => ({
@@ -59,7 +137,6 @@ const ClassRecords = (function() {
                     gmail: s.email
                 }));
 
-                // NEW: Initialize Attendance to 'P' (Present) for 14 days for every student
                 studentInfoData.forEach(student => {
                     if (!attendanceRecords[student.id]) {
                         attendanceRecords[student.id] = Array(TOTAL_SESSIONS).fill('P');

@@ -33,19 +33,6 @@ db.init_app(app)
 with app.app_context():
      db.create_all()
      print("Database tables created successfully!")
-
-# ==================== FACULTY MOCK DATA (Minimal) ====================
-FACULTY_DATA = {
-    'classes': 3,
-    'total_students': 45,
-    'grading_status': '67%'
-}
-
-FACULTY_CLASS_LIST = [
-    {'id': 1, 'code': 'CE101', 'name': 'Introduction to Civil Engineering', 'students': 35},
-    {'id': 2, 'code': 'CE102', 'name': 'Structural Analysis', 'students': 40},
-    {'id': 3, 'code': 'CE103', 'name': 'Fluid Mechanics', 'students': 38}
-]
 INSTRUCTORS_DATA = []
 
 # ==================== AUTH & ROUTES ====================
@@ -106,7 +93,8 @@ def faculty_dashboard():
         'pageStyles': ['dashboard.css', 'faculty.css', 'classrecords.css'],
         'pageScripts': ['faculty.js', 'faculty-grading.js', 'faculty-classes.js', 'faculty-inc.js', 'classrecords.js'],
         'user_name': session.get('user', 'Faculty'),
-        'stats': FACULTY_DATA
+        # Provide real defaults until you build a dynamic stats API for the faculty home page
+        'stats': {'classes': 0, 'total_students': 0, 'grading_status': '0%'} 
     }
     return render_template('faculty.html', **context)
 
@@ -153,7 +141,36 @@ def program_head_dashboard():
 @app.route('/api/faculty/classes', methods=['GET'])
 @login_required
 def get_faculty_classes():
-    return jsonify(FACULTY_CLASS_LIST)
+    """Fetches the actual classes assigned to the logged-in faculty member."""
+    try:
+        user_email = session.get('user')
+        user = User.query.filter_by(email=user_email).first()
+        
+        if not user:
+            return jsonify([])
+
+        # Find all sections assigned to this faculty member
+        sections = Section.query.filter_by(faculty_id=user.id).all()
+        output = []
+        
+        for sec in sections:
+            # Get subject details for the description
+            subject = db.session.get(Subject, sec.subject_code)
+            
+            # Count how many students are enrolled in this specific section
+            student_count = Enrollment.query.filter_by(section_id=sec.id).count()
+            
+            output.append({
+                'id': sec.id,
+                'code': f"{sec.subject_code} ({sec.name})",
+                'name': subject.description if subject else 'Unknown Subject',
+                'students': student_count
+            })
+            
+        return jsonify(output)
+    except Exception as e:
+        print(f"Error fetching faculty classes: {e}")
+        return jsonify([])
 
 @app.route('/api/faculty/inc', methods=['GET'])
 @login_required
@@ -326,31 +343,70 @@ def enroll_students():
     success_count = 0
     
     try:
+        # Calculate the dynamic School Year Prefix (e.g., "2526" for 2025-2026)
+        now = datetime.now()
+        if now.month < 6:
+            start_yr = str(now.year - 1)[-2:]
+            end_yr = str(now.year)[-2:]
+        else:
+            start_yr = str(now.year)[-2:]
+            end_yr = str(now.year + 1)[-2:]
+            
+        sy_prefix = f"02-{start_yr}{end_yr}-"
+        
+        # Fetch the highest sequence number in the database for this prefix
+        latest_student = Student.query.filter(Student.id.like(f"{sy_prefix}%")).order_by(Student.id.desc()).first()
+        
+        current_sequence = 0
+        if latest_student:
+            try:
+                last_id_parts = latest_student.id.split('-')
+                if len(last_id_parts) == 3:
+                    current_sequence = int(last_id_parts[2])
+            except ValueError:
+                current_sequence = 0
+                
         for row in data:
-            # 1. Handle ID (Use provided ID or Generate Temp one if missing)
+            # 1. Handle ID
             student_id = row.get('student_id')
-            if not student_id:
-                # Fallback: Generate ID (e.g., 2024-XXXX)
-                student_id = f"2024-{random.randint(10000, 99999)}"
+            if not student_id or str(student_id).strip() == '':
+                current_sequence += 1
+                student_id = f"{sy_prefix}{current_sequence:05d}"
             
-            # 2. Check if student exists
+            # 2. Extract Names Cleanly
+            fn_raw = row.get('firstname', '').strip()
+            mn_raw = row.get('middlename', '').strip()
+            ln_raw = row.get('lastname', '').strip()
+
+            # Create standard display name (e.g., "Ajias, Richard D.")
+            full_name = f"{ln_raw}, {fn_raw}"
+            if mn_raw:
+                full_name += f" {mn_raw[0]}."
+                
+            # --- NEW: SMART EMAIL GENERATOR ---
+            # Remove spaces and convert to lowercase for email formatting
+            fn_clean = fn_raw.lower().replace(' ', '')
+            mn_clean = mn_raw.lower().replace(' ', '')
+            ln_clean = ln_raw.lower().replace(' ', '')
+            
+            # Extract first 2 letters (falls back safely if name is only 1 letter)
+            fn_prefix = fn_clean[:2] if fn_clean else ""
+            mn_prefix = mn_clean[:2] if mn_clean else ""
+            
+            # Format: ridu.ajias.coc@phinmaed.com
+            generated_email = f"{fn_prefix}{mn_prefix}.{ln_clean}.coc@phinmaed.com"
+            # ----------------------------------
+            
             student = Student.query.get(student_id)
-            
-            # 3. Create Name String
-            full_name = f"{row.get('lastname', '')}, {row.get('firstname', '')}"
-            if row.get('middlename'):
-                full_name += f" {row.get('middlename')[0]}."
-            
             if not student:
                 # Create New Student
                 student = Student(
                     id=str(student_id),
                     name=full_name,
                     program=row.get('program', 'BSCpE'),
-                    email=row.get('email'),
+                    email=generated_email, # <--- USES THE GENERATED EMAIL
                     year_level='1st Year',
                     status='Regular',
-                    # --- NEW FIELDS SAVED HERE ---
                     contact_number=row.get('contact'),
                     address=row.get('address'),
                     birthdate=row.get('birthdate'),
@@ -713,6 +769,68 @@ def get_class_record_students():
         return jsonify(student_list)
     except Exception as e:
         print(f"Error fetching class record students: {e}")
+        return jsonify([])
+    
+# --- NEW: Fetch Sections for the Dropdown ---
+@app.route('/api/faculty/sections', methods=['GET'])
+@login_required
+def get_faculty_sections():
+    try:
+        user_email = session.get('user')
+        user = User.query.filter_by(email=user_email).first()
+        if not user: return jsonify([])
+
+        # Program Heads see all sections, Faculty see only their own
+        if session.get('role') == 'head':
+            sections = Section.query.all()
+        else:
+            sections = Section.query.filter_by(faculty_id=user.id).all()
+
+        output = []
+        for sec in sections:
+            subject = db.session.get(Subject, sec.subject_code)
+            
+            # Figure out the instructor name securely
+            instructor_name = "TBA"
+            if sec.instructor:
+                instructor_name = sec.instructor.name
+            elif session.get('role') == 'faculty':
+                instructor_name = user.name
+
+            output.append({
+                'id': sec.id,
+                'name': sec.name,
+                'subject_code': sec.subject_code,
+                'subject_title': subject.description if subject else 'Unknown Subject',
+                'faculty_name': instructor_name
+            })
+        return jsonify(output)
+    except Exception as e:
+        print(f"Error fetching sections: {e}")
+        return jsonify([])
+
+# --- NEW: Fetch Enrolled Students for a specific Section ---
+@app.route('/api/faculty/class-records/sections/<int:section_id>/students', methods=['GET'])
+@login_required
+def get_section_students(section_id):
+    try:
+        # Get enrollments for this specific section ID
+        enrollments = Enrollment.query.filter_by(section_id=section_id).all()
+        student_list = []
+        
+        for e in enrollments:
+            s = db.session.get(Student, e.student_id)
+            if s and s.status not in ['Dropped', 'Transferred']:
+                student_list.append({
+                    'id': s.id,
+                    'name': s.name,
+                    'program': s.program,
+                    'year_level': s.year_level,
+                    'email': s.email
+                })
+        return jsonify(student_list)
+    except Exception as e:
+        print(f"Error fetching section students: {e}")
         return jsonify([])
 
 @app.route('/api/students/update/<string:student_id>', methods=['POST'])
@@ -1140,23 +1258,74 @@ def confirm_single_enrollment():
 @login_required
 def get_enlistment_candidates():
     """Fetches students who are ready to pick subjects (Status: Enlisting)."""
-    # Fetch students who have been promoted to 'Enlisting'
     students = Student.query.filter_by(status='Enlisting').all()
+    
+    # Define the standard progression order to find their exact next semester
+    term_order = [
+        ("1st Year", "1st Semester"),
+        ("1st Year", "2nd Semester"),
+        ("2nd Year", "1st Semester"),
+        ("2nd Year", "2nd Semester"),
+        ("3rd Year", "1st Semester"),
+        ("3rd Year", "2nd Semester"),
+        ("4th Year", "1st Semester"),
+        ("4th Year", "2nd Semester")
+    ]
     
     output = []
     for s in students:
+        # --- CALCULATE DYNAMIC MAX UNITS BASED ON TARGET SEMESTER ---
+        enrollments = Enrollment.query.filter_by(student_id=s.id).all()
+        latest_index = -1
+        
+        for enroll in enrollments:
+            section = db.session.get(Section, enroll.section_id)
+            if section:
+                subject = db.session.get(Subject, section.subject_code)
+                if subject:
+                    term_tuple = (subject.year_level, subject.semester)
+                    if term_tuple in term_order:
+                        idx = term_order.index(term_tuple)
+                        if idx > latest_index:
+                            latest_index = idx
+
+        # Calculate the target (next) semester
+        if latest_index == -1:
+            target_year = "1st Year"
+            target_sem = "1st Semester"
+        elif latest_index < len(term_order) - 1:
+            target_year = term_order[latest_index + 1][0]
+            target_sem = term_order[latest_index + 1][1]
+        else:
+            target_year = term_order[-1][0]
+            target_sem = term_order[-1][1]
+            
+        # Fetch ONLY the regular subjects prescribed for this specific target term
+        regular_subjects = Subject.query.filter_by(
+            year_level=target_year, 
+            semester=target_sem
+        ).all()
+        
+        # Calculate the exact unit limit for this semester
+        dynamic_max_units = sum(sub.units for sub in regular_subjects)
+        
+        # Fallback just in case the query returns 0 (e.g., incomplete curriculum data)
+        if dynamic_max_units == 0:
+            dynamic_max_units = 23
+        # ------------------------------------------------------------
+
         output.append({
             'id': s.id,
             'name': s.name,
             'program': s.program,
-            'year_level': s.year_level,  # <--- CRITICAL: Needed for the accordion
-            'status': 'Regular',         # Defaulting to Regular for now
+            'year_level': s.year_level, 
+            'status': 'Regular',         
             'units': 0,
-            'maxUnits': 23,              # Default max units
+            'maxUnits': dynamic_max_units,  # <--- INJECT DYNAMIC UNIT CAP
             'retained': False
         })
+        
     return jsonify(output)
-
 @app.route('/api/send-otp', methods=['POST'])
 def send_otp():
     data = request.get_json()
@@ -1477,7 +1646,13 @@ def get_student_available_subjects(student_id):
             is_locked = True
             warning_msg = "Not Offered This Term"
 
-        type_tag = 'critical' if is_retake else ('major' if sub.units >= 3 else 'minor')
+        # --- NEW: Check exact database category instead of guessing by units ---
+        if is_retake:
+            type_tag = 'critical'
+        else:
+            # Safely check if the category explicitly says 'Major'
+            is_major = getattr(sub, 'category', '') == 'Major'
+            type_tag = 'major' if is_major else 'minor'
 
         # --- NEW: Calculate Priority Score ---
         if is_retake:
@@ -1485,6 +1660,7 @@ def get_student_available_subjects(student_id):
             is_blocking_others = Subject.query.filter_by(prerequisite=sub.code).first() is not None
             priority_score = 1 if is_blocking_others else 2
         else:
+            # Uses the newly corrected type_tag!
             priority_score = 3 if type_tag == 'major' else 4
 
         output.append({
