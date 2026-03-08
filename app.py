@@ -437,15 +437,54 @@ def get_retention_data():
             
             if fail_count > 0:
                 irregular_count += 1
-                risk_level = "Critical Risk" if fail_count >= 2 else "High Risk"
-                risk_class = "critical" if fail_count >= 2 else "high"
                 
-                if fail_count >= 2: critical_risk_count += 1
-                else: high_risk_count += 1
+                # --- NEW RISK EVALUATION LOGIC ---
+                major_fail_count = 0
+                failed_subjects = []
+                failed_major_is_prereq = False
+                
+                for f in failed_records:
+                    if not f.section: continue
+                    sub = db.session.get(Subject, f.section.subject_code)
+                    if not sub: continue
+                    
+                    failed_subjects.append(sub.code)
+                    
+                    # Determine if it's a Major subject (either categorized as Major or 3+ units)
+                    is_major = getattr(sub, 'category', '') == 'Major' or sub.units >= 3
+                    if is_major:
+                        major_fail_count += 1
+                        # Check if this subject is a prerequisite for any future subject
+                        is_prereq = Subject.query.filter_by(prerequisite=sub.code).first() is not None
+                        if is_prereq:
+                            failed_major_is_prereq = True
 
-                # --- NEW: Extract failed subject codes to generate a reason ---
-                failed_subjects = [f.section.subject_code for f in failed_records if f.section]
-                risk_reason = f"Failed {fail_count} subject(s): {', '.join(failed_subjects)}" if failed_subjects else "Failing Grades"
+                # --- APPLY NEW STANDARDS ---
+                is_critical = False
+                
+                if failed_major_is_prereq:
+                    is_critical = True
+                    risk_reason = f"Failed Prerequisite Major: {', '.join(failed_subjects)}"
+                elif major_fail_count >= 2:
+                    is_critical = True
+                    risk_reason = f"Failed {major_fail_count} Major Subjects"
+                elif fail_count >= 3:
+                    is_critical = True
+                    risk_reason = f"Failed {fail_count} Subjects (Critical Threshold Reached)"
+                else:
+                    # High Risk: Failed 1-2 minor/non-prerequisite subjects
+                    is_critical = False
+                    risk_reason = f"Failed {fail_count} Minor/Non-Prerequisite Subject(s)"
+                    
+                # Assign Classes
+                if is_critical:
+                    risk_level = "Critical Risk"
+                    risk_class = "critical"
+                    critical_risk_count += 1
+                else:
+                    risk_level = "High Risk"
+                    risk_class = "high"
+                    high_risk_count += 1
                     
                 at_risk_students.append({
                     'id': s.id,
@@ -454,14 +493,14 @@ def get_retention_data():
                     'year_level': s.year_level,
                     'risk_level': risk_level,
                     'risk_class': risk_class,
-                    'risk_reason': risk_reason # <--- NEW DATA
+                    'risk_reason': risk_reason
                 })
             else:
                 regular_count += 1
 
         return jsonify({
             'stats': {
-                'total': active_students, # <--- NOW SENDS ONLY ACTIVE STUDENTS
+                'total': active_students,
                 'regular': regular_count,
                 'irregular': irregular_count,
                 'retention_rate': retention_rate,
@@ -1418,17 +1457,35 @@ def get_student_available_subjects(student_id):
                 'room': 'No Room'
             })
 
-        # --- CRITICAL LOGIC: CHECK PREREQUISITES ---
+        # --- NEW: Check if actually offered (No events = Not Offered) ---
+        is_offered = len(events) > 0
+
+        # --- CRITICAL LOGIC: CHECK PREREQUISITES & AVAILABILITY ---
         is_locked = False
         warning_msg = None
         
+        # 1. Lock if Prerequisite is failed
         if sub.prerequisite and sub.prerequisite not in ['None', '', 'nan']:
             if sub.prerequisite in failed_codes:
                 is_locked = True
-                warning_msg = f"Prerequisite {sub.prerequisite} Failed"
+                warning_msg = f"Prereq {sub.prerequisite} Failed"
 
         is_retake = sub.code in failed_codes
+        
+        # 2. Lock if it's a Retake but NOT offered this term (e.g., Summer only)
+        if is_retake and not is_offered:
+            is_locked = True
+            warning_msg = "Not Offered This Term"
+
         type_tag = 'critical' if is_retake else ('major' if sub.units >= 3 else 'minor')
+
+        # --- NEW: Calculate Priority Score ---
+        if is_retake:
+            # Check if this failed subject is blocking future subjects
+            is_blocking_others = Subject.query.filter_by(prerequisite=sub.code).first() is not None
+            priority_score = 1 if is_blocking_others else 2
+        else:
+            priority_score = 3 if type_tag == 'major' else 4
 
         output.append({
             'code': sub.code,
@@ -1437,10 +1494,12 @@ def get_student_available_subjects(student_id):
             'type': type_tag,
             'sections': section_list,
             'locked': is_locked,   
-            'warning': warning_msg 
+            'warning': warning_msg,
+            'priority': priority_score # Send priority to frontend
         })
     
-    output.sort(key=lambda x: x['locked'])
+    # Sort output: Unlocked subjects first, then order by Priority (1 -> 4)
+    output.sort(key=lambda x: (x['locked'], x['priority']))
     
     return jsonify(output)
 
@@ -1725,18 +1784,35 @@ def generate_action_plan(student_id):
         return jsonify({'error': 'Student not found'}), 404
 
     # 3. Gather Academic History (Failures & Risk Level)
-    # Using the same logic you already use in your retention API
     failed_records = Enrollment.query.filter_by(student_id=student_id)\
         .filter((Enrollment.grade > 3.0) | (Enrollment.status == 'Failed')).all()
     
     fail_count = len(failed_records)
     risk_level = "Regular/Low Risk"
-    if fail_count >= 2:
-        risk_level = "Critical Risk"
-    elif fail_count == 1:
-        risk_level = "High Risk"
+    failed_subjects = []
+    
+    if fail_count > 0:
+        major_fail_count = 0
+        failed_major_is_prereq = False
         
-    failed_subjects = [f.section.subject_code for f in failed_records if f.section]
+        for f in failed_records:
+            if not f.section: continue
+            sub = db.session.get(Subject, f.section.subject_code)
+            if not sub: continue
+            
+            failed_subjects.append(sub.code)
+            is_major = getattr(sub, 'category', '') == 'Major' or sub.units >= 3
+            if is_major:
+                major_fail_count += 1
+                if Subject.query.filter_by(prerequisite=sub.code).first() is not None:
+                    failed_major_is_prereq = True
+                    
+        # Apply the exact same logic for the AI Context
+        if failed_major_is_prereq or major_fail_count >= 2 or fail_count >= 3:
+            risk_level = "Critical Risk"
+        else:
+            risk_level = "High Risk"
+            
     failed_str = ", ".join(failed_subjects) if failed_subjects else "None"
 
     # 4. Construct the Prompt

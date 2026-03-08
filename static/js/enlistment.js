@@ -251,27 +251,47 @@ function filterModalSubjects() {
 function toggleCartDrawer() { document.getElementById('cartDrawer').classList.toggle('active'); }
 
 function autoFillBlock() {
-    const rows = document.querySelectorAll('.subject-row:not(.subject-locked)');
+    // Because the backend sorted them, the rows are already in priority order top-to-bottom
+    const rows = Array.from(document.querySelectorAll('.subject-row:not(.subject-locked)'));
     if (rows.length === 0) return;
-    selectedUnits = 0; 
-    rows.forEach(row => {
-        const selectEl = row.querySelector('.section-select');
-        if (selectEl && selectEl.options.length > 0) {
-            let targetIndex = 0;
-            for(let i=0; i<selectEl.options.length; i++) {
-                if(selectEl.options[i].text.includes('Section A')) { targetIndex = i; break; }
-            }
-            selectEl.selectedIndex = targetIndex;
+    
+    // Reset all selections first
+    document.querySelectorAll('.subject-row').forEach(r => {
+        r.dataset.selected = 'false'; r.classList.remove('selected');
+        const iconSpan = r.querySelector('.selection-icon');
+        if(iconSpan && !r.classList.contains('subject-locked')) {
+            iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
         }
-        row.dataset.selected = 'true'; row.classList.add('selected');
-        row.querySelector('.selection-icon').innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
-        
-        // 🚀 BUG FIX: Parse units securely
-        selectedUnits += (parseInt(row.dataset.units, 10) || 0);
     });
+    
+    const maxUnits = parseInt(currentStudent.maxUnits) || 23;
+    selectedUnits = 0; 
+    
+    rows.forEach(row => {
+        const units = parseInt(row.dataset.units, 10) || 0;
+        
+        // SMART FILL: Only add the subject if it fits within the max units allowance
+        if (selectedUnits + units <= maxUnits) {
+            const selectEl = row.querySelector('.section-select');
+            if (selectEl && selectEl.options.length > 0) {
+                let targetIndex = 0;
+                for(let i=0; i<selectEl.options.length; i++) {
+                    if(selectEl.options[i].text.includes('Section A')) { targetIndex = i; break; }
+                }
+                selectEl.selectedIndex = targetIndex;
+            }
+            row.dataset.selected = 'true'; 
+            row.classList.add('selected');
+            row.querySelector('.selection-icon').innerHTML = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
+            
+            selectedUnits += units;
+        }
+    });
+    
     const btn = document.getElementById('btnSelectAll');
     if(btn) btn.innerText = "Deselect All";
-    showToast("Block auto-filled successfully!", "success");
+    
+    showToast(`Smart-filled ${selectedUnits} units based on priority!`, "success");
     updateSummary();
 }
 

@@ -182,7 +182,7 @@
     background: white; 
     border-radius: 8px; 
     overflow: hidden; 
-    table-layout: fixed; /* NEW: Forces columns to strictly obey width rules */
+    table-layout: fixed; /* Forces strict column widths */
 }
 
 .retention-table th { 
@@ -193,9 +193,9 @@
 .retention-table td { 
     padding: 14px 15px; border-bottom: 1px solid #eee; font-size: 0.9rem; 
     color: #333; font-weight: 500; vertical-align: middle;
-    white-space: nowrap; /* Prevents text from awkwardly wrapping */
+    white-space: nowrap; 
     overflow: hidden; 
-    text-overflow: ellipsis; /* Adds "..." if content is too long */
+    text-overflow: ellipsis; 
 }
 .retention-table tbody tr:hover { background: #f9f9f9; }
 
@@ -204,21 +204,32 @@
 .retention-table-container .retention-table th:nth-child(2), .retention-table-container .retention-table td:nth-child(2) { width: 22%; } /* NAME */
 .retention-table-container .retention-table th:nth-child(3), .retention-table-container .retention-table td:nth-child(3) { width: 12%; } /* PROGRAM */
 .retention-table-container .retention-table th:nth-child(4), .retention-table-container .retention-table td:nth-child(4) { width: 12%; } /* YEAR LEVEL */
-.retention-table-container .retention-table th:nth-child(5), .retention-table-container .retention-table td:nth-child(5) { width: 12%; } /* STATUS */
+/* NEW: Explicitly center the STATUS column */
+.retention-table-container .retention-table th:nth-child(5), .retention-table-container .retention-table td:nth-child(5) { width: 12%; text-align: center; } 
 .retention-table-container .retention-table th:nth-child(6), .retention-table-container .retention-table td:nth-child(6) { width: 18%; } /* REASON */
-.retention-table-container .retention-table th:nth-child(7), .retention-table-container .retention-table td:nth-child(7) { width: 12%; text-align: center; } /* ACTION */
-.retention-table-container .retention-table th:nth-child(7) { text-align: center; }
+/* Explicitly center the ACTION column */
+.retention-table-container .retention-table th:nth-child(7), .retention-table-container .retention-table td:nth-child(7) { width: 12%; text-align: center; } 
 
 /* --- Specific Widths: Drop History Table (5 Columns) --- */
 .history-table-wrapper .retention-table th:nth-child(1), .history-table-wrapper .retention-table td:nth-child(1) { width: 18%; } /* Student ID */
 .history-table-wrapper .retention-table th:nth-child(2), .history-table-wrapper .retention-table td:nth-child(2) { width: 30%; } /* Name */
-.history-table-wrapper .retention-table th:nth-child(3), .history-table-wrapper .retention-table td:nth-child(3) { width: 17%; } /* Status */
-.history-table-wrapper .retention-table th:nth-child(4), .history-table-wrapper .retention-table td:nth-child(4) { width: 20%; } /* Reason */
+/* NEW: Explicitly center the STATUS column here too */
+.history-table-wrapper .retention-table th:nth-child(3), .history-table-wrapper .retention-table td:nth-child(3) { width: 15%; text-align: center; } 
+.history-table-wrapper .retention-table th:nth-child(4), .history-table-wrapper .retention-table td:nth-child(4) { width: 22%; } /* Reason */
 .history-table-wrapper .retention-table th:nth-child(5), .history-table-wrapper .retention-table td:nth-child(5) { width: 15%; } /* Date */
 
-/* Existing Utility Classes */
+/* Existing Utility Classes & NEW Critical Risk Color */
 .risk-pill { padding: 5px 15px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
 .risk-pill.high { background: #f6ad55; color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.2); }
+/* NEW: Critical Risk Color Code */
+.risk-pill.critical { background: #e53e3e; color: white; border: 1px solid #c53030; text-shadow: 0 1px 1px rgba(0,0,0,0.2); } 
+
+.btn-advise { border: 1px solid #90242d; color: #90242d; background: #fff0f0; padding: 6px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+.btn-advise:hover { background: #90242d; color: white; }
+
+/* Status Pill Fallbacks (Ensures Regular/Irregular pills match the system) */
+.status-pill.regular { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.status-pill.irregular { background-color: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
 .btn-advise { border: 1px solid #90242d; color: #90242d; background: #fff0f0; padding: 6px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; white-space: nowrap; }
 .btn-advise:hover { background: #90242d; color: white; }
 
