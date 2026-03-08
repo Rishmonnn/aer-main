@@ -343,87 +343,69 @@ def enroll_students():
     success_count = 0
     
     try:
-        # Calculate the dynamic School Year Prefix (e.g., "2526" for 2025-2026)
         now = datetime.now()
         if now.month < 6:
-            start_yr = str(now.year - 1)[-2:]
-            end_yr = str(now.year)[-2:]
+            start_yr, end_yr = str(now.year - 1)[-2:], str(now.year)[-2:]
         else:
-            start_yr = str(now.year)[-2:]
-            end_yr = str(now.year + 1)[-2:]
+            start_yr, end_yr = str(now.year)[-2:], str(now.year + 1)[-2:]
             
         sy_prefix = f"02-{start_yr}{end_yr}-"
-        
-        # Fetch the highest sequence number in the database for this prefix
         latest_student = Student.query.filter(Student.id.like(f"{sy_prefix}%")).order_by(Student.id.desc()).first()
         
         current_sequence = 0
         if latest_student:
             try:
                 last_id_parts = latest_student.id.split('-')
-                if len(last_id_parts) == 3:
-                    current_sequence = int(last_id_parts[2])
+                if len(last_id_parts) == 3: current_sequence = int(last_id_parts[2])
             except ValueError:
                 current_sequence = 0
                 
         for row in data:
-            # 1. Handle ID
-            student_id = row.get('student_id')
-            if not student_id or str(student_id).strip() == '':
-                current_sequence += 1
-                student_id = f"{sy_prefix}{current_sequence:05d}"
+            # Extract Names
+            fn_raw, mn_raw, ln_raw = row.get('firstname', '').strip(), row.get('middlename', '').strip(), row.get('lastname', '').strip()
+            full_name = f"{ln_raw}, {fn_raw}" + (f" {mn_raw[0]}." if mn_raw else "")
             
-            # 2. Extract Names Cleanly
-            fn_raw = row.get('firstname', '').strip()
-            mn_raw = row.get('middlename', '').strip()
-            ln_raw = row.get('lastname', '').strip()
-
-            # Create standard display name (e.g., "Ajias, Richard D.")
-            full_name = f"{ln_raw}, {fn_raw}"
-            if mn_raw:
-                full_name += f" {mn_raw[0]}."
-                
-            # --- NEW: SMART EMAIL GENERATOR ---
-            # Remove spaces and convert to lowercase for email formatting
-            fn_clean = fn_raw.lower().replace(' ', '')
-            mn_clean = mn_raw.lower().replace(' ', '')
-            ln_clean = ln_raw.lower().replace(' ', '')
-            
-            # Extract first 2 letters (falls back safely if name is only 1 letter)
-            fn_prefix = fn_clean[:2] if fn_clean else ""
-            mn_prefix = mn_clean[:2] if mn_clean else ""
-            
-            # Format: ridu.ajias.coc@phinmaed.com
+            # Generate Smart Email
+            fn_clean, mn_clean, ln_clean = fn_raw.lower().replace(' ', ''), mn_raw.lower().replace(' ', ''), ln_raw.lower().replace(' ', '')
+            fn_prefix, mn_prefix = fn_clean[:2] if fn_clean else "", mn_clean[:2] if mn_clean else ""
             generated_email = f"{fn_prefix}{mn_prefix}.{ln_clean}.coc@phinmaed.com"
-            # ----------------------------------
             
-            student = Student.query.get(student_id)
+            # --- THE FIX: Check for duplicates by Email or Name FIRST ---
+            student = Student.query.filter(
+                (Student.email == generated_email) | (Student.name == full_name)
+            ).first()
+            
+            # If still not found, check if a specific ID was passed
+            student_id = row.get('student_id')
+            if not student and student_id and str(student_id).strip() != '':
+                student = Student.query.get(student_id)
+
             if not student:
-                # Create New Student
+                # ONLY generate a new ID if we are absolutely sure this is a new student
+                if not student_id or str(student_id).strip() == '':
+                    current_sequence += 1
+                    student_id = f"{sy_prefix}{current_sequence:05d}"
+                
                 student = Student(
                     id=str(student_id),
-                    name=full_name,
-                    program=row.get('program', 'BSCpE'),
-                    email=generated_email, # <--- USES THE GENERATED EMAIL
-                    year_level='1st Year',
-                    status='Regular',
-                    contact_number=row.get('contact'),
-                    address=row.get('address'),
-                    birthdate=row.get('birthdate'),
-                    gender=row.get('gender')
+                    name=full_name, program=row.get('program', 'BSCpE'),
+                    email=generated_email, year_level='1st Year', status='Regular',
+                    contact_number=row.get('contact'), address=row.get('address'),
+                    birthdate=row.get('birthdate'), gender=row.get('gender')
                 )
                 db.session.add(student)
                 success_count += 1
             else:
-                # Optional: Update existing student data if needed
-                pass
+                # --- NEW: Update existing data if it was a duplicate ---
+                if row.get('contact'): student.contact_number = row.get('contact')
+                if row.get('address'): student.address = row.get('address')
+                # We don't increment success_count here unless you want updates to count as "success"
 
         db.session.commit()
         return jsonify({'status': 'success', 'count': success_count})
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/advising', methods=['GET'])

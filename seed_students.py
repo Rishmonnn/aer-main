@@ -1,4 +1,5 @@
 import random
+from datetime import datetime # NEW
 from app import app
 from models import db, Student, Subject, Section, Enrollment, User
 from sqlalchemy import text
@@ -29,19 +30,53 @@ def get_or_create_faculty():
         db.session.commit()
     return faculty
 
+def generate_smart_email(full_name):
+    parts = full_name.split()
+    if len(parts) >= 3:
+        fn = parts[0]
+        mn = parts[1]
+        ln = "".join(parts[2:])
+    elif len(parts) == 2:
+        fn = parts[0]
+        mn = ""
+        ln = parts[1]
+    else:
+        fn = parts[0]
+        mn = ""
+        ln = "unknown"
+        
+    fn_clean = fn.lower().replace(' ', '')
+    mn_clean = mn.lower().replace(' ', '')
+    ln_clean = ln.lower().replace(' ', '')
+    
+    fn_prefix = fn_clean[:2] if fn_clean else ""
+    mn_prefix = mn_clean[:2] if mn_clean else ""
+    return f"{fn_prefix}{mn_prefix}.{ln_clean}.coc@phinmaed.com"
+
 def seed_data():
     with app.app_context():
         print("--- STARTING STUDENT DATA INJECTION ---")
         
+        # --- NEW: Academic Year Prefix Generator ---
+        now = datetime.now()
+        if now.month < 6:
+            start_yr = str(now.year - 1)[-2:]
+            end_yr = str(now.year)[-2:]
+        else:
+            start_yr = str(now.year)[-2:]
+            end_yr = str(now.year + 1)[-2:]
+        sy_prefix = f"02-{start_yr}{end_yr}-"
+        
         faculty = get_or_create_faculty()
 
+        # Removed the hardcoded IDs from the tuple
         students_to_create = [
-            ("2022-0001", "Main Student User"), 
-            ("2022-0002", "Richmond Ajias"),
-            ("2022-0003", "Russel Tagud"),
-            ("2022-0004", "Carl Alexes Arcillas"),
-            ("2022-0005", "Mary Rose Masayon"),
-            ("2022-0006", "Jansteff Soliva")
+            "Main Student User", 
+            "Richmond Ajias",
+            "Russel Tagud",
+            "Carl Alexes Arcillas",
+            "Mary Rose Masayon",
+            "Jansteff Soliva"
         ]
 
         student_objects = []
@@ -54,10 +89,14 @@ def seed_data():
             "Kauswagan, Cagayan de Oro City"
         ]
 
-        for s_id, s_name in students_to_create:
-            # INJECTABLE QUERY: With plural 'students' table
-            raw_query = f"SELECT * FROM students WHERE id = '{s_id}'"
-            student = db.session.query(Student).from_statement(text(raw_query)).first()
+        for idx, s_name in enumerate(students_to_create, start=1):
+            s_id = f"{sy_prefix}{idx:05d}"
+            smart_email = generate_smart_email(s_name)
+            
+            # THE FIX: Check by Email or Name instead of ID
+            student = Student.query.filter(
+                (Student.email == smart_email) | (Student.name == s_name)
+            ).first()
             
             if not student:
                 random_contact = f"09{random.randint(100000000, 999999999)}"
@@ -75,95 +114,74 @@ def seed_data():
                     program="BSCpE",
                     year_level=CURRENT_YEAR_LEVEL,
                     status="Regular",
-                    email=f"{s_name.split()[0].lower()}@student.edu",
+                    email=smart_email,
                     contact_number=random_contact,
                     address=random_address,
                     birthdate=random_birthdate,
                     gender=random_gender
                 )
                 db.session.add(student)
-                print(f"Created Student: {s_name} with mock info")
+                print(f"Created Student: {s_name} ({s_id}) -> {smart_email}")
             else:
-                print(f"Student exists: {s_name}")
+                # Update existing record
+                student.status = "Regular"
+                student.year_level = CURRENT_YEAR_LEVEL
+                print(f"Student exists (Updated): {s_name} ({student.id})")
             student_objects.append(student)
         
         db.session.commit()
 
         print("\n--- Generating Past Grades (Randomized) ---")
-        
         for year, sem in PAST_TERMS:
             subjects = Subject.query.filter_by(year_level=year, semester=sem).all()
-            
-            if not subjects:
-                print(f"Warning: No subjects found for {year}, {sem}. Did you run seed_curriculum.py?")
-                continue
+            if not subjects: continue
 
             for sub in subjects:
                 section_name = f"{sub.code}-SECTION-A"
                 section = Section.query.filter_by(name=section_name).first()
                 if not section:
                     section = Section(
-                        name=section_name,
-                        subject_code=sub.code,
-                        faculty_id=faculty.id,
-                        room="Rm 101",
-                        schedule="Completed"
+                        name=section_name, subject_code=sub.code,
+                        faculty_id=faculty.id, room="Rm 101", schedule="Completed"
                     )
                     db.session.add(section)
                     db.session.commit()
 
                 for student in student_objects:
                     exists = Enrollment.query.filter_by(student_id=student.id, section_id=section.id).first()
-                    
                     if not exists:
                         choices = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.0]
-                        p1_grade = random.choice(choices)
-                        p2_grade = random.choice(choices)
-                        p3_grade = random.choice(choices)
-                        average_grade = (p1_grade + p2_grade + p3_grade) / 3.0
-                        final_grade = round(average_grade, 2)
+                        p1_grade, p2_grade, p3_grade = random.choice(choices), random.choice(choices), random.choice(choices)
+                        final_grade = round((p1_grade + p2_grade + p3_grade) / 3.0, 2)
                         status = 'Failed' if final_grade > 3.0 else 'Passed'
                         
                         enrollment = Enrollment(
-                            student_id=student.id,
-                            section_id=section.id,
-                            grade=final_grade,
-                            p1_grade=p1_grade, 
-                            p2_grade=p2_grade, 
-                            p3_grade=p3_grade, 
-                            status=status
+                            student_id=student.id, section_id=section.id,
+                            grade=final_grade, p1_grade=p1_grade, p2_grade=p2_grade, 
+                            p3_grade=p3_grade, status=status
                         )
                         db.session.add(enrollment)
-        print("Past grades generated.")
 
         print("\n--- Generating Current Enrollment (Pending) ---")
-        
         for year, sem in CURRENT_TERM:
             subjects = Subject.query.filter_by(year_level=year, semester=sem).all()
-
             for sub in subjects:
                 section_name = f"{sub.code}-SECTION-B" 
                 section = Section.query.filter_by(name=section_name).first()
                 if not section:
                     section = Section(
-                        name=section_name,
-                        subject_code=sub.code,
-                        faculty_id=faculty.id,
-                        room="Rm 202",
-                        schedule="TBA"
+                        name=section_name, subject_code=sub.code,
+                        faculty_id=faculty.id, room="Rm 202", schedule="TBA"
                     )
                     db.session.add(section)
                     db.session.commit()
 
                 for student in student_objects:
                     exists = Enrollment.query.filter_by(student_id=student.id, section_id=section.id).first()
-                    
                     if not exists:
                         enrollment = Enrollment(
-                            student_id=student.id,
-                            section_id=section.id,
-                            grade=None,     
-                            status='Pending' 
+                            student_id=student.id, section_id=section.id,
+                            grade=None, status='Pending' 
                         )
                         db.session.add(enrollment)
         
