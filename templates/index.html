@@ -57,9 +57,16 @@
                 <span>Please fill in the details to register</span>
 
                 <form id="registerForm" action="/register" method="POST" onsubmit="submitRegisterForm(event)">
-                    <label>Full Name</label>
-                    <input type="text" name="name" placeholder="Ex. Engr Russel B. Tagud" required>
-
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <div style="flex: 1;">
+                            <label>First Name (Include M.I.)</label>
+                            <input type="text" name="first_name" placeholder="Ex. Russel B." required style="margin-bottom: 0;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label>Last Name</label>
+                            <input type="text" name="last_name" placeholder="Ex. Tagud" required style="margin-bottom: 0;">
+                        </div>
+                    </div>
                     <label>Phinmaed Account</label>
                     <div style="display: flex; gap: 10px;">
                         <input type="email" name="email" id="reg-email" placeholder="Enter your Phinmaed email" required style="flex: 2;">

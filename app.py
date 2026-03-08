@@ -58,24 +58,26 @@ def login():
     email = request.form.get('email', '').lower()
     password = request.form.get('password', '')
     
-    # 1. Remove 'role' from the initial empty check
     if not email or not password:
-        return redirect(url_for('index'))
+        return render_template('index.html', error="Email and password are required.")
     
-    # 2. Determine role based on the email address itself
-    if 'faculty' in email:
-        session['user'] = email
-        session['role'] = 'faculty'
-        return redirect(url_for('faculty_dashboard'))
+    # 1. Query the actual database for the user
+    user = User.query.filter_by(email=email).first()
+    
+    # 2. Check if the user exists AND the password matches the hash
+    if user and check_password_hash(user.password, password):
+        # Login Successful! Set the session variables
+        session['user'] = user.email
+        session['role'] = user.role
         
-    elif 'head' in email:
-        session['user'] = email
-        session['role'] = 'head'
-        return redirect(url_for('program_head_dashboard'))
-    
+        # 3. Redirect based on their official database role
+        if user.role == 'head':
+            return redirect(url_for('program_head_dashboard'))
+        else:
+            return redirect(url_for('faculty_dashboard'))
     else:
-        # If the email doesn't contain 'head' or 'faculty', login fails
-        return redirect(url_for('index'))
+        # Login Failed
+        return render_template('index.html', error="Invalid email or password. Please try again.")
 
 @app.route('/logout')
 def logout():
@@ -1407,49 +1409,71 @@ def verify_otp():
 
 @app.route('/register', methods=['POST'])
 def register():
-    # Get data from the form
-    name = request.form.get('name')
+    # 1. Get the split name data from the form
+    first_name = request.form.get('first_name', '').strip()
+    last_name = request.form.get('last_name', '').strip()
     email = request.form.get('email')
     role = request.form.get('role')
     department = request.form.get('department')
     password = request.form.get('password')
-    otp_input = request.form.get('otp') # <--- Get the OTP input
+    otp_input = request.form.get('otp')
 
     if email:
         email = email.lower()
 
-    # --- NEW: Verify OTP ---
+    # --- NEW: VERIFY OTP LOGIC REMAINS HERE ---
     stored_otp = session.get('reg_otp')
     stored_email = session.get('reg_email')
 
     if not stored_otp or stored_otp != otp_input or stored_email != email:
         return render_template('index.html', error="Invalid or expired OTP. Please try again.")
-    # -----------------------
 
     # Basic check if user already exists
     existing_user = User.query.filter_by(email=email).first()
     if existing_user:
         return render_template('index.html', error="Email already registered.")
+    clean_name = f"{first_name} {last_name}"
+    display_name = clean_name
+    
+    # Check the department and attach the correct title
+    if department == 'Architecture':
+        display_name = f"Arch. {clean_name}"
+    elif department in ['Electrical Engineering', 'Computer Engineering', 'Civil Engineering', 'Mechanical Engineering']:
+        display_name = f"Engr. {clean_name}"
 
     try:
-        # Create new User instance
+        # Create new User instance using the newly formatted display_name
         new_user = User(
-            name=name,
+            name=display_name, 
             email=email,
             role=role,
             department=department,
-            password=generate_password_hash(password) # Hash for security
+            password=generate_password_hash(password)
         )
 
-        # Add and commit to database
         db.session.add(new_user)
         db.session.commit()
+        # =========================================================
+        if role == 'faculty':
+            # We now search the schedule using strictly their LAST NAME.
+            matching_events = ScheduleEvent.query.filter(ScheduleEvent.faculty_name.ilike(f"%{last_name}%")).all()
+            
+            for event in matching_events:
+                section = Section.query.filter_by(
+                    subject_code=event.subject_code,
+                    name=event.section_code
+                ).first()
+                
+                if section and section.faculty_id is None:
+                    section.faculty_id = new_user.id
+            
+            db.session.commit()
+        # =========================================================
 
-        # --- NEW: Clear OTP from session after successful registration ---
+        # Clear OTP from session
         session.pop('reg_otp', None)
         session.pop('reg_email', None)
 
-        # Automatically log them in after registration
         session['user'] = email
         session['role'] = role
         
@@ -2024,6 +2048,42 @@ def generate_action_plan(student_id):
     except Exception as e:
         print(f"AI Generation Error (Groq): {e}")
         return jsonify({'success': False, 'message': f"System Error: {str(e)}"}), 500
+
+# --- NEW: Faculty Submits Grades for Approval ---
+@app.route('/api/faculty/class-records/submit', methods=['POST'])
+@login_required
+def submit_grades():
+    data = request.get_json()
+    section_id = data.get('section_id')
+    
+    section = Section.query.get(section_id)
+    if section:
+        section.grade_status = 'Pending'
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'message': 'Section not found'}), 404
+
+# --- NEW: Program Head Fetches Pending Approvals ---
+@app.route('/api/head/class-records/approvals', methods=['GET'])
+@login_required
+def get_pending_approvals():
+    # Find all sections where the faculty clicked "Send for Approval"
+    pending_sections = Section.query.filter_by(grade_status='Pending').all()
+    output = []
+    
+    for sec in pending_sections:
+        subject = db.session.get(Subject, sec.subject_code)
+        faculty = db.session.get(User, sec.faculty_id)
+        
+        output.append({
+            'id': sec.id,
+            'subject': f"{sec.subject_code} - {subject.description if subject else 'Unknown'}",
+            'info': f"Section {sec.name} • Submitted by {faculty.name if faculty else 'Unknown'}",
+            'date': datetime.now().strftime("%b %d, %Y"),
+            'status': 'Pending'
+        })
+        
+    return jsonify(output)
 
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5001)

@@ -352,7 +352,40 @@ const ClassRecords = (function() {
 
     function approveItem(id) {
         const item = approvalQueue.find(q => q.id === id);
-        if (item) { item.status = 'Approved'; renderApprovalQueue(); alert(`${item.subject} has been approved.`); }
+        
+        // Failsafes
+        if (!item) return false;
+        if (item.status === 'Approved') {
+            alert(`${item.subject} is already approved.`);
+            return false;
+        }
+
+        // 1. Add a strict confirmation prompt
+        if (confirm(`Are you sure you want to officially approve the grades for ${item.subject}? \n\nThis action will finalize the grades for all students in this section and cannot be undone.`)) {
+            
+            // 2. Update the status
+            item.status = 'Approved'; 
+            
+            // 3. Re-render the UI to change the buttons to the "Approved" badge
+            renderApprovalQueue(); 
+            
+            // 4. Show a clear success message
+            alert(`✅ Success! The grades for ${item.subject} have been officially approved and finalized.`);
+            return true; // Return true so the Review Modal knows it succeeded
+        }
+        
+        return false; // Return false if they clicked "Cancel"
+    }
+
+    // --- REVIEW MODAL LOGIC ---
+    function approveFromReview() {
+        if (currentReviewId) {
+            // Only close the review modal IF they actually confirmed the approval
+            const wasApproved = approveItem(currentReviewId);
+            if (wasApproved) {
+                closeReviewModal();
+            }
+        }
     }
 
     // --- REVIEW MODAL LOGIC ---
@@ -365,7 +398,25 @@ const ClassRecords = (function() {
         document.getElementById('review-subject').textContent = `Grade Review: ${item.subject}`;
         document.getElementById('review-details').textContent = item.info;
 
-        // Populate Table with Mock Review Data
+        // Update the Modal's Table Headers to match the Period system
+        const thead = document.querySelector('#reviewModal thead');
+        if (thead) {
+            thead.innerHTML = `
+                <tr>
+                    <th style="background:#f3f4f6;">Student ID</th>
+                    <th style="background:#f3f4f6;">Name</th>
+                    <th style="background:#f3f4f6;">Course</th>
+                    <th style="background:#f3f4f6;">Year</th>
+                    <th class="text-center" style="background:#f3f4f6;">Period 1</th>
+                    <th class="text-center" style="background:#f3f4f6;">Period 2</th>
+                    <th class="text-center" style="background:#f3f4f6;">Period 3</th>
+                    <th class="text-center" style="background:#f3f4f6;">Final Grade</th>
+                    <th class="text-center" style="background:#f3f4f6;">Status</th>
+                </tr>
+            `;
+        }
+
+        // Populate Table with the Snapshot Data
         const tbody = document.getElementById('review-table-body');
         tbody.innerHTML = reviewData.map(row => {
             const badgeClass = row.status === 'PASSED' ? 'status-pill passed' : 'status-pill failed';
@@ -376,13 +427,10 @@ const ClassRecords = (function() {
                     <td>${row.name}</td>
                     <td><span class="course-badge">${row.course}</span></td>
                     <td>${row.year}</td>
-                    <td class="text-center review-score">${row.q1}</td>
-                    <td class="text-center review-score">${row.q2}</td>
-                    <td class="text-center review-score">${row.q3}</td>
-                    <td class="text-center review-score">${row.mid}</td>
-                    <td class="text-center review-score">${row.fin}</td>
-                    <td class="text-center review-score">${row.proj}</td>
-                    <td class="text-center review-final">${row.final}</td>
+                    <td class="text-center review-score">${row.p1}</td>
+                    <td class="text-center review-score">${row.p2}</td>
+                    <td class="text-center review-score">${row.p3}</td>
+                    <td class="text-center review-final" style="font-weight: bold;">${row.final}</td>
                     <td class="text-center"><span class="${badgeClass}">${row.status}</span></td>
                 </tr>
             `;
@@ -452,8 +500,24 @@ const ClassRecords = (function() {
 
     function getMarkAndStatus(grade) {
         let mark = "5.00"; let status = "FAILED"; let pillClass = "status-pill failed";
-        if (grade >= 98) mark = "1.00"; else if (grade >= 95) mark = "1.25"; else if (grade >= 92) mark = "1.50"; else if (grade >= 89) mark = "1.75"; else if (grade >= 86) mark = "2.00"; else if (grade >= 83) mark = "2.25"; else if (grade >= 80) mark = "2.50"; else if (grade >= 77) mark = "2.75"; else if (grade >= 75) mark = "3.00";
-        if (grade >= 75) { status = "PASSED"; pillClass = "status-pill passed"; }
+        
+        // Dynamic Equivalent Marking (Optional: You can tweak these ranges if your school uses a different scale when passing is 60)
+        if (grade >= 98) mark = "1.00"; 
+        else if (grade >= 95) mark = "1.25"; 
+        else if (grade >= 92) mark = "1.50"; 
+        else if (grade >= 89) mark = "1.75"; 
+        else if (grade >= 86) mark = "2.00"; 
+        else if (grade >= 83) mark = "2.25"; 
+        else if (grade >= 80) mark = "2.50"; 
+        else if (grade >= 77) mark = "2.75"; 
+        else if (grade >= gradeConfig.passingGrade) mark = "3.00"; 
+        
+        // THE FIX: Use the dynamic config passing grade instead of hardcoded 75
+        if (grade >= gradeConfig.passingGrade) { 
+            status = "PASSED"; 
+            pillClass = "status-pill passed"; 
+        }
+        
         return { mark, status, pillClass };
     }
 
@@ -495,12 +559,84 @@ const ClassRecords = (function() {
         closeConfigModal(); switchPeriod(currentPeriod); alert("Configuration Saved!");
     }
     function resetGrades() { if(confirm("Reset grades?")) { scores={}; switchPeriod(currentPeriod); } }
+    function sendForApproval() {
+        const subjectSelect = document.getElementById('cr-subject-select');
+        const sectionSelect = document.getElementById('cr-section-select');
+        
+        if (!subjectSelect || !sectionSelect || !sectionSelect.value) {
+            alert("Please select a valid subject and section first.");
+            return;
+        }
+        
+        const subjectName = subjectSelect.options[subjectSelect.selectedIndex].text;
+        const sectionName = sectionSelect.options[sectionSelect.selectedIndex].text;
 
+        if(confirm(`Are you sure you want to send the final grades for ${sectionName} to the Program Head?`)) {
+            
+            // =========================================================
+            // --- NEW: Snapshot the live grades for the Review Modal
+            // =========================================================
+            reviewData = studentInfoData.map(student => {
+                const p1 = getCalculatedGrade(student.id, 'p1');
+                const p2 = getCalculatedGrade(student.id, 'p2');
+                const p3 = getCalculatedGrade(student.id, 'p3');
+                
+                const w1 = gradeConfig.periodWeights.p1 / 100;
+                const w2 = gradeConfig.periodWeights.p2 / 100;
+                const w3 = gradeConfig.periodWeights.p3 / 100;
+                
+                const finalGrade = (p1 * w1) + (p2 * w2) + (p3 * w3);
+                const { status } = getMarkAndStatus(finalGrade);
+
+                return {
+                    id: student.id,
+                    name: student.name,
+                    course: student.course || 'N/A',
+                    year: student.year || 'N/A',
+                    p1: p1.toFixed(2),
+                    p2: p2.toFixed(2),
+                    p3: p3.toFixed(2),
+                    final: finalGrade.toFixed(2),
+                    status: status
+                };
+            });
+            // =========================================================
+
+            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            approvalQueue.push({
+                id: Date.now(), 
+                subject: subjectName,
+                info: `${sectionName} • Submitted by Faculty`,
+                date: today,
+                status: 'Pending'
+            });
+            
+            renderApprovalQueue();
+            
+            alert(`Success! Grades for ${sectionName} have been sent for approval.`);
+            
+            const badge = document.querySelector('.badge-draft');
+            if(badge) { badge.textContent = 'Pending'; badge.style.backgroundColor = '#f59e0b'; badge.style.color = '#fff'; }
+            
+            const btnSendApproval = document.getElementById('btn-send-approval');
+            if (btnSendApproval) btnSendApproval.style.display = 'none';
+            
+            const btnSave = document.querySelector('.btn-grade-action.save');
+            if (btnSave) btnSave.style.display = 'none';
+            
+            document.querySelectorAll('.grade-input').forEach(input => {
+                input.disabled = true;
+                input.style.backgroundColor = '#f3f4f6';
+            });
+        }
+    }
     return {
         init, switchMainTab, switchSubTab, switchPeriod, handleInput,
         openConfigModal, closeConfigModal, saveConfiguration, switchConfigMode,
         addConfigItem, removeConfigItem, updateConfigItem, updateConfigCat, resetGrades,
-        reviewItem, approveItem, closeReviewModal, approveFromReview, toggleAttendance
+        reviewItem, approveItem, closeReviewModal, approveFromReview, toggleAttendance,
+        sendForApproval
     };
 })();
 
