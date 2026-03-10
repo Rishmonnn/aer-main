@@ -11,6 +11,7 @@ from groq import Groq
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import json
 
 # Load the environment variables from the .env file BEFORE configuring the API
 load_dotenv()
@@ -178,6 +179,29 @@ def get_faculty_classes():
 @login_required
 def get_inc_requests():
     return jsonify([{'id': 1, 'student_name': 'Juan Dela Cruz', 'subject': 'CE101', 'status': 'pending'}])
+
+@app.route('/api/faculty/save_grade_draft', methods=['POST'])
+@login_required
+def save_grade_draft():
+    """Silently saves unfinished class record inputs without lagging the page."""
+    if session.get('role') != 'faculty':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        
+    data = request.get_json()
+    section_id = data.get('section_id')
+    draft_scores = data.get('draft_scores') # This is the big dictionary from JS
+    
+    if not section_id:
+        return jsonify({'success': False, 'message': 'Missing section ID'}), 400
+        
+    section = Section.query.get(section_id)
+    if section:
+        # Convert the dictionary of scores into a text string and save it
+        section.draft_scores = json.dumps(draft_scores)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Draft saved to cloud!'})
+        
+    return jsonify({'success': False, 'message': 'Section not found'}), 404
 
 # ==================== GENERIC/STUB APIs ====================
 
@@ -627,24 +651,21 @@ def get_all_schedules():
 @app.route('/api/schedules/bulk', methods=['POST'])
 @login_required
 def save_bulk_schedules():
-    """Saves classes to the DB without wiping historical data from older terms."""
+    """Saves classes to the DB and INSTANTLY syncs sections & instructors."""
     payload = request.get_json()
     if not payload:
         return jsonify({'success': False, 'message': 'No data provided'}), 400
         
-    # We now expect a dictionary containing both the 'term' and the 'events'
     term = payload.get('term', 'AY2025-2026-Sem2')
     data = payload.get('events', [])
         
     try:
-        # THE MAGIC: Delete ONLY the old imported schedules for THIS specific term. 
-        # Last semester's schedule is completely safe!
+        # 1. Clear ONLY the old schedule events for this specific term
         ScheduleEvent.query.filter_by(academic_term=term).delete() 
         
+        # 2. Save the new raw schedule data from your Excel file
         for item in data:
-            # --- THE FIX: Safely extract extendedProps to prevent KeyErrors ---
             props = item.get('extendedProps', {})
-            
             event = ScheduleEvent(
                 title=item.get('title', 'Unknown'),
                 subject_code=props.get('code', ''),
@@ -656,12 +677,75 @@ def save_bulk_schedules():
                 start_time=item.get('start'),
                 end_time=item.get('end'),
                 color=item.get('backgroundColor', '#3b82f6'),
-                academic_term=term # <--- Link the class to the term
+                academic_term=term
             )
             db.session.add(event)
             
-        db.session.commit()
+        db.session.commit() # Commit the calendar events first
+
+        # ---------------------------------------------------------
+        # 3. INSTANT AUTO-SYNC: Build Sections and Link Instructors
+        # ---------------------------------------------------------
+        events = ScheduleEvent.query.filter_by(academic_term=term).all()
+        for event in events:
+            # Skip empty rows
+            if not event.subject_code or event.subject_code == 'TBA':
+                continue
+
+            # Safety Check: Skip subjects that don't exist in the Course Catalog
+            subject_exists = db.session.get(Subject, event.subject_code)
+            if not subject_exists:
+                continue
+
+            # Check if this section already exists
+            section = Section.query.filter_by(
+                subject_code=event.subject_code,
+                name=event.section_code or "A"
+            ).first()
+
+            # Smart Name Matching (Handles Excel format "LASTNAME, FIRSTNAME")
+            assigned_user_id = None
+            if event.faculty_name and event.faculty_name != 'TBA':
+                # Cleans "ABRAU, GABRIEL ANGELO" -> "ABRAU GABRIEL ANGELO"
+                sched_name_clean = event.faculty_name.upper().replace(',', '').strip()
+                
+                # Check both regular faculty AND the program head!
+                users = User.query.filter(User.role.in_(['faculty', 'head'])).all()
+                
+                for u in users:
+                    # Cleans "Engr. Gabriel Angelo Abrau" -> "GABRIEL ANGELO ABRAU"
+                    db_name_clean = u.name.upper().replace('ENGR. ', '').replace('ARCH. ', '').strip()
+                    
+                    # Direct Match Check
+                    if sched_name_clean in db_name_clean or db_name_clean in sched_name_clean:
+                        assigned_user_id = u.id
+                        break
+                        
+                    # Fallback: Compare Last Names. 
+                    # Excel usually puts last name first (index 0). DB puts it last (index -1).
+                    if sched_name_clean.split()[0] == db_name_clean.split()[-1]:
+                        assigned_user_id = u.id
+                        break
+
+            if section:
+                # If section exists but has no teacher, assign it!
+                if assigned_user_id and section.faculty_id is None:
+                    section.faculty_id = assigned_user_id
+            else:
+                # Create the official class Section and assign the teacher
+                new_sec = Section(
+                    name=event.section_code or "A",
+                    subject_code=event.subject_code,
+                    room=event.room or "TBA",
+                    schedule=f"{event.start_time} - {event.end_time}",
+                    faculty_id=assigned_user_id,
+                    grade_status='Open'
+                )
+                db.session.add(new_sec)
+
+        db.session.commit() # Save all new sections and assignments
         return jsonify({'success': True, 'count': len(data)})
+        
     except Exception as e:
         db.session.rollback()
         print(f"Bulk Import Error: {e}")
@@ -766,7 +850,7 @@ def get_faculty_sections():
 
         # Program Heads see all sections, Faculty see only their own
         if session.get('role') == 'head':
-            sections = Section.query.all()
+            sections = Section.query.filter(Section.faculty_id.isnot(None)).all()
         else:
             sections = Section.query.filter_by(faculty_id=user.id).all()
 
@@ -1454,7 +1538,7 @@ def register():
         db.session.add(new_user)
         db.session.commit()
         # =========================================================
-        if role == 'faculty':
+        if role in ['faculty', 'head']:
             # We now search the schedule using strictly their LAST NAME.
             matching_events = ScheduleEvent.query.filter(ScheduleEvent.faculty_name.ilike(f"%{last_name}%")).all()
             
@@ -2084,6 +2168,79 @@ def get_pending_approvals():
         })
         
     return jsonify(output)
+
+@app.route('/force-sync-sections')
+def force_sync_sections():
+    """A silver bullet to instantly create sections and assign them based on the uploaded schedule."""
+    events = ScheduleEvent.query.all()
+    if not events:
+        return "<h1>⚠️ ERROR: No Schedule Found!</h1><p>You need to go to the Program Head dashboard and IMPORT your schedule file first.</p>"
+
+    new_sections_count = 0
+    assigned_count = 0
+    log = [] # We will store the exact reasons here
+
+    for event in events:
+        if not event.subject_code or event.subject_code == 'TBA':
+            continue
+
+        # 1. Check if the subject is in the catalog
+        subject_exists = db.session.get(Subject, event.subject_code)
+        if not subject_exists:
+            log.append(f"❌ SKIPPED {event.subject_code}: Subject is missing from the curriculum catalog! (You need to run seed_curriculum.py)")
+            continue
+
+        section = Section.query.filter_by(
+            subject_code=event.subject_code,
+            name=event.section_code or "A"
+        ).first()
+
+        assigned_user_id = None
+        if event.faculty_name and event.faculty_name != 'TBA':
+            sched_name_clean = event.faculty_name.upper().replace(',', '').strip()
+            users = User.query.filter(User.role.in_(['faculty', 'head'])).all()
+            for u in users:
+                db_name_clean = u.name.upper().replace('ENGR. ', '').replace('ARCH. ', '').strip()
+                if sched_name_clean in db_name_clean or db_name_clean in sched_name_clean:
+                    assigned_user_id = u.id
+                    break
+                if sched_name_clean.split()[-1] == db_name_clean.split()[-1]:
+                    assigned_user_id = u.id
+                    break
+
+        if section:
+            if assigned_user_id and section.faculty_id is None:
+                section.faculty_id = assigned_user_id
+                assigned_count += 1
+                log.append(f"✅ UPDATED: Linked existing section {event.subject_code} to instructor {event.faculty_name}.")
+            elif section.faculty_id is not None:
+                log.append(f"⚠️ IGNORED {event.subject_code}: Section already exists and already has an instructor.")
+            else:
+                log.append(f"⚠️ IGNORED {event.subject_code}: Section exists, but no registered account matches the name '{event.faculty_name}'.")
+        else:
+            new_sec = Section(
+                name=event.section_code or "A",
+                subject_code=event.subject_code,
+                room=event.room or "TBA",
+                schedule=f"{event.start_time} - {event.end_time}",
+                faculty_id=assigned_user_id,
+                grade_status='Open'
+            )
+            db.session.add(new_sec)
+            new_sections_count += 1
+            if assigned_user_id:
+                assigned_count += 1
+                log.append(f"✨ CREATED: {event.subject_code} AND linked to instructor {event.faculty_name}.")
+            else:
+                log.append(f"⚠️ CREATED: {event.subject_code} but no registered account matches the name '{event.faculty_name}'.")
+
+    try:
+        db.session.commit()
+        log_html = "<br>".join(log)
+        return f"<h1>✅ Sync Complete!</h1><p>Created {new_sections_count} sections, Assigned {assigned_count} instructors.</p><h3>Detailed Log:</h3><div style='font-family: monospace; background: #f4f4f4; padding: 15px; border-radius: 8px; max-height: 500px; overflow-y: auto;'>{log_html}</div><br><a href='/'>Go back to Dashboard</a>"
+    except Exception as e:
+        db.session.rollback()
+        return f"<h1>❌ Database Error</h1><p>{str(e)}</p>"
 
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5001)

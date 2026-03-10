@@ -403,20 +403,9 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         function loadInitialData() {
-            const savedEvents = localStorage.getItem('aeris_imported_schedule');
-            if (savedEvents && savedEvents.length > 5) {
-                try {
-                    const parsedEvents = JSON.parse(savedEvents);
-                    facultyData = processEventsIntoFaculty(parsedEvents);
-                    renderFaculty(facultyData);
-                } catch (e) {
-                    console.error("Parse error:", e);
-                    fetchFromAPI();
-                }
-            } else {
-                fetchFromAPI();
-            }
-        }
+    // Directly fetch from the live database every time
+    fetchFromAPI();
+}
 
         function fetchFromAPI() {
             fetch('/api/instructors')

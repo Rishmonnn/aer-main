@@ -52,6 +52,7 @@ class Subject(db.Model):
     category = db.Column(db.String(50), nullable=True, default='Major')
 
 # 4. SECTIONS (Actual Scheduled Classes)
+# 4. SECTIONS (Actual Scheduled Classes)
 class Section(db.Model):
     __tablename__ = 'sections'
     id = db.Column(db.Integer, primary_key=True)
@@ -63,6 +64,10 @@ class Section(db.Model):
     room = db.Column(db.String(20))
     schedule = db.Column(db.String(50)) # e.g. "MW 10:00-11:30"
     max_seats = db.Column(db.Integer, default=40)
+
+    # --- NEW: Grade Tracking & Auto-Save ---
+    grade_status = db.Column(db.String(20), default='Open') # Prevents the approval crash
+    draft_scores = db.Column(db.Text, nullable=True) # Silently holds the unfinished JS grades
 
     # Relationships
     subject = db.relationship('Subject', backref='sections')

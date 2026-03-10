@@ -30,6 +30,8 @@ const ClassRecords = (function() {
     let scores = {};
 // --- NEW STATE VARIABLES ---
     let availableSections = [];
+    let typingTimer;
+    const doneTypingInterval = 2000; // 2 seconds delay
 
     function init() {
         console.log("Class Records Initialized");
@@ -142,6 +144,17 @@ const ClassRecords = (function() {
                         attendanceRecords[student.id] = Array(TOTAL_SESSIONS).fill('P');
                     }
                 });
+
+                // --- NEW: Restore scores from localStorage ---
+                const subjectCode = document.getElementById('cr-subject-select').value;
+                const storageKey = `aer_drafts_${subjectCode}_${sectionId}`;
+                const savedDrafts = localStorage.getItem(storageKey);
+                
+                if (savedDrafts) {
+                    scores = JSON.parse(savedDrafts); // Load unfinished grades
+                } else {
+                    scores = {}; // Reset if no drafts exist
+                }
                 
                 const infoBody = document.getElementById('cr-table-body');
                 if (infoBody) renderInfoTable(infoBody);
@@ -411,9 +424,38 @@ const ClassRecords = (function() {
         let val = parseFloat(input.value);
         if (val > max) { input.value = max; val = max; }
         if (isNaN(val) && input.value !== "") val = 0;
+        
         if(input.value === "") delete scores[input.id]; else scores[input.id] = val;
         if(input.value !== "") input.classList.add('filled'); else input.classList.remove('filled');
         calculateStudentPeriodGrade(studentId, currentPeriod);
+
+        // --- NEW: 1. Instantly save to LocalStorage (Zero Lag) ---
+        const subjectCode = document.getElementById('cr-subject-select').value;
+        const sectionId = document.getElementById('cr-section-select').value;
+        const storageKey = `aer_drafts_${subjectCode}_${sectionId}`;
+        localStorage.setItem(storageKey, JSON.stringify(scores));
+
+        // --- NEW: 2. Debounced Server Save (Prevents Server Lag) ---
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            saveDraftToServer(subjectCode, sectionId, scores);
+        }, doneTypingInterval);
+    }
+
+    // --- NEW: Background Fetch Function ---
+    function saveDraftToServer(subjectCode, sectionId, currentScores) {
+        fetch('/api/faculty/save_grade_draft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                subject_code: subjectCode, 
+                section_id: sectionId, 
+                draft_scores: currentScores 
+            })
+        })
+        .then(res => res.json())
+        .then(data => console.log("Draft silently saved to server!"))
+        .catch(err => console.error("Auto-save failed:", err));
     }
 
     function getCalculatedGrade(studentId, period) {
@@ -596,6 +638,9 @@ const ClassRecords = (function() {
             "Yes, Send Grades",
             false, // false = Red Warning Mode
             () => {
+                // --- NEW: Clear LocalStorage since it's finalized ---
+                const storageKey = `aer_drafts_${subjectSelect.value}_${sectionSelect.value}`;
+                localStorage.removeItem(storageKey);
                 // ... Snapshot data logic ...
                 reviewData = studentInfoData.map(student => {
                     const p1 = getCalculatedGrade(student.id, 'p1');
