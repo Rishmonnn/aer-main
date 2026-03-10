@@ -88,9 +88,34 @@
   }
 
   // Ensure init runs whether DOM is loading or already loaded
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  document.addEventListener('DOMContentLoaded', () => {
+    // Make sure the parameters match the IDs in your HTML
+    // Example: triggering the home tab by default
+    const homeTabBtn = document.querySelector('.sidebar-menu li:first-child');
+    switchTab('home', homeTabBtn); 
+});
+
 })();
+
+function switchTab(tabId, clickedElement) {
+    // 1. Hide all main content sections
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.style.display = 'none';
+    });
+    
+    // 2. Remove the 'active' class from all sidebar menu items
+    document.querySelectorAll('.sidebar-menu li').forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // 3. Show the selected content section
+    const targetSection = document.getElementById(tabId);
+    if (targetSection) {
+        targetSection.style.display = 'block';
+    }
+
+    // 4. Highlight the clicked sidebar item
+    if (clickedElement) {
+        clickedElement.classList.add('active');
+    }
+}

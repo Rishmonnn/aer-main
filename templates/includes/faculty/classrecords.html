@@ -10,18 +10,17 @@
             <button class="cr-nav-pill active">Class Record</button>
         </div>
 
-        <div id="cr-main-view">
-            <div class="cr-selection-panel">
+        <div class="cr-selection-panel">
                 <div class="cr-panel-label">
                     <i class='bx bx-book-open'></i> Select Subject & Section
                     <span class="badge-draft">Draft</span>
                 </div>
                 <div class="cr-dropdown-row">
                     <div class="cr-select-wrapper">
-                        <select><option>CPE 038 - Web Development</option></select>
+                        <select id="cr-subject-select"><option>Loading Subjects...</option></select>
                     </div>
                     <div class="cr-select-wrapper short">
-                        <select><option>CPE 3A</option></select>
+                        <select id="cr-section-select"><option>...</option></select>
                     </div>
                 </div>
             </div>
@@ -37,28 +36,30 @@
                 </div>
                 <div class="info-col">
                     <span class="label">Subject Code & Title</span>
-                    <span class="val">CPE 038 - Web Development</span>
+                    <span class="val" id="cr-info-subject">Loading...</span>
                 </div>
                 <div class="info-col">
                     <span class="label">Section</span>
-                    <span class="val">CPE 3A</span>
+                    <span class="val" id="cr-info-section">Loading...</span>
                 </div>
                 <div class="info-col">
                     <span class="label">Prepared By</span>
-                    <span class="val">Engr. Faculty</span>
+                    <span class="val" id="cr-info-faculty">Loading...</span>
                 </div>
             </div>
 
             <div class="cr-toolbar">
                 <div class="search-wrap">
                     <i class='bx bx-search'></i>
-                    <input type="text" placeholder="Search by name or student number...">
+                    <input type="text" placeholder="Search by name or student Id number...">
                 </div>
                 <div class="actions-wrap">
                     <button class="btn-tool"><i class='bx bx-filter'></i> Filter</button>
                     <button class="btn-tool dark"><i class='bx bx-import'></i> Import</button>
                     <button class="btn-tool"><i class='bx bx-export'></i> Export</button>
-                    <button class="btn-tool red"><i class='bx bx-send'></i> Send for Approval</button>
+                    <button class="btn-tool red" id="btn-send-approval" style="display: none;" onclick="ClassRecords.sendForApproval()">
+                        <i class='bx bx-send'></i> Send for Approval
+                    </button>
                 </div>
             </div>
 
@@ -78,11 +79,6 @@
                                 <th>Name</th>
                                 <th>Course</th>
                                 <th>Year</th>
-                                <th class="text-center">Printed Modules</th>
-                                <th>FB Account</th>
-                                <th class="text-center">FB Group</th>
-                                <th class="text-center">Messenger</th>
-                                <th>Contact #</th>
                                 <th>Gmail</th>
                             </tr>
                         </thead>

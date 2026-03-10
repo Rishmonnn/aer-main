@@ -27,11 +27,11 @@
             </div>
 
             <nav class="nav-menu">
-                <a href="#" class="nav-item active" onclick="showSection('home')">
+                <a href="#" class="nav-item active" onclick="showSection('home', this)">
                     <i class='bx bx-home-alt-2'></i> <span>HOME</span>
                 </a>
                 
-                <a href="#" class="nav-item" onclick="showSection('classrecords')">
+                <a href="#" class="nav-item" onclick="showSection('classrecords', this)">
                     <i class='bx bx-folder'></i> <span>CLASS RECORDS</span>
                 </a>
             </nav>
@@ -50,8 +50,6 @@
             <div id="content-wrapper" style="padding: 30px 50px;">
                 {% include 'includes/faculty/home.html' %}
                 
-                {% include 'includes/faculty/grading.html' %}
-                
                 {% include 'includes/faculty/inc.html' %}
             </div>
 
@@ -65,14 +63,10 @@
 
 {% block extra_js %}
     <script src="{{ url_for('static', filename='js/faculty.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/faculty-grading.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/faculty-classes.js') }}"></script>
     <script src="{{ url_for('static', filename='js/faculty-inc.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/classrecords.js') }}"></script>
-    
     <script>
         // Updated View Switcher for Faculty Dashboard
-        function showSection(sectionId) {
+        function showSection(sectionId, clickedElement) {
             const views = ['home', 'grading', 'inc']; 
             
             const contentWrapper = document.getElementById('content-wrapper');
@@ -98,12 +92,16 @@
                 if (target) target.style.display = 'block';
             }
             
-            // Update Sidebar Active State
+            // Update Sidebar Active State Safely
             const navItems = document.querySelectorAll('.nav-item');
             if (navItems) {
                 navItems.forEach(item => item.classList.remove('active'));
             }
-            if(event && event.currentTarget) event.currentTarget.classList.add('active');
+            
+            // Apply 'active' class to the exact element clicked
+            if (clickedElement) {
+                clickedElement.classList.add('active');
+            }
         }
     </script>
 {% endblock %}

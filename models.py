@@ -13,6 +13,7 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False) # 'head' or 'faculty'
     department = db.Column(db.String(100), nullable=True)
     
+    
     # Relationships
     classes_handled = db.relationship('Section', backref='instructor', lazy=True)
 

@@ -228,6 +228,7 @@ subjects.forEach(sub => {
             `;
 
             // --- 2. Create the Hidden Breakdown Row ---
+            // --- 2. Create the Hidden Breakdown Row ---
             const breakdownTr = document.createElement('tr');
             breakdownTr.className = 'breakdown-row';
             breakdownTr.style.display = 'none'; // Hidden by default
@@ -235,11 +236,38 @@ subjects.forEach(sub => {
             // Format period grades safely
             const formatGrade = (val) => typeof val === 'number' ? val.toFixed(2) : (val || '-');
 
+            // --- NEW: Class Details and Edit Logic ---
+            // Only allow editing if the status is active (current semester)
+            const isCurrent = sub.remarks === 'Enrolled' || sub.remarks === 'Pending' || sub.remarks === 'Enlisting';
+
+            let classInfoHTML = `
+                <div class="class-info-block" style="margin-bottom: 15px; padding: 12px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                    <div id="class-details-text-${sub.enrollment_id}" style="font-size: 13px; color: #334155; line-height: 1.6;">
+                        <div style="display: flex; gap: 15px;">
+                            <div><i class='bx bx-group'></i> <strong>Section:</strong> ${sub.section_name || 'N/A'}</div>
+                            <div><i class='bx bx-user-pin'></i> <strong>Instructor:</strong> ${sub.instructor || 'TBA'}</div>
+                        </div>
+                        <div style="display: flex; gap: 15px; margin-top: 4px;">
+                            <div><i class='bx bx-time'></i> <strong>Schedule:</strong> ${sub.schedule || 'TBA'}</div>
+                            <div><i class='bx bx-door-open'></i> <strong>Room:</strong> ${sub.room || 'TBA'}</div>
+                        </div>
+                    </div>
+                    ${isCurrent ? `
+                    <div id="class-actions-${sub.enrollment_id}">
+                        <button onclick="startEditSection(${sub.enrollment_id}, '${sub.code}')" style="padding: 6px 12px; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; color: #475569; display: flex; align-items: center; gap: 5px;">
+                            <i class='bx bx-edit'></i> Change Section
+                        </button>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+
             breakdownTr.innerHTML = `
-                <td colspan="6" style="padding: 0; border: none;">
+                <td colspan="6" style="padding: 10px 20px; border: none; background: #fafafa;">
+                    ${classInfoHTML}
                     <div class="breakdown-container">
                         <div class="period-box">
-                            <span class="period-label">Period !</span>
+                            <span class="period-label">Period 1</span>
                             <span class="period-grade">${formatGrade(sub.p1)}</span>
                         </div>
                         <div class="period-box">
@@ -306,3 +334,75 @@ function filterJourney() {
     });
 }
 
+// --- NEW: EDIT SECTION LOGIC ---
+window.startEditSection = function(enrollmentId, subjectCode) {
+    const detailsDiv = document.getElementById(`class-details-text-${enrollmentId}`);
+    const actionsDiv = document.getElementById(`class-actions-${enrollmentId}`);
+    
+    // Save original HTML so we can cancel
+    const originalDetails = detailsDiv.innerHTML;
+    const originalActions = actionsDiv.innerHTML;
+
+    // Fetch active sections
+    fetch(`/api/subjects/${subjectCode}/active_sections`)
+        .then(r => r.json())
+        .then(sections => {
+            let options = sections.map(sec => 
+                `<option value="${sec.id}">Sec ${sec.name} - ${sec.instructor} (${sec.schedule})</option>`
+            ).join('');
+            
+            if(!options) options = '<option value="">No active sections available</option>';
+
+            detailsDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <strong>Select New Section:</strong>
+                    <select id="select-sec-${enrollmentId}" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px; max-width: 400px;">
+                        ${options}
+                    </select>
+                </div>
+            `;
+
+            actionsDiv.innerHTML = `
+                <button onclick="saveEditSection(${enrollmentId})" style="padding: 6px 12px; background: #10b981; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 5px;">Save</button>
+                <button onclick="cancelEditSection(${enrollmentId})" style="padding: 6px 12px; background: #ef4444; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 12px; font-weight: 600;">Cancel</button>
+            `;
+
+            // Store originals in datasets
+            detailsDiv.dataset.original = originalDetails;
+            actionsDiv.dataset.original = originalActions;
+        });
+}
+
+window.cancelEditSection = function(enrollmentId) {
+    const detailsDiv = document.getElementById(`class-details-text-${enrollmentId}`);
+    const actionsDiv = document.getElementById(`class-actions-${enrollmentId}`);
+    detailsDiv.innerHTML = detailsDiv.dataset.original;
+    actionsDiv.innerHTML = actionsDiv.dataset.original;
+}
+
+window.saveEditSection = function(enrollmentId) {
+    const select = document.getElementById(`select-sec-${enrollmentId}`);
+    const newSectionId = select.value;
+    
+    if(!newSectionId) {
+        alert('Please select a valid section.');
+        return;
+    }
+
+    fetch(`/api/enrollment/${enrollmentId}/section`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ section_id: newSectionId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            // Refresh the whole student journey view to instantly show changes
+            const studentId = document.getElementById('detail-id').innerText;
+            const studentName = document.getElementById('detail-name').innerText;
+            viewStudentJourney(studentId, studentName); 
+        } else {
+            alert(data.message || 'Failed to update section.');
+        }
+    });
+}

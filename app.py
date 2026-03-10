@@ -90,13 +90,11 @@ def logout():
 def faculty_dashboard():
     if session.get('role') != 'faculty': return redirect(url_for('index'))
     
-    # INTEGRATION: Added classrecords CSS and JS
     context = {
         'pageTitle': 'Faculty Dashboard',
         'pageStyles': ['dashboard.css', 'faculty.css', 'classrecords.css'],
-        'pageScripts': ['faculty.js', 'faculty-grading.js', 'faculty-classes.js', 'faculty-inc.js', 'classrecords.js'],
+        'pageScripts': ['faculty.js', 'faculty-inc.js', 'classrecords.js'], 
         'user_name': session.get('user', 'Faculty'),
-        # Provide real defaults until you build a dynamic stats API for the faculty home page
         'stats': {'classes': 0, 'total_students': 0, 'grading_status': '0%'} 
     }
     return render_template('faculty.html', **context)
@@ -202,6 +200,16 @@ def save_grade_draft():
         return jsonify({'success': True, 'message': 'Draft saved to cloud!'})
         
     return jsonify({'success': False, 'message': 'Section not found'}), 404
+
+@app.route('/api/faculty/sections/<int:section_id>/drafts', methods=['GET'])
+@login_required
+def get_grade_drafts(section_id):
+    """Fetches the saved class record drafts from the database."""
+    section = Section.query.get(section_id)
+    if section and section.draft_scores:
+        # Return the saved JSON string back to the frontend
+        return jsonify({'success': True, 'draft_scores': section.draft_scores})
+    return jsonify({'success': False, 'draft_scores': '{}'})
 
 # ==================== GENERIC/STUB APIs ====================
 
@@ -848,29 +856,20 @@ def get_faculty_sections():
         user = User.query.filter_by(email=user_email).first()
         if not user: return jsonify([])
 
-        # Program Heads see all sections, Faculty see only their own
-        if session.get('role') == 'head':
-            sections = Section.query.filter(Section.faculty_id.isnot(None)).all()
-        else:
-            sections = Section.query.filter_by(faculty_id=user.id).all()
+        # 🔥 THE FIX: Both Faculty and Program Heads should ONLY see the classes 
+        # explicitly assigned to their specific user account in the Class Record dropdown.
+        sections = Section.query.filter_by(faculty_id=user.id).all()
 
         output = []
         for sec in sections:
             subject = db.session.get(Subject, sec.subject_code)
             
-            # Figure out the instructor name securely
-            instructor_name = "TBA"
-            if sec.instructor:
-                instructor_name = sec.instructor.name
-            elif session.get('role') == 'faculty':
-                instructor_name = user.name
-
             output.append({
                 'id': sec.id,
                 'name': sec.name,
                 'subject_code': sec.subject_code,
                 'subject_title': subject.description if subject else 'Unknown Subject',
-                'faculty_name': instructor_name
+                'faculty_name': user.name
             })
         return jsonify(output)
     except Exception as e:
@@ -1023,15 +1022,25 @@ def get_student_journey_data(student_id):
         raw_grade = enroll.grade
         grade_display = float(raw_grade) if raw_grade else 0.0
         
+        # --- NEW: Get Instructor Name Safely ---
+        instructor_name = "TBA"
+        if section.instructor:
+            instructor_name = section.instructor.name
+        
         # Add Subject Data to List
         semesters_map[sem_key]['subjects'].append({
+            'enrollment_id': enroll.id,           # <--- NEW
+            'section_id': section.id,             # <--- NEW
+            'section_name': section.name,         # <--- NEW
+            'instructor': instructor_name,        # <--- NEW
+            'schedule': section.schedule,         # <--- NEW
+            'room': section.room,                 # <--- NEW
             'code': subject.code,
             'desc': subject.description,
             'type': subject.type,
             'units': subject.units,
             'grade': grade_display,
-            'remarks': enroll.status,  # Passed, Failed, Pending
-            # --- NEW: FETCH PERIOD GRADES ---
+            'remarks': enroll.status,  # Passed, Failed, Pending, Enrolled
             'p1': enroll.p1_grade if enroll.p1_grade else '-',
             'p2': enroll.p2_grade if enroll.p2_grade else '-',
             'p3': enroll.p3_grade if enroll.p3_grade else '-'
@@ -1118,6 +1127,56 @@ def get_student_journey_data(student_id):
         'grades': grades_data,
         'advising_records': advising_list  # <--- NEW: Send it to the frontend
     })
+    
+    
+@app.route('/api/subjects/<string:subject_code>/active_sections', methods=['GET'])
+@login_required
+def get_active_sections(subject_code):
+    """Fetches available sections for a subject to allow editing in Student Journey."""
+    try:
+        # Fetch active sections (exclude history)
+        sections = Section.query.filter(
+            Section.subject_code == subject_code,
+            Section.schedule.notin_(['Completed', 'Archived'])
+        ).all()
+        
+        output = []
+        for sec in sections:
+            inst = sec.instructor.name if sec.instructor else "TBA"
+            output.append({
+                'id': sec.id,
+                'name': sec.name,
+                'schedule': sec.schedule,
+                'room': sec.room,
+                'instructor': inst
+            })
+        return jsonify(output)
+    except Exception as e:
+        print(f"Error fetching active sections: {e}")
+        return jsonify([])
+    
+
+@app.route('/api/enrollment/<int:enrollment_id>/section', methods=['PUT'])
+@login_required
+def update_enrollment_section(enrollment_id):
+    """Updates a student's section for a specific active subject."""
+    data = request.get_json()
+    new_section_id = data.get('section_id')
+    
+    if not new_section_id:
+        return jsonify({'success': False, 'message': 'No section ID provided.'}), 400
+        
+    try:
+        enrollment = Enrollment.query.get(enrollment_id)
+        if not enrollment:
+            return jsonify({'success': False, 'message': 'Enrollment not found.'}), 404
+            
+        enrollment.section_id = new_section_id
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
     
     
     # ==================== ENROLLMENT & ENLISTMENT WORKFLOW ====================

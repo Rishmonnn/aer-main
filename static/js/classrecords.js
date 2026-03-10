@@ -35,7 +35,22 @@ const ClassRecords = (function() {
 
     function init() {
         console.log("Class Records Initialized");
-        fetchSections(); // Fetch sections first instead of fetching all students
+        fetchSections(); 
+        
+        // If the approval view exists (Program Head), fetch the pending queue
+        if (document.getElementById('cr-approval-view')) {
+            fetchPendingApprovals();
+        }
+    }
+    // --- FETCH ACTUAL APPROVALS FROM DB ---
+    function fetchPendingApprovals() {
+        fetch('/api/head/class-records/approvals')
+            .then(res => res.json())
+            .then(data => {
+                approvalQueue = data;
+                renderApprovalQueue();
+            })
+            .catch(err => console.error("Error loading approvals:", err));
     }
 
     // --- NEW: Dynamic Dropdown Logic ---
@@ -172,12 +187,16 @@ const ClassRecords = (function() {
     function switchMainTab(tabName, btnElement) {
         document.querySelectorAll('.cr-nav-pill').forEach(b => { b.classList.remove('active'); b.classList.add('inactive'); });
         btnElement.classList.remove('inactive'); btnElement.classList.add('active');
+        
         if (tabName === 'records') {
             document.getElementById('cr-main-view').style.display = 'block';
             document.getElementById('cr-approval-view').style.display = 'none';
         } else {
             document.getElementById('cr-main-view').style.display = 'none';
             document.getElementById('cr-approval-view').style.display = 'block';
+            
+            // 🔥 CRITICAL FIX: Fetch fresh approvals directly from the database when the tab is clicked
+            fetchPendingApprovals();
         }
     }
 
@@ -630,47 +649,40 @@ const ClassRecords = (function() {
         
         const subjectName = subjectSelect.options[subjectSelect.selectedIndex].text;
         const sectionName = sectionSelect.options[sectionSelect.selectedIndex].text;
+        const sectionId = sectionSelect.value;
 
-        // TRIGGER THE NEW BEAUTIFUL MODAL (Red Mode)
         showCustomConfirm(
             "Send for Approval",
             `Are you sure you want to send the final grades for ${sectionName} to the Program Head? You will not be able to edit them once submitted.`,
             "Yes, Send Grades",
-            false, // false = Red Warning Mode
+            false, 
             () => {
-                // --- NEW: Clear LocalStorage since it's finalized ---
-                const storageKey = `aer_drafts_${subjectSelect.value}_${sectionSelect.value}`;
-                localStorage.removeItem(storageKey);
-                // ... Snapshot data logic ...
-                reviewData = studentInfoData.map(student => {
-                    const p1 = getCalculatedGrade(student.id, 'p1');
-                    const p2 = getCalculatedGrade(student.id, 'p2');
-                    const p3 = getCalculatedGrade(student.id, 'p3');
-                    const w1 = gradeConfig.periodWeights.p1 / 100;
-                    const w2 = gradeConfig.periodWeights.p2 / 100;
-                    const w3 = gradeConfig.periodWeights.p3 / 100;
-                    const finalGrade = (p1 * w1) + (p2 * w2) + (p3 * w3);
-                    const { status } = getMarkAndStatus(finalGrade);
-
-                    return {
-                        id: student.id, name: student.name, course: student.course || 'N/A', year: student.year || 'N/A',
-                        p1: p1.toFixed(2), p2: p2.toFixed(2), p3: p3.toFixed(2), final: finalGrade.toFixed(2), status: status
-                    };
+                // Hitting the real backend API
+                fetch('/api/faculty/class-records/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ section_id: sectionId })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.success) {
+                        const storageKey = `aer_drafts_${subjectSelect.value}_${sectionSelect.value}`;
+                        localStorage.removeItem(storageKey);
+                        
+                        const badge = document.querySelector('.badge-draft');
+                        if(badge) { badge.textContent = 'Pending'; badge.style.backgroundColor = '#f59e0b'; badge.style.color = '#fff'; }
+                        
+                        const btnSendApproval = document.getElementById('btn-send-approval');
+                        if (btnSendApproval) btnSendApproval.style.display = 'none';
+                        const btnSave = document.querySelector('.btn-grade-action.save');
+                        if (btnSave) btnSave.style.display = 'none';
+                        document.querySelectorAll('.grade-input').forEach(input => { input.disabled = true; input.style.backgroundColor = '#f3f4f6'; });
+                        
+                        alert("Grades successfully sent for approval.");
+                    } else {
+                        alert("Error sending grades: " + data.message);
+                    }
                 });
-
-                const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                
-                approvalQueue.push({ id: Date.now(), subject: subjectName, info: `${sectionName} • Submitted by Faculty`, date: today, status: 'Pending' });
-                renderApprovalQueue();
-                
-                // Hide buttons and lock UI
-                const badge = document.querySelector('.badge-draft');
-                if(badge) { badge.textContent = 'Pending'; badge.style.backgroundColor = '#f59e0b'; badge.style.color = '#fff'; }
-                const btnSendApproval = document.getElementById('btn-send-approval');
-                if (btnSendApproval) btnSendApproval.style.display = 'none';
-                const btnSave = document.querySelector('.btn-grade-action.save');
-                if (btnSave) btnSave.style.display = 'none';
-                document.querySelectorAll('.grade-input').forEach(input => { input.disabled = true; input.style.backgroundColor = '#f3f4f6'; });
             }
         );
     }
@@ -679,16 +691,29 @@ const ClassRecords = (function() {
         const item = approvalQueue.find(q => q.id === id);
         if (!item || item.status === 'Approved') return;
 
-        // TRIGGER THE NEW BEAUTIFUL MODAL (Green Mode)
         showCustomConfirm(
             "Approve & Finalize Grades",
             `Are you sure you want to officially approve the grades for ${item.subject}? \n\nThis action will finalize the grades for all students in this section and cannot be undone.`,
             "Approve & Finalize",
-            true, // true = Green Success Mode
+            true, 
             () => {
-                item.status = 'Approved'; 
-                renderApprovalQueue(); 
-                closeReviewModal(); // Auto-close review modal if it's open
+                // Hitting the real backend API
+                fetch('/api/head/class-records/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ section_id: item.id }) // Ensure item.id is the section_id
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.success) {
+                        item.status = 'Approved'; 
+                        renderApprovalQueue(); 
+                        closeReviewModal();
+                        alert("Grades Approved!");
+                    } else {
+                        alert("Failed to approve grades.");
+                    }
+                });
             }
         );
     }
