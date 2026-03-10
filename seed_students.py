@@ -140,9 +140,10 @@ def seed_data():
                 section_name = f"{sub.code}-SECTION-A"
                 section = Section.query.filter_by(name=section_name).first()
                 if not section:
+                    # --- FIX: Removed faculty_id, set to Archived ---
                     section = Section(
                         name=section_name, subject_code=sub.code,
-                        faculty_id=faculty.id, room="Rm 101", schedule="Completed"
+                        faculty_id=None, room="Archived Rm", schedule="Completed"
                     )
                     db.session.add(section)
                     db.session.commit()
@@ -169,6 +170,7 @@ def seed_data():
                 section_name = f"{sub.code}-SECTION-B" 
                 section = Section.query.filter_by(name=section_name).first()
                 if not section:
+                    # --- NO FIX HERE: Current term needs active faculty to show up on dashboard ---
                     section = Section(
                         name=section_name, subject_code=sub.code,
                         faculty_id=faculty.id, room="Rm 202", schedule="TBA"

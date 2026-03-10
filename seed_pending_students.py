@@ -86,7 +86,8 @@ def seed_history():
                     sec_name = f"{sub.code}-HIST-{year[0]}{sem[0]}"
                     section = Section.query.filter_by(name=sec_name).first()
                     if not section:
-                        section = Section(name=sec_name, subject_code=sub.code, faculty_id=faculty.id, room="History Rm", schedule="Completed")
+                        # --- FIX: Removed faculty_id, set to Archived ---
+                        section = Section(name=sec_name, subject_code=sub.code, faculty_id=None, room="Archived Rm", schedule="Completed")
                         db.session.add(section)
                         db.session.commit()
 

@@ -101,7 +101,8 @@ def seed_test_scenarios():
                     section = Section.query.filter_by(name=sec_name).first()
                     
                     if not section:
-                        section = Section(name=sec_name, subject_code=sub.code, faculty_id=faculty.id, schedule="Done", room="Rm 101")
+                        # --- FIX: Removed faculty_id, set to Archived ---
+                        section = Section(name=sec_name, subject_code=sub.code, faculty_id=None, schedule="Completed", room="Archived Rm")
                         db.session.add(section)
                         db.session.commit()
                     

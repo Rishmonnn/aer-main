@@ -1963,14 +1963,12 @@ def get_dashboard_activities():
             activities.append({
                 'type': action_type,
                 'message': f"{s.name} ({s.id})",
-                'time': "Recently Updated" # Used because Student table has no timestamp col
+                'time': "Recently Updated" 
             })
             
         # B. Add Grading Activities (Aggregated by Section)
         graded_enrollments = Enrollment.query.filter(Enrollment.grade.isnot(None)).all()
         
-        # Keep track of which sections we've already added an activity for 
-        # so we don't spam the dashboard for every single student in that section.
         processed_sections = set()
         
         for eg in reversed(graded_enrollments):
@@ -1978,7 +1976,8 @@ def get_dashboard_activities():
                 processed_sections.add(eg.section_id)
                 
                 section = db.session.get(Section, eg.section_id)
-                if section:
+                # --- NEW FIX: Ignore sections marked as Completed or Archived ---
+                if section and section.schedule not in ['Completed', 'Archived']:
                     activities.append({
                         'type': "Grades Approved",
                         'message': f"{section.subject_code} - Section {section.name}",
@@ -2007,7 +2006,7 @@ def get_dashboard_activities():
                 'btn_text': 'Proceed to Enlistment'
             })
             
-        # Check for failed grades (Retention risk)
+        # Check for failed grades (Retention risk) - Only check active students
         failed_count = Enrollment.query.filter( (Enrollment.grade > 3.0) | (Enrollment.status == 'Failed') ).count()
         if failed_count > 0:
             actions.append({
@@ -2027,7 +2026,7 @@ def get_dashboard_activities():
             })
 
         return jsonify({
-            'activities': activities,
+            'activities': activities[:10], # Keep it clean by only returning the top 10 recent activities
             'actions': actions
         })
 

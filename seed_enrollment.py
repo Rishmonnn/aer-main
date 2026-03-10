@@ -58,9 +58,9 @@ def seed_enrollment_data():
                     section = Section(
                         name=section_name,
                         subject_code=sub.code,
-                        faculty_id=faculty.id,
-                        room="Rm 101",
-                        schedule="TBA"
+                        faculty_id=None,        # <--- FIX: Unassign from active faculty
+                        room="Archived Rm",     # <--- FIX: Mark as archived
+                        schedule="Completed"    # <--- FIX: Mark as completed
                     )
                     db.session.add(section)
                     db.session.commit() # Commit to get ID
@@ -110,7 +110,7 @@ def seed_enrollment_data():
                 section = Section(
                     name=sec_name,
                     subject_code=sub.code,
-                    faculty_id=faculty.id,
+                    faculty_id=faculty.id, # <--- KEEP active faculty for current classes
                     room="Rm 202",
                     schedule="MW 10:00-12:00"
                 )
@@ -121,7 +121,7 @@ def seed_enrollment_data():
         # Create Students and Enroll them as Pending
         start_id = 20240001
         for i, name in enumerate(pending_names):
-            s_id = f"{start_id + i}" # e.g., "20240001"
+            s_id = f"{start_id + i}" 
             
             student = db.session.get(Student, s_id)
             if not student:
@@ -130,7 +130,7 @@ def seed_enrollment_data():
                     name=name,
                     program="BSCpE",
                     year_level="2nd Year",
-                    status="Regular", # Student status is Regular, but enrollment is Pending
+                    status="Regular", 
                     email=f"{name.replace(' ', '.').lower()}@student.com"
                 )
                 db.session.add(student)
@@ -143,8 +143,8 @@ def seed_enrollment_data():
                     enrollment = Enrollment(
                         student_id=s_id,
                         section_id=sec.id,
-                        grade=None, # No grade yet
-                        status="Pending" # Pending status
+                        grade=None, 
+                        status="Pending" 
                     )
                     db.session.add(enrollment)
 
