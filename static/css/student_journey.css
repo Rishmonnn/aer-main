@@ -311,3 +311,33 @@
     from { opacity: 0; transform: translateY(-5px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* =========================================
+   EDIT BUTTON & MODAL STYLES
+   ========================================= */
+.btn-edit-info {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-edit-info:hover {
+    background: white;
+    color: #90242d;
+}
+
+/* Modal form input focus states */
+.form-control:focus {
+    outline: none;
+    border-color: #90242d !important;
+    box-shadow: 0 0 0 3px rgba(144, 36, 45, 0.1);
+}

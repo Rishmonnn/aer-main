@@ -55,6 +55,8 @@ function loadStudentJourney() {
 
 // Global variable to store the grades fetched from server
 let currentStudentGrades = {}; 
+// Global variable to hold the currently viewed student's basic info for editing
+let currentViewedStudent = {};
 
 // --- VIEW JOURNEY LOGIC (CONNECTED TO DATABASE) ---
 function viewStudentJourney(id, name) {
@@ -77,7 +79,10 @@ function viewStudentJourney(id, name) {
             // Store grades globally so we can access them when clicking a semester row
             currentStudentGrades = data.grades; 
 
-if (data.student_info) {
+            if (data.student_info) {
+                // Store info for the edit modal
+                currentViewedStudent = { id: id, ...data.student_info };
+
                 document.getElementById('detail-email').innerText = data.student_info.email || 'N/A';
                 document.getElementById('detail-contact').innerText = data.student_info.contact_number || 'N/A';
                 document.getElementById('detail-year').innerText = data.student_info.year_level || '-';
@@ -203,7 +208,7 @@ function viewSemesterGrades(rowElement, semName) {
     if (subjects.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#64748b;">No grades available for this semester.</td></tr>';
     } else {
-subjects.forEach(sub => {
+        subjects.forEach(sub => {
             const isFailed = sub.remarks === 'Failed' || sub.remarks === 'Dropped' || (sub.grade > 3.0 && sub.grade !== 0);
             
             // Format Grade
@@ -227,7 +232,6 @@ subjects.forEach(sub => {
                 <td>${sub.remarks}</td>
             `;
 
-            // --- 2. Create the Hidden Breakdown Row ---
             // --- 2. Create the Hidden Breakdown Row ---
             const breakdownTr = document.createElement('tr');
             breakdownTr.className = 'breakdown-row';
@@ -331,6 +335,74 @@ function filterJourney() {
         } else {
             row.style.display = "none";
         }
+    });
+}
+
+// =========================================
+// EDIT STUDENT INFO FUNCTIONS
+// =========================================
+
+function openEditStudentModal() {
+    // Populate the inputs with the global student tracking object
+    document.getElementById('edit-student-id').value = currentViewedStudent.id;
+    document.getElementById('edit-email').value = currentViewedStudent.email || '';
+    document.getElementById('edit-contact').value = currentViewedStudent.contact_number || '';
+    document.getElementById('edit-address').value = currentViewedStudent.address || '';
+    
+    // Check if birthdate is valid before populating date input
+    if (currentViewedStudent.birthdate && currentViewedStudent.birthdate !== 'N/A') {
+        document.getElementById('edit-birthdate').value = currentViewedStudent.birthdate;
+    } else {
+        document.getElementById('edit-birthdate').value = '';
+    }
+
+    // Show the modal
+    document.getElementById('editStudentModal').style.display = 'flex';
+}
+
+function closeEditStudentModal() {
+    document.getElementById('editStudentModal').style.display = 'none';
+}
+
+function saveStudentInfo() {
+    const studentId = document.getElementById('edit-student-id').value;
+    const btn = document.getElementById('btn-save-student');
+    const originalText = btn.innerHTML;
+    
+    const payload = {
+        email: document.getElementById('edit-email').value.trim(),
+        contact: document.getElementById('edit-contact').value.trim(),
+        birthdate: document.getElementById('edit-birthdate').value,
+        address: document.getElementById('edit-address').value.trim()
+    };
+
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Saving...";
+    btn.disabled = true;
+
+    // Send data to your Python backend to update the database
+   fetch(`/api/students/update/${studentId}`, {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Student information updated successfully!');
+            closeEditStudentModal();
+            // Refresh the view so the newly updated data shows up
+            viewStudentJourney(studentId, document.getElementById('detail-name').innerText);
+        } else {
+            alert('Failed to update: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Server Error. Could not save changes.');
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     });
 }
 

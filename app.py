@@ -59,6 +59,7 @@ def login():
     email = request.form.get('email', '').lower()
     password = request.form.get('password', '')
     
+    
     if not email or not password:
         return render_template('index.html', error="Email and password are required.")
     
@@ -93,6 +94,7 @@ def faculty_dashboard():
     context = {
         'pageTitle': 'Faculty Dashboard',
         'pageStyles': ['dashboard.css', 'faculty.css', 'classrecords.css'],
+        # Removed faculty-classes.js and faculty-grading.js!
         'pageScripts': ['faculty.js', 'faculty-inc.js', 'classrecords.js'], 
         'user_name': session.get('user', 'Faculty'),
         'stats': {'classes': 0, 'total_students': 0, 'grading_status': '0%'} 
@@ -200,16 +202,6 @@ def save_grade_draft():
         return jsonify({'success': True, 'message': 'Draft saved to cloud!'})
         
     return jsonify({'success': False, 'message': 'Section not found'}), 404
-
-@app.route('/api/faculty/sections/<int:section_id>/drafts', methods=['GET'])
-@login_required
-def get_grade_drafts(section_id):
-    """Fetches the saved class record drafts from the database."""
-    section = Section.query.get(section_id)
-    if section and section.draft_scores:
-        # Return the saved JSON string back to the frontend
-        return jsonify({'success': True, 'draft_scores': section.draft_scores})
-    return jsonify({'success': False, 'draft_scores': '{}'})
 
 # ==================== GENERIC/STUB APIs ====================
 
@@ -856,20 +848,29 @@ def get_faculty_sections():
         user = User.query.filter_by(email=user_email).first()
         if not user: return jsonify([])
 
-        # 🔥 THE FIX: Both Faculty and Program Heads should ONLY see the classes 
-        # explicitly assigned to their specific user account in the Class Record dropdown.
-        sections = Section.query.filter_by(faculty_id=user.id).all()
+        # Program Heads see all sections, Faculty see only their own
+        if session.get('role') == 'head':
+            sections = Section.query.filter(Section.faculty_id.isnot(None)).all()
+        else:
+            sections = Section.query.filter_by(faculty_id=user.id).all()
 
         output = []
         for sec in sections:
             subject = db.session.get(Subject, sec.subject_code)
             
+            # Figure out the instructor name securely
+            instructor_name = "TBA"
+            if sec.instructor:
+                instructor_name = sec.instructor.name
+            elif session.get('role') == 'faculty':
+                instructor_name = user.name
+
             output.append({
                 'id': sec.id,
                 'name': sec.name,
                 'subject_code': sec.subject_code,
                 'subject_title': subject.description if subject else 'Unknown Subject',
-                'faculty_name': user.name
+                'faculty_name': instructor_name
             })
         return jsonify(output)
     except Exception as e:
