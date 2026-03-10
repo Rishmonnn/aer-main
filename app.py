@@ -140,6 +140,85 @@ def program_head_dashboard():
     return render_template('program-head.html', **context)
 
 # ==================== FACULTY APIs ====================
+@app.route('/api/faculty/dashboard_stats', methods=['GET'])
+@login_required
+def get_faculty_dashboard_stats():
+    """Fetches real-time stats and activities for the logged-in faculty member."""
+    if session.get('role') != 'faculty':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    try:
+        user_email = session.get('user')
+        user = User.query.filter_by(email=user_email).first()
+        
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        # 1. Get all sections assigned to this faculty
+        sections = Section.query.filter_by(faculty_id=user.id).all()
+        section_ids = [sec.id for sec in sections]
+        total_classes = len(sections)
+
+        # 2. Get all distinct students enrolled in these sections
+        enrollments = Enrollment.query.filter(Enrollment.section_id.in_(section_ids)).all()
+        student_ids = set([e.student_id for e in enrollments])
+        
+        # Only count active students (not dropped/transferred)
+        active_students = Student.query.filter(
+            Student.id.in_(student_ids),
+            Student.status.notin_(['Dropped', 'Transferred'])
+        ).count() if student_ids else 0
+
+        # 3. Calculate Grading Status (Percentage of sections sent for approval)
+        submitted_sections = sum(1 for sec in sections if sec.grade_status in ['Pending', 'Approved'])
+        grading_status = 0
+        if total_classes > 0:
+            grading_status = int((submitted_sections / total_classes) * 100)
+
+        # 4. Generate Recent Activities (Dynamic)
+        activities = []
+        
+        # Check for recently submitted grades
+        for sec in sections:
+            if sec.grade_status == 'Pending':
+                activities.append({
+                    'type': 'Grades Submitted',
+                    'css_class': 'approved',
+                    'message': f"Grades for Section {sec.name}",
+                    'time': 'Waiting Approval'
+                })
+            elif sec.grade_status == 'Approved':
+                activities.append({
+                    'type': 'Grades Approved',
+                    'css_class': 'approved',
+                    'message': f"Grades for Section {sec.name}",
+                    'time': 'Recently'
+                })
+
+        # Add a default activity if none exist
+        if not activities:
+            activities.append({
+                'type': 'System',
+                'css_class': 'enrolled',
+                'message': 'No recent grading activity.',
+                'time': 'Just now'
+            })
+
+        return jsonify({
+            'success': True,
+            'stats': {
+                'total_students': active_students,
+                'classes': total_classes,
+                'grading_status': f"{grading_status}%"
+            },
+            'activities': activities[:5] # Limit to top 5
+        })
+
+    except Exception as e:
+        print(f"Error fetching faculty dashboard stats: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 
 @app.route('/api/faculty/classes', methods=['GET'])
 @login_required
@@ -180,28 +259,7 @@ def get_faculty_classes():
 def get_inc_requests():
     return jsonify([{'id': 1, 'student_name': 'Juan Dela Cruz', 'subject': 'CE101', 'status': 'pending'}])
 
-@app.route('/api/faculty/save_grade_draft', methods=['POST'])
-@login_required
-def save_grade_draft():
-    """Silently saves unfinished class record inputs without lagging the page."""
-    if session.get('role') != 'faculty':
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
-        
-    data = request.get_json()
-    section_id = data.get('section_id')
-    draft_scores = data.get('draft_scores') # This is the big dictionary from JS
-    
-    if not section_id:
-        return jsonify({'success': False, 'message': 'Missing section ID'}), 400
-        
-    section = Section.query.get(section_id)
-    if section:
-        # Convert the dictionary of scores into a text string and save it
-        section.draft_scores = json.dumps(draft_scores)
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Draft saved to cloud!'})
-        
-    return jsonify({'success': False, 'message': 'Section not found'}), 404
+
 
 # ==================== GENERIC/STUB APIs ====================
 
@@ -2193,15 +2251,67 @@ def generate_action_plan(student_id):
         return jsonify({'success': False, 'message': f"System Error: {str(e)}"}), 500
 
 # --- NEW: Faculty Submits Grades for Approval ---
+@app.route('/api/faculty/save_grade_draft', methods=['POST'])
+@login_required
+def save_grade_draft():
+    if session.get('role') != 'faculty':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        
+    data = request.get_json()
+    section_id = data.get('section_id')
+    draft_scores = data.get('draft_scores') 
+    
+    if not section_id:
+        return jsonify({'success': False, 'message': 'Missing section ID'}), 400
+        
+    section = Section.query.get(section_id)
+    if section:
+        # Prevent the background auto-save from corrupting submitted grades
+        if section.grade_status in ['Pending', 'Approved']:
+            return jsonify({'success': False, 'message': 'Cannot modify submitted grades.'})
+            
+        # Safely pack the raw scores into a dictionary alongside the snapshot
+        current_data = {}
+        if section.draft_scores:
+            try:
+                current_data = json.loads(section.draft_scores)
+                if not isinstance(current_data, dict): current_data = {}
+            except:
+                current_data = {}
+                
+        current_data['raw_scores'] = draft_scores
+        section.draft_scores = json.dumps(current_data)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Draft saved to cloud!'})
+        
+    return jsonify({'success': False, 'message': 'Section not found'}), 404
+
+# --- FIX 2: Save the Final Snapshot explicitly ---
 @app.route('/api/faculty/class-records/submit', methods=['POST'])
 @login_required
 def submit_grades():
     data = request.get_json()
     section_id = data.get('section_id')
+    review_data = data.get('review_data') 
     
     section = Section.query.get(section_id)
     if section:
         section.grade_status = 'Pending'
+        
+        if review_data:
+            current_data = {}
+            if section.draft_scores:
+                try:
+                    current_data = json.loads(section.draft_scores)
+                    if not isinstance(current_data, dict): current_data = {}
+                except:
+                    current_data = {}
+                    
+            # Save the snapshot explicitly under its own key
+            current_data['review_snapshot'] = review_data
+            section.draft_scores = json.dumps(current_data) 
+            
         db.session.commit()
         return jsonify({'success': True})
     return jsonify({'success': False, 'message': 'Section not found'}), 404
@@ -2227,6 +2337,27 @@ def get_pending_approvals():
         })
         
     return jsonify(output)
+
+@app.route('/api/head/class-records/review/<int:section_id>', methods=['GET'])
+@login_required
+def get_review_grades(section_id):
+    if session.get('role') != 'head':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        
+    section = Section.query.get(section_id)
+    if section and section.draft_scores:
+        try:
+            data = json.loads(section.draft_scores)
+            # If it's the new dictionary structure, extract the snapshot list
+            if isinstance(data, dict):
+                snapshot = data.get('review_snapshot', [])
+                return jsonify(snapshot)
+            # Fallback for older submissions
+            elif isinstance(data, list):
+                return jsonify(data)
+        except:
+            pass
+    return jsonify([])
 
 @app.route('/force-sync-sections')
 def force_sync_sections():

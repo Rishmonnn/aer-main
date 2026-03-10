@@ -392,7 +392,7 @@ const ClassRecords = (function() {
         document.getElementById('review-subject').textContent = `Grade Review: ${item.subject}`;
         document.getElementById('review-details').textContent = item.info;
 
-        // Update the Modal's Table Headers to match the Period system
+        // Set Headers
         const thead = document.querySelector('#reviewModal thead');
         if (thead) {
             thead.innerHTML = `
@@ -410,27 +410,39 @@ const ClassRecords = (function() {
             `;
         }
 
-        // Populate Table with the Snapshot Data
-        const tbody = document.getElementById('review-table-body');
-        tbody.innerHTML = reviewData.map(row => {
-            const badgeClass = row.status === 'PASSED' ? 'status-pill passed' : 'status-pill failed';
-            
-            return `
-                <tr>
-                    <td style="font-weight:600">${row.id}</td>
-                    <td>${row.name}</td>
-                    <td><span class="course-badge">${row.course}</span></td>
-                    <td>${row.year}</td>
-                    <td class="text-center review-score">${row.p1}</td>
-                    <td class="text-center review-score">${row.p2}</td>
-                    <td class="text-center review-score">${row.p3}</td>
-                    <td class="text-center review-final" style="font-weight: bold;">${row.final}</td>
-                    <td class="text-center"><span class="${badgeClass}">${row.status}</span></td>
-                </tr>
-            `;
-        }).join('');
-
-        document.getElementById('reviewModal').style.display = 'flex';
+        // 3. FETCH THE REAL SNAPSHOT FROM THE DATABASE
+        fetch(`/api/head/class-records/review/${id}`)
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('review-table-body');
+                
+                if (!data || !Array.isArray(data) || data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" class="text-center">No grade data found. (Faculty must re-submit grades)</td></tr>`;
+                } else {
+                    tbody.innerHTML = data.map(row => {
+                        const badgeClass = row.status === 'PASSED' ? 'status-pill passed' : 'status-pill failed';
+                        return `
+                            <tr>
+                                <td style="font-weight:600">${row.id}</td>
+                                <td>${row.name}</td>
+                                <td><span class="course-badge">${row.course}</span></td>
+                                <td>${row.year}</td>
+                                <td class="text-center review-score">${row.p1}</td>
+                                <td class="text-center review-score">${row.p2}</td>
+                                <td class="text-center review-score">${row.p3}</td>
+                                <td class="text-center review-final" style="font-weight: bold;">${row.final}</td>
+                                <td class="text-center"><span class="${badgeClass}">${row.status}</span></td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+                
+                document.getElementById('reviewModal').style.display = 'flex';
+            })
+            .catch(err => {
+                console.error("Error fetching review data:", err);
+                alert("Failed to load review data from server.");
+            });
     }
 
     function closeReviewModal() {
@@ -647,7 +659,6 @@ const ClassRecords = (function() {
         
         if (!subjectSelect || !sectionSelect || !sectionSelect.value) return alert("Select a valid subject/section first.");
         
-        const subjectName = subjectSelect.options[subjectSelect.selectedIndex].text;
         const sectionName = sectionSelect.options[sectionSelect.selectedIndex].text;
         const sectionId = sectionSelect.value;
 
@@ -657,11 +668,31 @@ const ClassRecords = (function() {
             "Yes, Send Grades",
             false, 
             () => {
-                // Hitting the real backend API
+                // 1. Generate the final snapshot of the grades
+                const computedReviewData = studentInfoData.map(student => {
+                    const p1 = getCalculatedGrade(student.id, 'p1');
+                    const p2 = getCalculatedGrade(student.id, 'p2');
+                    const p3 = getCalculatedGrade(student.id, 'p3');
+                    const w1 = gradeConfig.periodWeights.p1 / 100;
+                    const w2 = gradeConfig.periodWeights.p2 / 100;
+                    const w3 = gradeConfig.periodWeights.p3 / 100;
+                    const finalGrade = (p1 * w1) + (p2 * w2) + (p3 * w3);
+                    const { status } = getMarkAndStatus(finalGrade);
+
+                    return {
+                        id: student.id, name: student.name, course: student.course || 'N/A', year: student.year || 'N/A',
+                        p1: p1.toFixed(2), p2: p2.toFixed(2), p3: p3.toFixed(2), final: finalGrade.toFixed(2), status: status
+                    };
+                });
+
+                // 2. Send BOTH the ID and the Grade Snapshot to the backend
                 fetch('/api/faculty/class-records/submit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ section_id: sectionId })
+                    body: JSON.stringify({ 
+                        section_id: sectionId,
+                        review_data: computedReviewData // <-- SENDING GRADES TO DB!
+                    })
                 })
                 .then(res => res.json())
                 .then(data => {

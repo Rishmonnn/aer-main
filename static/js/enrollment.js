@@ -183,7 +183,7 @@ function loadEnrollmentData() {
 }
 
 function quickApprove(studentId) {
-    if(!confirm(`Are you sure you want to approve student ${studentId}?`)) return;
+    if(!confirm(`Are you sure you want to enroll student ${studentId}?`)) return;
 
     fetch('/api/enrollment/confirm', { 
         method: 'POST', 
@@ -193,7 +193,7 @@ function quickApprove(studentId) {
     .then(res => res.json())
     .then(data => {
         if(data.success) {
-            showToast(`Student ${studentId} approved successfully!`, 'success');
+            showToast(`Student ${studentId} enrolled  successfully!`, 'success');
             loadEnrollmentData(); 
             if (typeof loadEnlistmentData === 'function') loadEnlistmentData();
             if (typeof loadStudentJourney === 'function') loadStudentJourney();

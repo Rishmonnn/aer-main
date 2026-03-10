@@ -42,7 +42,7 @@
 
   // --- Main Init ---
   function init(){
-    renderCalendar();
+    renderCalendar(); // THIS DRAWS THE CALENDAR!
 
     // --- Sidebar Toggle Logic ---
     const toggleBtn = document.getElementById('sidebarToggle');
@@ -50,12 +50,11 @@
     const mainContent = document.getElementById('mainContent');
 
     if (toggleBtn && sidebar && mainContent) {
-        // Remove any existing listener to prevent duplicates (optional but safe)
         const newBtn = toggleBtn.cloneNode(true);
         toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
 
         newBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Stop event bubbling
+            e.stopPropagation(); 
             sidebar.classList.toggle('collapsed');
             mainContent.classList.toggle('collapsed-margin');
         });
@@ -69,15 +68,8 @@
         
         if(typeof window.showSection === 'function'){
             window.showSection(action);
-        } else {
-            // Fallback
-            document.querySelectorAll('.content-section').forEach(c => c.classList.add('hidden')); 
-            const target = document.getElementById(action); 
-            if(target) target.classList.remove('hidden');
-
-            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-            const activeNav = document.querySelector(`.nav-item[onclick*="'${action}'"]`);
-            if(activeNav) activeNav.classList.add('active');
+        } else if (typeof switchTab === 'function') {
+            switchTab(action);
         }
 
         if(action === 'grading' && window.FacultyGrading) window.FacultyGrading.loadClasses();
@@ -87,35 +79,73 @@
     });
   }
 
-  // Ensure init runs whether DOM is loading or already loaded
+  // --- UNIFIED DOM CONTENT LOADED LISTENER ---
   document.addEventListener('DOMContentLoaded', () => {
-    // Make sure the parameters match the IDs in your HTML
-    // Example: triggering the home tab by default
-    const homeTabBtn = document.querySelector('.sidebar-menu li:first-child');
-    switchTab('home', homeTabBtn); 
-});
+    // 1. Actually initialize the JS (draws calendar, sets up buttons)
+    init(); 
+    
+    // 2. Select the Home tab properly based on your HTML structure
+    const homeTabBtn = document.querySelector('.nav-item'); 
+    if (homeTabBtn && typeof window.showSection === 'function') {
+        window.showSection('home', homeTabBtn); 
+    }
+
+    // 3. Load dynamic stats if on the dashboard
+    if (document.getElementById('fac-stat-students')) {
+        loadFacultyDashboardStats();
+    }
+  });
 
 })();
 
-function switchTab(tabId, clickedElement) {
-    // 1. Hide all main content sections
+// --- Dynamic Faculty Dashboard Stats ---
+window.loadFacultyDashboardStats = function() {
+    fetch('/api/faculty/dashboard_stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('fac-stat-students').innerText = data.stats.total_students;
+                document.getElementById('fac-stat-classes').innerText = data.stats.classes;
+                document.getElementById('fac-stat-grading').innerText = data.stats.grading_status;
+
+                const activityList = document.getElementById('fac-activity-list');
+                if (!activityList) return;
+                
+                activityList.innerHTML = ''; 
+
+                if (data.activities && data.activities.length > 0) {
+                    data.activities.forEach(act => {
+                        const div = document.createElement('div');
+                        div.className = 'activity-item';
+                        div.innerHTML = `
+                            <span><span class="${act.css_class}">${act.type}:</span> ${act.message}</span>
+                            <span class="timestamp">${act.time}</span>
+                        `;
+                        activityList.appendChild(div);
+                    });
+                } else {
+                    activityList.innerHTML = '<div class="activity-item" style="justify-content: center; color: #64748b;">No recent activities.</div>';
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Failed to load faculty stats:', err);
+            const activityList = document.getElementById('fac-activity-list');
+            if (activityList) {
+                activityList.innerHTML = '<div class="activity-item" style="justify-content: center; color: #ef4444;">Failed to load data.</div>';
+            }
+        });
+}
+
+// Fallback switchTab just in case
+window.switchTab = function(tabId, clickedElement) {
     document.querySelectorAll('.content-section').forEach(section => {
         section.style.display = 'none';
     });
-    
-    // 2. Remove the 'active' class from all sidebar menu items
-    document.querySelectorAll('.sidebar-menu li').forEach(item => {
+    document.querySelectorAll('.sidebar-menu li, .nav-item').forEach(item => {
         item.classList.remove('active');
     });
-
-    // 3. Show the selected content section
     const targetSection = document.getElementById(tabId);
-    if (targetSection) {
-        targetSection.style.display = 'block';
-    }
-
-    // 4. Highlight the clicked sidebar item
-    if (clickedElement) {
-        clickedElement.classList.add('active');
-    }
+    if (targetSection) targetSection.style.display = 'block';
+    if (clickedElement) clickedElement.classList.add('active');
 }

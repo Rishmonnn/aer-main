@@ -406,7 +406,7 @@ function saveStudentInfo() {
     });
 }
 
-// --- NEW: EDIT SECTION LOGIC ---
+// --- NEW: EDIT SECTION LOGIC (NO REFRESH) ---
 window.startEditSection = function(enrollmentId, subjectCode) {
     const detailsDiv = document.getElementById(`class-details-text-${enrollmentId}`);
     const actionsDiv = document.getElementById(`class-actions-${enrollmentId}`);
@@ -419,6 +419,9 @@ window.startEditSection = function(enrollmentId, subjectCode) {
     fetch(`/api/subjects/${subjectCode}/active_sections`)
         .then(r => r.json())
         .then(sections => {
+            // Temporarily store the section data so we can access it when saving
+            window[`available_sections_${enrollmentId}`] = sections;
+
             let options = sections.map(sec => 
                 `<option value="${sec.id}">Sec ${sec.name} - ${sec.instructor} (${sec.schedule})</option>`
             ).join('');
@@ -434,8 +437,9 @@ window.startEditSection = function(enrollmentId, subjectCode) {
                 </div>
             `;
 
+            // Pass the subjectCode to the save function so we can rebuild the UI later
             actionsDiv.innerHTML = `
-                <button onclick="saveEditSection(${enrollmentId})" style="padding: 6px 12px; background: #10b981; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 5px;">Save</button>
+                <button onclick="saveEditSection(${enrollmentId}, '${subjectCode}')" style="padding: 6px 12px; background: #10b981; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 5px;">Save</button>
                 <button onclick="cancelEditSection(${enrollmentId})" style="padding: 6px 12px; background: #ef4444; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 12px; font-weight: 600;">Cancel</button>
             `;
 
@@ -452,7 +456,7 @@ window.cancelEditSection = function(enrollmentId) {
     actionsDiv.innerHTML = actionsDiv.dataset.original;
 }
 
-window.saveEditSection = function(enrollmentId) {
+window.saveEditSection = function(enrollmentId, subjectCode) {
     const select = document.getElementById(`select-sec-${enrollmentId}`);
     const newSectionId = select.value;
     
@@ -460,6 +464,16 @@ window.saveEditSection = function(enrollmentId) {
         alert('Please select a valid section.');
         return;
     }
+
+    // Get the chosen section's data from our temporary variable
+    const sections = window[`available_sections_${enrollmentId}`];
+    const chosenSec = sections.find(s => s.id == newSectionId);
+
+    // Visual loading state
+    const actionBtn = document.querySelector(`#class-actions-${enrollmentId} button`);
+    const originalBtnText = actionBtn.innerText;
+    actionBtn.innerText = "Saving...";
+    actionBtn.disabled = true;
 
     fetch(`/api/enrollment/${enrollmentId}/section`, {
         method: 'PUT',
@@ -469,12 +483,65 @@ window.saveEditSection = function(enrollmentId) {
     .then(r => r.json())
     .then(data => {
         if(data.success) {
-            // Refresh the whole student journey view to instantly show changes
-            const studentId = document.getElementById('detail-id').innerText;
-            const studentName = document.getElementById('detail-name').innerText;
-            viewStudentJourney(studentId, studentName); 
+            const detailsDiv = document.getElementById(`class-details-text-${enrollmentId}`);
+            const actionsDiv = document.getElementById(`class-actions-${enrollmentId}`);
+            
+            // 1. Instantly rebuild the HTML with the new teacher and schedule
+            detailsDiv.innerHTML = `
+                <div style="display: flex; gap: 15px;">
+                    <div><i class='bx bx-group'></i> <strong>Section:</strong> ${chosenSec.name || 'N/A'}</div>
+                    <div><i class='bx bx-user-pin'></i> <strong>Instructor:</strong> ${chosenSec.instructor || 'TBA'}</div>
+                </div>
+                <div style="display: flex; gap: 15px; margin-top: 4px;">
+                    <div><i class='bx bx-time'></i> <strong>Schedule:</strong> ${chosenSec.schedule || 'TBA'}</div>
+                    <div><i class='bx bx-door-open'></i> <strong>Room:</strong> ${chosenSec.room || 'TBA'}</div>
+                </div>
+            `;
+            
+            // 2. Restore the original "Change Section" button
+            actionsDiv.innerHTML = `
+                <button onclick="startEditSection(${enrollmentId}, '${subjectCode}')" style="padding: 6px 12px; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; color: #475569; display: flex; align-items: center; gap: 5px;">
+                    <i class='bx bx-edit'></i> Change Section
+                </button>
+            `;
+
+            // Update the "original" backup datasets so canceling works properly next time
+            detailsDiv.dataset.original = detailsDiv.innerHTML;
+            actionsDiv.dataset.original = actionsDiv.innerHTML;
+
+            // 3. Update the global data variable so it stays if the user toggles the row
+            for (let sem in currentStudentGrades) {
+                let subject = currentStudentGrades[sem].find(s => s.enrollment_id === enrollmentId);
+                if (subject) {
+                    subject.section_id = chosenSec.id;
+                    subject.section_name = chosenSec.name;
+                    subject.instructor = chosenSec.instructor;
+                    subject.schedule = chosenSec.schedule;
+                    subject.room = chosenSec.room;
+                    break;
+                }
+            }
+
+            // 4. Add a nice green flash effect to show it saved successfully
+            const block = detailsDiv.closest('.class-info-block');
+            if (block) {
+                block.style.transition = 'background-color 0.4s ease';
+                block.style.backgroundColor = '#dcfce7'; 
+                setTimeout(() => {
+                    block.style.backgroundColor = '#f8fafc'; 
+                }, 800);
+            }
+
         } else {
             alert(data.message || 'Failed to update section.');
+            actionBtn.innerText = originalBtnText;
+            actionBtn.disabled = false;
         }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('A network error occurred while saving.');
+        actionBtn.innerText = originalBtnText;
+        actionBtn.disabled = false;
     });
 }
