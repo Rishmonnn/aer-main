@@ -1,5 +1,5 @@
 <div id="home" class="dashboard-grid">
-        
+    
     <div class="stats-col">
         <div class="stat-card highlight centered-card">
             <div class="stat-icon-wrapper blue"><i class='bx bxs-group'></i></div>
@@ -42,17 +42,23 @@
         
         <div class="content-section dashboard-section">
             <div class="section-header accent-header"><i class='bx bx-bulb'></i> QUICK ACTIONS</div>
-            <div class="feed-container">
-                <div class="actions-list" style="padding: 20px;">
-                    <div class="action-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
-                        <span class="action-text" style="font-weight: 600; color: #334155;"><i class='bx bx-clipboard' style="color: #90242d; margin-right: 8px;"></i> Input Grades</span>
-                        <button class="btn-action" style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; color: #475569; transition: 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'" onclick="document.querySelector('a[onclick*=\\'classrecords\\']').click()">Go to Grading</button>
+            <div class="feed-container" style="padding: 20px;">
+                <div class="feed-item" onclick="document.querySelector('a[onclick*=\\'classrecords\\']').click()" style="cursor: pointer;">
+                    <div class="feed-icon success"><i class='bx bx-clipboard'></i></div>
+                    <div class="feed-content">
+                        <h4 class="feed-title">Input Grades</h4>
+                        <p class="feed-meta">Submit and manage student grades.</p>
                     </div>
-                    
-                    <div class="action-row" style="display: flex; justify-content: space-between; align-items: center;">
-                        <span class="action-text" style="font-weight: 600; color: #334155;"><i class='bx bx-list-ul' style="color: #90242d; margin-right: 8px;"></i> Class Records</span>
-                        <button class="btn-action" style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; color: #475569; transition: 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'" onclick="document.querySelector('a[onclick*=\\'classrecords\\']').click()">View Classes</button>
+                    <i class='bx bx-chevron-right' style="font-size: 1.5rem; color: #94a3b8;"></i>
+                </div>
+                
+                <div class="feed-item" onclick="document.querySelector('a[onclick*=\\'classrecords\\']').click()" style="cursor: pointer;">
+                    <div class="feed-icon info"><i class='bx bx-list-ul'></i></div>
+                    <div class="feed-content">
+                        <h4 class="feed-title">Class Records</h4>
+                        <p class="feed-meta">View all your assigned sections.</p>
                     </div>
+                    <i class='bx bx-chevron-right' style="font-size: 1.5rem; color: #94a3b8;"></i>
                 </div>
             </div>
         </div>

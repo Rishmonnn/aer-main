@@ -3,17 +3,17 @@
 {# 1. Disable default header #}
 {% block header %}{% endblock %}
 
-{# 2. Force load Class Records CSS and Faculty CSS #}
+{# 2. Force load Program Head CSS FIRST, then Faculty overrides, and DELETE dashboard.css #}
 {% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/program-head.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/faculty.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/classrecords.css') }}">
 {% endblock %}
 
 {% block content %}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <div class="dashboard-container faculty-layout">
+    <div class="dashboard-container">
         
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -47,13 +47,13 @@
             
             {% include 'includes/header.html' %}
 
-            <div id="content-wrapper" style="padding: 30px 50px;">
+            <div id="content-wrapper" class="content-body" style="padding: 35px 45px;">
                 {% include 'includes/faculty/home.html' %}
                 
                 {% include 'includes/faculty/inc.html' %}
             </div>
 
-            <div id="classrecords-wrapper" style="display: none; padding: 30px 50px;">
+            <div id="classrecords-wrapper" class="content-body" style="display: none; padding: 35px 45px;">
                  {% include 'includes/faculty/classrecords.html' %}
             </div>
 
