@@ -194,14 +194,28 @@ function renderSubjects(subjects) {
         row.dataset.units = sub.units; 
         row.dataset.code = sub.code;
 
+        let icon = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
+        let isMandatory = (sub.type === 'critical' && !sub.locked);
+
+        // --- THE NEW AUTO-LOCK LOGIC ---
         if (sub.locked) {
+            icon = "<i class='bx bxs-lock-alt' style='color:#64748b; font-size:1.4rem'></i>";
             row.onclick = () => showToast(`Cannot take ${sub.code}: ${sub.warning}`, 'error');
+        } else if (isMandatory) {
+            // Force it to be selected immediately
+            row.dataset.selected = 'true';
+            row.classList.add('selected', 'mandatory-retake'); 
+            icon = "<i class='bx bxs-check-circle' style='color:#90242d; font-size:1.4rem'></i>";
+            
+            // Prevent deselection
+            row.onclick = () => showToast(`${sub.code} is a mandatory prerequisite retake and cannot be removed.`, 'warning');
+            
+            // Add to global unit counter immediately
+            selectedUnits += parseInt(sub.units, 10) || 0;
         } else {
+            // Normal behavior for regular subjects
             row.onclick = () => toggleSubject(row, sub);
         }
-        
-        let icon = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
-        if (sub.locked) icon = "<i class='bx bxs-lock-alt' style='color:#64748b; font-size:1.4rem'></i>";
 
         let badgeHtml = `<span class="tag ${sub.type}">${sub.type.toUpperCase()}</span>`;
         if (sub.locked) badgeHtml = `<span class="tag" style="background:#475569; color:white;">LOCKED</span>`;
@@ -255,8 +269,8 @@ function autoFillBlock() {
     const rows = Array.from(document.querySelectorAll('.subject-row:not(.subject-locked)'));
     if (rows.length === 0) return;
     
-    // Reset all selections first
-    document.querySelectorAll('.subject-row').forEach(r => {
+    // Reset all selections first (EXCEPT mandatory retakes)
+    document.querySelectorAll('.subject-row:not(.mandatory-retake)').forEach(r => {
         r.dataset.selected = 'false'; r.classList.remove('selected');
         const iconSpan = r.querySelector('.selection-icon');
         if(iconSpan && !r.classList.contains('subject-locked')) {
@@ -265,9 +279,17 @@ function autoFillBlock() {
     });
     
     const maxUnits = parseInt(currentStudent.maxUnits) || 23;
+    
+    // Recalculate starting units based on mandatory subjects
     selectedUnits = 0; 
+    document.querySelectorAll('.subject-row.mandatory-retake').forEach(r => {
+        selectedUnits += parseInt(r.dataset.units, 10) || 0;
+    });
     
     rows.forEach(row => {
+        // Skip rows that are already mandatory (we handled them above)
+        if (row.classList.contains('mandatory-retake')) return;
+
         const units = parseInt(row.dataset.units, 10) || 0;
         
         // SMART FILL: Only add the subject if it fits within the max units allowance
@@ -296,11 +318,19 @@ function autoFillBlock() {
 }
 
 function toggleAllSubjects() {
-    const rows = document.querySelectorAll('.subject-row:not(.subject-locked)');
+    // Ignore locked and mandatory subjects when toggling all
+    const rows = document.querySelectorAll('.subject-row:not(.subject-locked):not(.mandatory-retake)');
     if (rows.length === 0) return;
+    
     const allSelected = Array.from(rows).every(r => r.dataset.selected === 'true');
     const targetState = !allSelected; 
+    
+    // Recalculate starting units based on mandatory subjects
     selectedUnits = 0; 
+    document.querySelectorAll('.subject-row.mandatory-retake').forEach(r => {
+        selectedUnits += parseInt(r.dataset.units, 10) || 0;
+    });
+
     rows.forEach(row => {
         const iconSpan = row.querySelector('.selection-icon');
         const units = parseInt(row.dataset.units, 10) || 0; // 🚀 BUG FIX: Parse Int securely
@@ -314,6 +344,7 @@ function toggleAllSubjects() {
             iconSpan.innerHTML = "<i class='bx bx-circle' style='color:#cbd5e1; font-size:1.4rem'></i>";
         }
     });
+    
     const btn = document.getElementById('btnSelectAll');
     if(btn) btn.innerText = targetState ? "Deselect All" : "Select All";
     updateSummary();

@@ -125,7 +125,7 @@
                         <div class="right-controls">
                             <button class="btn-grade-action" onclick="ClassRecords.openConfigModal()"><i class='bx bx-cog'></i> Configure Grading</button>
                             <button class="btn-grade-action" onclick="ClassRecords.resetGrades()"><i class='bx bx-refresh'></i> Reset</button>
-                            <button class="btn-grade-action save"><i class='bx bx-save'></i> Save Grades</button>
+                            <button class="btn-grade-action save" onclick="ClassRecords.forceSaveGrades()"><i class='bx bx-save'></i> Save Grades</button>
                         </div>
                     </div>
 
@@ -151,13 +151,25 @@
             </div>
         </div> 
         <div id="cr-approval-view" style="display: none;">
-            <div class="approval-header">
-                <h3>Grade Approval Queue</h3>
-                <p>Review and manage class records pending approval.</p>
+            <div class="approval-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <h3>Grade Approval Queue</h3>
+                    <p>Review and manage class records pending approval.</p>
+                </div>
+                <div style="background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
+                    <label style="font-weight: 600; font-size: 0.9rem;">Active Grading Period:</label>
+                    <select id="head-active-period" onchange="ClassRecords.setGlobalGradingPeriod(this.value)" style="padding: 5px 10px; border-radius: 5px; border: 1px solid #cbd5e1; outline: none;">
+                        <option value="closed">Closed (No Submissions)</option>
+                        <option value="p1">Period 1</option>
+                        <option value="p2">Period 2</option>
+                        <option value="p3">Period 3</option>
+                        <option value="final">Final Grades</option>
+                    </select>
+                </div>
             </div>
             
-            <div id="approval-list-container">
-                </div>
+            <div id="approval-list-container"></div>
+        </div>
         </div>
 
     </div>

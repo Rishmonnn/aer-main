@@ -95,16 +95,16 @@
 .year-table { 
     width: 100%; 
     border-collapse: collapse; 
-    table-layout: fixed; /* NEW: Forces columns to strictly obey width rules */
+    table-layout: fixed; /* Forces columns to strictly obey width rules */
 }
 
-/* NEW: Explicitly define uniform column widths for all 6 columns */
+/* Redistributed column widths to give "Remarks" more space */
 .year-table th:nth-child(1), .year-table td:nth-child(1) { width: 5%; text-align: center; } /* Checkbox */
-.year-table th:nth-child(2), .year-table td:nth-child(2) { width: 18%; } /* Student ID */
-.year-table th:nth-child(3), .year-table td:nth-child(3) { width: 30%; } /* Name */
-.year-table th:nth-child(4), .year-table td:nth-child(4) { width: 15%; } /* Program */
-.year-table th:nth-child(5), .year-table td:nth-child(5) { width: 15%; } /* Remarks / Status */
-.year-table th:nth-child(6), .year-table td:nth-child(6) { width: 17%; text-align: center; } /* Actions / Promote */
+.year-table th:nth-child(2), .year-table td:nth-child(2) { width: 14%; } /* Student ID */
+.year-table th:nth-child(3), .year-table td:nth-child(3) { width: 25%; } /* Name */
+.year-table th:nth-child(4), .year-table td:nth-child(4) { width: 12%; } /* Program */
+.year-table th:nth-child(5), .year-table td:nth-child(5) { width: 29%; } /* Remarks / Status */
+.year-table th:nth-child(6), .year-table td:nth-child(6) { width: 15%; text-align: center; } /* Actions */
 
 .year-table th { 
     background-color: #f8fafc; text-align: left; padding: 14px 15px; /* Slightly reduced padding to fit 6 cols cleanly */
@@ -380,10 +380,27 @@
 .summary-label { font-size: 0.85rem; font-weight: 600; color: #64748b; }
 
 /* Remarks Tags */
-.tag { padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; }
+.tag { 
+    padding: 6px 12px; 
+    border-radius: 6px; 
+    font-size: 0.75rem; 
+    font-weight: 700; 
+    letter-spacing: 0.3px; 
+    text-transform: uppercase; 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 4px; 
+    
+    /* NEW: Prevent text from breaking out of the colored box */
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+}
+
 .tag.critical { background-color: #fef2f2; color: #ef4444; border: 1px solid #fecaca; }
 .tag.success { background-color: #f0fdf4; color: #22c55e; border: 1px solid #bbf7d0; }
-
 /* Empty State */
 .empty-state-row td { text-align: center; padding: 40px !important; color: #64748b; font-size: 0.95rem; background-color: #f8fafc; }
 .empty-state-row i { font-size: 2.5rem; color: #cbd5e1; margin-bottom: 10px; display: block; }

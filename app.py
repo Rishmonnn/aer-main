@@ -5,7 +5,7 @@ from config import get_config
 import random
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime # Make sure to import datetime
-from models import db, User, Student, Subject, Section, Enrollment, ScheduleEvent, AdvisingRecord
+from models import db, User, Student, Subject, Section, Enrollment, ScheduleEvent, AdvisingRecord, SystemSettings
 from dotenv import load_dotenv
 from groq import Groq
 import smtplib
@@ -928,7 +928,8 @@ def get_faculty_sections():
                 'name': sec.name,
                 'subject_code': sec.subject_code,
                 'subject_title': subject.description if subject else 'Unknown Subject',
-                'faculty_name': instructor_name
+                'faculty_name': instructor_name,
+                'grade_status': sec.grade_status # <--- ADD THIS LINE
             })
         return jsonify(output)
     except Exception as e:
@@ -2293,11 +2294,12 @@ def save_grade_draft():
 def submit_grades():
     data = request.get_json()
     section_id = data.get('section_id')
-    review_data = data.get('review_data') 
+    review_data = data.get('review_data')
+    period = data.get('period', 'final') # e.g., 'p1', 'p2', 'p3', 'final'
     
     section = Section.query.get(section_id)
     if section:
-        section.grade_status = 'Pending'
+        section.grade_status = f'Pending_{period}' # Tracks period specific status
         
         if review_data:
             current_data = {}
@@ -2308,8 +2310,8 @@ def submit_grades():
                 except:
                     current_data = {}
                     
-            # Save the snapshot explicitly under its own key
-            current_data['review_snapshot'] = review_data
+            # Save snapshot specifically for this period
+            current_data[f'review_snapshot_{period}'] = review_data
             section.draft_scores = json.dumps(current_data) 
             
         db.session.commit()
@@ -2341,23 +2343,45 @@ def get_pending_approvals():
 @app.route('/api/head/class-records/review/<int:section_id>', methods=['GET'])
 @login_required
 def get_review_grades(section_id):
-    if session.get('role') != 'head':
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    if session.get('role') != 'head': return jsonify({'success': False}), 403
         
     section = Section.query.get(section_id)
     if section and section.draft_scores:
         try:
             data = json.loads(section.draft_scores)
-            # If it's the new dictionary structure, extract the snapshot list
-            if isinstance(data, dict):
-                snapshot = data.get('review_snapshot', [])
+            status = section.grade_status or ''
+            if status.startswith('Pending_'):
+                period = status.split('_')[1]
+                snapshot = data.get(f'review_snapshot_{period}', [])
                 return jsonify(snapshot)
-            # Fallback for older submissions
-            elif isinstance(data, list):
-                return jsonify(data)
-        except:
-            pass
+        except: pass
     return jsonify([])
+
+# --- NEW: Program Head Approves Grades ---
+@app.route('/api/head/class-records/approve', methods=['POST'])
+@login_required
+def approve_grades():
+    if session.get('role') != 'head':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        
+    data = request.get_json()
+    section_id = data.get('section_id')
+    
+    if not section_id: return jsonify({'success': False, 'message': 'Missing ID'}), 400
+        
+    section = Section.query.get(section_id)
+    if section:
+        current_status = section.grade_status or ''
+        if current_status.startswith('Pending_'):
+            period = current_status.split('_')[1]
+            section.grade_status = f'Approved_{period}'
+        else:
+            section.grade_status = 'Approved' # Fallback
+            
+        db.session.commit()
+        return jsonify({'success': True})
+        
+    return jsonify({'success': False, 'message': 'Section not found'}), 404
 
 @app.route('/force-sync-sections')
 def force_sync_sections():
@@ -2431,6 +2455,32 @@ def force_sync_sections():
     except Exception as e:
         db.session.rollback()
         return f"<h1>❌ Database Error</h1><p>{str(e)}</p>"
+    
+# --- NEW: Global Grading Period Settings ---
+@app.route('/api/settings/grading-period', methods=['GET'])
+@login_required
+def get_grading_period():
+    setting = SystemSettings.query.filter_by(setting_key='active_grading_period').first()
+    return jsonify({'period': setting.setting_value if setting else 'closed'})
+
+@app.route('/api/settings/grading-period', methods=['POST'])
+@login_required
+def set_grading_period():
+    if session.get('role') != 'head':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    new_period = data.get('period', 'closed')
+    
+    setting = SystemSettings.query.filter_by(setting_key='active_grading_period').first()
+    if not setting:
+        setting = SystemSettings(setting_key='active_grading_period', setting_value=new_period)
+        db.session.add(setting)
+    else:
+        setting.setting_value = new_period
+        
+    db.session.commit()
+    return jsonify({'success': True, 'period': new_period})
 
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5001)

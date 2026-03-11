@@ -149,7 +149,7 @@ function loadEnrollmentData() {
 
                         const studentDataStr = JSON.stringify({
                             id: student.id, name: student.name, program: student.program, type: student.type, 
-                            year: student.year_level, standing: student.year_level, decision: student.decision, hasWarnings: student.hasWarnings,
+                            year: student.year_level, standing: student.status, decision: student.decision, hasWarnings: student.hasWarnings,
                             email: student.email, contact: student.contact, failed_subjects: student.failed_subjects
                         }).replace(/"/g, '&quot;');
 
@@ -767,7 +767,7 @@ function updateStepUI() {
         nextBtn.style.display = 'block'; nextBtn.innerText = "Continue to Preview"; nextBtn.style.background = "#90242d";
         cancelBtn.innerText = "Back"; cancelBtn.onclick = prevStep;
     } else if (currentStep === 3) {
-        nextBtn.innerText = "Import Records"; nextBtn.style.background = "#90242d";
+        nextBtn.innerText = "Done"; nextBtn.style.background = "#90242d";
         cancelBtn.innerText = "Back"; cancelBtn.onclick = prevStep;
     } else if (currentStep === 4) {
         nextBtn.innerText = "Done"; nextBtn.style.background = "#90242d";

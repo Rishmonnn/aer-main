@@ -128,3 +128,10 @@ class AdvisingRecord(db.Model):
     
     # Relationship to link records easily
     student = db.relationship('Student', backref='advising_records', lazy=True)
+
+# 9. SYSTEM SETTINGS (For global toggles like active grading period)
+class SystemSettings(db.Model):
+    __tablename__ = 'system_settings'
+    id = db.Column(db.Integer, primary_key=True)
+    setting_key = db.Column(db.String(50), unique=True, nullable=False)
+    setting_value = db.Column(db.String(255), nullable=True)
