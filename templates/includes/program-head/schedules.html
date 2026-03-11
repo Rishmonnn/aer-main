@@ -9,7 +9,7 @@
                 </div>
                 <div class="text-info">
                     <h2>Class Schedule</h2>
-                    <p id="sched-subtitle">All Years • All Sections • 2nd Sem</p>s
+                    <p id="sched-subtitle">All Years • All Sections • 2nd Sem</p>
                 </div>
             </div>
             <div class="top-actions">
@@ -68,6 +68,7 @@
                 <select id="facultyFilterSelect" class="form-control-sm"><option value="all">All Faculty</option></select>
             </div>
         </div>
+        
         <div id="unassigned-faculty-alert" class="faculty-alert-container hidden">
             <div class="faculty-alert-header" onclick="Schedules.toggleUnassignedAlert()">
                 <div class="alert-header-left">
@@ -86,30 +87,29 @@
             </div>
             <div class="faculty-alert-body" id="unassigned-body">
                 <div class="unassigned-list" id="unassigned-list-container">
-                    </div>
+                </div>
             </div>
         </div>
+
         <div class="calendar-card">
-    <div id="empty-state" class="empty-state" style="display: none;">
-        <div class="empty-icon"><i class='bx bx-calendar'></i></div>
-        <h3>No Schedule Yet</h3>
-        <p>Import an Excel file to display the class schedule.</p>
-        <button class="btn-primary" onclick="Schedules.triggerImport()">
-    <i class='bx bx-upload'></i> Import Schedule
-</button>
-    </div>
+            <div id="empty-state" class="empty-state" style="display: none;">
+                <div class="empty-icon"><i class='bx bx-calendar'></i></div>
+                <h3>No Schedule Yet</h3>
+                <p>Import an Excel file to display the class schedule.</p>
+                <button class="btn-primary" onclick="Schedules.triggerImport()">
+                    <i class='bx bx-upload'></i> Import Schedule
+                </button>
+            </div>
 
-    <div id="calendar-wrapper">
-        <div id="calendar"></div>
-        <div class="calendar-footer">
-            <span>↕ Drag to move</span>
-            <span>↕ Drag edge to resize</span>
-        </div>
-    </div>
-</div>
-
-<div id="addClassModal" class="modal-overlay">
-    <div class="modal-content large-modal">
+            <div id="calendar-wrapper">
+                    <div id="calendar"></div>
+                    <div class="calendar-footer">
+                        <span>↕ Drag to move</span>
+                        <span>↕ Drag edge to resize</span>
+                    </div>
+                </div>
+            </div> </div> </div> <div id="addClassModal" class="modal-overlay">
+        <div class="modal-content large-modal">
         <div class="modal-header">
             <div class="header-text">
                 <h3>Add New Class</h3>
@@ -259,27 +259,28 @@
             </div>
 
             <div class="drag-drop-zone" id="dragDropZone" onclick="document.getElementById('modalFileInput').click()">
-    <div id="dropZoneDefault">
-        <i class='bx bx-upload'></i>
-        <p class="drag-title">Drop your file here or click to browse</p>
-        <p class="drag-subtitle">Supports .xlsx, .xls files</p>
-    </div>
-    <div id="fileInfoDisplay" style="display: none;">
-        <i class='bx bx-file' style="font-size: 3rem; color: var(--maroon-main);"></i>
-        <p id="fileNameText" class="drag-title" style="margin-top: 10px;"></p>
-        <p id="fileSizeText" class="drag-subtitle"></p>
-    </div>
-    <input type="file" id="modalFileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="Schedules.handleImport(event)">
-</div>
+                <div id="dropZoneDefault">
+                    <i class='bx bx-upload'></i>
+                    <p class="drag-title">Drop your file here or click to browse</p>
+                    <p class="drag-subtitle">Supports .xlsx, .xls files</p>
+                </div>
+                <div id="fileInfoDisplay" style="display: none;">
+                    <i class='bx bx-file' style="font-size: 3rem; color: var(--maroon-main);"></i>
+                    <p id="fileNameText" class="drag-title" style="margin-top: 10px;"></p>
+                    <p id="fileSizeText" class="drag-subtitle"></p>
+                </div>
+                <input type="file" id="modalFileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="Schedules.handleImport(event)">
+            </div>
 
-<div id="importSuccessBanner" class="success-banner" style="display: none; margin: 0 25px 15px 25px;">
-    <i class='bx bx-check-circle'></i>
-    <span id="successMessageText"></span>
-</div>
+            <div id="importSuccessBanner" class="success-banner" style="display: none; margin: 0 25px 15px 25px;">
+                <i class='bx bx-check-circle'></i>
+                <span id="successMessageText"></span>
+            </div>
 
-        <div class="modal-footer">
-            <button class="btn-secondary" onclick="Schedules.closeImportModal()"><i class='bx bx-x'></i> Cancel</button>
-            <button class="btn-primary" onclick="document.getElementById('modalFileInput').click()"><i class='bx bx-upload'></i> Import</button>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="Schedules.closeImportModal()"><i class='bx bx-x'></i> Cancel</button>
+                <button class="btn-primary" onclick="document.getElementById('modalFileInput').click()"><i class='bx bx-upload'></i> Import</button>
+            </div>
         </div>
     </div>
 </div>
