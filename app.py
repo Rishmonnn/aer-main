@@ -1162,12 +1162,12 @@ def get_student_journey_data(student_id):
         
         # Add Subject Data to List
         semesters_map[sem_key]['subjects'].append({
-            'enrollment_id': enroll.id,           # <--- NEW
-            'section_id': section.id,             # <--- NEW
-            'section_name': section.name,         # <--- NEW
-            'instructor': instructor_name,        # <--- NEW
-            'schedule': section.schedule,         # <--- NEW
-            'room': section.room,                 # <--- NEW
+            'enrollment_id': enroll.id, 
+            'section_id': section.id,
+            'section_name': section.name,
+            'instructor': instructor_name,  
+            'schedule': section.schedule,       
+            'room': section.room,                
             'code': subject.code,
             'desc': subject.description,
             'type': subject.type,

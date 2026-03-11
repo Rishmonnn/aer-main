@@ -10,7 +10,8 @@
             <button class="cr-nav-pill active">Class Record</button>
         </div>
 
-        <div class="cr-selection-panel">
+        <div id="cr-main-view">
+            <div class="cr-selection-panel">
                 <div class="cr-panel-label">
                     <i class='bx bx-book-open'></i> Select Subject & Section
                     <span class="badge-draft">Draft</span>
@@ -51,7 +52,7 @@
             <div class="cr-toolbar">
                 <div class="search-wrap">
                     <i class='bx bx-search'></i>
-                    <input type="text" placeholder="Search by name or student Id number...">
+                    <input type="text" placeholder="Search by name or student number...">
                 </div>
                 <div class="actions-wrap">
                     <button class="btn-tool"><i class='bx bx-filter'></i> Filter</button>
@@ -79,7 +80,7 @@
                                 <th>Name</th>
                                 <th>Course</th>
                                 <th>Year</th>
-                                <th>Gmail</th>
+                                <th>Email</th>
                             </tr>
                         </thead>
                         <tbody id="cr-table-body"></tbody>
@@ -95,20 +96,20 @@
                                 <th>Course</th>
                                 <th>Year</th>
                                 <th class="text-center">Days Absent</th>
-                                <th class="text-center"><div class="date-header"><span>S1</span><small>3-Dec</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S2</span><small>10-Dec</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S3</span><small>17-Dec</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S4</span><small>24-Dec</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S5</span><small>31-Dec</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S6</span><small>7-Jan</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S7</span><small>14-Jan</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S8</span><small>21-Jan</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S9</span><small>28-Jan</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S10</span><small>4-Feb</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S11</span><small>11-Feb</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S12</span><small>18-Feb</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S13</span><small>25-Feb</small></div></th>
-                                <th class="text-center"><div class="date-header"><span>S14</span><small>4-Mar</small></div></th>
+                                <th class="text-center"><div class="date-header"><span>S1</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S2</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S3</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S4</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S5</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S6</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S7</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S8</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S9</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S10</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S11</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S12</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S13</span></div></th>
+                                <th class="text-center"><div class="date-header"><span>S14</span></div></th>
                             </tr>
                         </thead>
                         <tbody id="cr-attendance-body"></tbody>
@@ -120,14 +121,12 @@
                     <div class="grades-control-bar">
                         <div class="left-controls">
                             <span class="control-label">Grade Input System</span>
-                            <span class="badge-subject">CPE 038</span>
                         </div>
                         <div class="right-controls">
                             <button class="btn-grade-action" onclick="ClassRecords.openConfigModal()"><i class='bx bx-cog'></i> Configure Grading</button>
                             <button class="btn-grade-action" onclick="ClassRecords.resetGrades()"><i class='bx bx-refresh'></i> Reset</button>
-                            <button class="btn-grade-action save" onclick="ClassRecords.saveGradesManual()">
-                                <i class='bx bx-save'></i> Save Grades</button>
-                            </div>
+                            <button class="btn-grade-action save" onclick="ClassRecords.saveGradesManual()"><i class='bx bx-save'></i> Save Grades</button>
+                        </div>
                     </div>
 
                     <div class="period-tabs-row">
@@ -138,24 +137,17 @@
                     </div>
 
                     <div class="grading-info-bar" id="grade-formula-bar">
-                        </div>
+                    </div>
 
                     <div style="overflow-x: auto;">
                         <table class="cr-main-table grades-table">
                             <thead id="grades-table-head">
-                                </thead>
+                            </thead>
                             <tbody id="cr-grades-body">
-                                </tbody>
+                            </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
-        </div> 
-        
-        </div>
-</div>
-
-<div id="gradeConfigModal" class="modal-overlay">
+                </div> </div> </div> </div> </div> <div id="gradeConfigModal" class="modal-overlay">
     <div class="modal-content config-modal">
         <div class="modal-header">
             <h3><i class='bx bx-cog'></i> Grade Configuration</h3>
@@ -203,7 +195,7 @@
             </p>
 
             <div id="config-categories-container">
-                </div>
+            </div>
 
         </div>
 

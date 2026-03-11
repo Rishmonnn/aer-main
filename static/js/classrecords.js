@@ -303,13 +303,26 @@ const ClassRecords = (function() {
         ['info', 'attendance', 'grades'].forEach(v => document.getElementById(`cr-view-${v}`).style.display = 'none');
         document.getElementById(`cr-view-${tabName}`).style.display = 'block';
 
-        // --- UPDATED LOGIC: Respect the Program Head's real-time toggle ---
         const btnSendApproval = document.getElementById('btn-send-approval');
         if (btnSendApproval) {
-            // Only show if we are on the Grades tab AND the Program Head has opened the window
-            if (tabName === 'grades' && isSubmissionWindowOpen) {
+            if (tabName === 'grades') {
+                // 1. ALWAYS show the button on the grades tab
                 btnSendApproval.style.display = 'flex'; 
+                
+                // 2. Lock or unlock it based on the Program Head's status
+                if (isSubmissionWindowOpen) {
+                    btnSendApproval.disabled = false;
+                    btnSendApproval.style.opacity = '1';
+                    btnSendApproval.style.cursor = 'pointer';
+                    btnSendApproval.title = "Send final grades to Program Head";
+                } else {
+                    btnSendApproval.disabled = true;
+                    btnSendApproval.style.opacity = '0.5';
+                    btnSendApproval.style.cursor = 'not-allowed';
+                    btnSendApproval.title = "Submission is currently closed by the Program Head.";
+                }
             } else {
+                // Only hide it completely if we are looking at Attendance or Student Info
                 btnSendApproval.style.display = 'none'; 
             }
         }
@@ -984,11 +997,19 @@ const ClassRecords = (function() {
                 const btnSendApproval = document.getElementById('btn-send-approval');
                 const gradesView = document.getElementById('cr-view-grades');
                 
-                if (btnSendApproval && gradesView) {
-                    if (isSubmissionWindowOpen && gradesView.style.display === 'block') {
-                        btnSendApproval.style.display = 'flex'; 
+                if (btnSendApproval && gradesView && gradesView.style.display === 'block') {
+                    if (isSubmissionWindowOpen) {
+                        // UNLOCK THE BUTTON
+                        btnSendApproval.disabled = false;
+                        btnSendApproval.style.opacity = '1';
+                        btnSendApproval.style.cursor = 'pointer';
+                        btnSendApproval.title = "Send final grades to Program Head";
                     } else {
-                        btnSendApproval.style.display = 'none'; 
+                        // LOCK THE BUTTON (Grayed out)
+                        btnSendApproval.disabled = true;
+                        btnSendApproval.style.opacity = '0.5';
+                        btnSendApproval.style.cursor = 'not-allowed';
+                        btnSendApproval.title = "Submission is currently closed by the Program Head.";
                     }
                 }
             })

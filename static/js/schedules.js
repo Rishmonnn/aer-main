@@ -1069,6 +1069,22 @@
                 fetchFromAPI(); // Fetch the schedule for the newly selected term
             });
         }
+        const scheduleView = document.getElementById('schedules-view');
+        if (scheduleView) {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    // If the tab's style changes and it is no longer hidden...
+                    if (scheduleView.style.display !== 'none') {
+                        setTimeout(() => {
+                            if (calendarInstance) {
+                                calendarInstance.updateSize();
+                            }
+                        }, 50);
+                    }
+                });
+            });
+            observer.observe(scheduleView, { attributes: true, attributeFilter: ['style'] });
+        }
     }
 
     function toggleUnassignedAlert() {
