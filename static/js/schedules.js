@@ -133,7 +133,7 @@
             allDaySlot: false,
             slotLabelInterval: '01:00', 
             slotLabelFormat: { hour: 'numeric', meridiem: 'lowercase' }, 
-            height: 650,
+            height: 'auto',
             editable: true, 
             eventOverlap: false,
             slotEventOverlap: false,
