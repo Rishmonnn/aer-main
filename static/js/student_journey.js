@@ -545,3 +545,151 @@ window.saveEditSection = function(enrollmentId, subjectCode) {
         actionBtn.disabled = false;
     });
 }
+
+// =========================================
+// BATCH EVALUATION & PROMOTION LOGIC
+// =========================================
+
+function openBatchPromoteModal() {
+    document.getElementById('batchPromoteModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Set loading states
+    ['ready', 'waiting', 'review'].forEach(tab => {
+        document.getElementById(`eval-tbody-${tab}`).innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;"><i class="bx bx-loader-alt bx-spin"></i> Analyzing records...</td></tr>';
+    });
+
+    fetch('/api/journey/batch-evaluate')
+        .then(res => res.json())
+        .then(data => {
+            // Update Counts
+            document.getElementById('count-ready').innerText = data.ready.length;
+            document.getElementById('count-waiting').innerText = data.waiting.length;
+            document.getElementById('count-review').innerText = data.review.length;
+
+            // Populate Ready Tab
+            const readyTbody = document.getElementById('eval-tbody-ready');
+            readyTbody.innerHTML = '';
+            if (data.ready.length === 0) {
+                readyTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;">No students are ready for promotion yet.</td></tr>';
+            } else {
+                data.ready.forEach(s => {
+                    readyTbody.innerHTML += `
+                        <tr>
+                            <td class="col-cb"><input type="checkbox" class="cb-eval-ready" value="${s.id}"></td>
+                            <td class="col-id"><strong>${s.id}</strong></td>
+                            <td class="col-name">${s.name}</td>
+                            <td class="col-year">${s.year}</td>
+                        </tr>   
+                    `;
+                });
+            }
+
+            // Populate Waiting Tab
+            const waitingTbody = document.getElementById('eval-tbody-waiting');
+            waitingTbody.innerHTML = '';
+            if (data.waiting.length === 0) {
+                waitingTbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#64748b;">All grades are in!</td></tr>';
+            } else {
+                data.waiting.forEach(s => {
+                    waitingTbody.innerHTML += `
+                        <tr>
+                            <td class="col-id"><strong>${s.id}</strong></td>
+                            <td class="col-name">${s.name}</td>
+                            <td class="col-year">${s.year}</td>
+                        </tr>`;
+                });
+            }
+
+            // Populate Review Tab
+            const reviewTbody = document.getElementById('eval-tbody-review');
+            reviewTbody.innerHTML = '';
+            if (data.review.length === 0) {
+                reviewTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;">No students failed this semester.</td></tr>';
+            } else {
+                data.review.forEach(s => {
+                    const safeName = s.name.replace(/'/g, "\\'");
+                    reviewTbody.innerHTML += `
+                        <tr>
+                            <td class="col-id"><strong>${s.id}</strong></td>
+                            <td class="col-name" style="color: #ef4444; font-weight: 500;">${s.name}</td>
+                            <td class="col-year">${s.year}</td>
+                            <td class="col-action">
+                                <button onclick="closeBatchPromoteModal(); viewStudentJourney('${s.id}', '${safeName}')" class="btn-outline-slate">
+                                    View Profile
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+        })
+        .catch(err => console.error(err));
+}
+
+function closeBatchPromoteModal() {
+    document.getElementById('batchPromoteModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function switchEvalTab(event, tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.eval-tab-content').forEach(el => el.style.display = 'none');
+    
+    // Remove the 'active' CSS class from all tab buttons
+    document.querySelectorAll('.eval-tab-btn').forEach(btn => btn.classList.remove('active'));
+
+    // Show selected content
+    document.getElementById(`tab-${tabName}`).style.display = 'block';
+    
+    // Add the 'active' CSS class to the clicked button (CSS handles the colors)
+    if(event) {
+        event.currentTarget.classList.add('active');
+    }
+}
+
+function toggleAllEvalCheckboxes(source) {
+    const checkboxes = document.querySelectorAll('.cb-eval-ready');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+}
+
+function submitBatchPromotion() {
+    const checkboxes = document.querySelectorAll('.cb-eval-ready:checked');
+    if (checkboxes.length === 0) {
+        alert("Please select at least one student to promote.");
+        return;
+    }
+
+    const ids = Array.from(checkboxes).map(cb => cb.value);
+
+    if (!confirm(`Are you sure you want to send ${ids.length} student(s) to the next semester's enrollment queue?`)) return;
+
+    const btn = document.getElementById('btn-submit-promo');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Processing...";
+    btn.disabled = true;
+
+    fetch('/api/journey/batch-promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: ids })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Success! Sent ${data.count} students to the Enrollment Queue.`);
+            closeBatchPromoteModal();
+            loadStudentJourney(); // Refresh the main journey list
+            
+            // Auto-refresh the enrollment module if it's currently loaded
+            if (typeof loadEnrollmentData === 'function') loadEnrollmentData();
+        } else {
+            alert("Error: " + data.error);
+        }
+    })
+    .catch(err => console.error(err))
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}

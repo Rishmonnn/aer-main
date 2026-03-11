@@ -32,7 +32,9 @@ const ClassRecords = (function() {
 // --- NEW STATE VARIABLES ---
     let availableSections = [];
     let typingTimer;
-    const doneTypingInterval = 2000; // 2 seconds delay
+    const doneTypingInterval = 2000; 
+    let statusPollingInterval;
+    let isSubmissionWindowOpen = false;
 
     function init() {
         console.log("Class Records Initialized");
@@ -145,11 +147,13 @@ const ClassRecords = (function() {
         if (filteredSections.length > 0) {
             updateBanner(filteredSections[0].id);
             fetchStudentsForSection(filteredSections[0].id);
+            startStatusPolling(filteredSections[0].id);
         } else {
             // Clear table if no sections
             studentInfoData = [];
             const infoBody = document.getElementById('cr-table-body');
             if (infoBody) renderInfoTable(infoBody);
+            if (statusPollingInterval) clearInterval(statusPollingInterval);
         }
     }
 
@@ -235,30 +239,34 @@ const ClassRecords = (function() {
             .then(response => response.json())
             .then(data => {
                 studentInfoData = data.map(s => ({
-                    id: s.id,
-                    name: s.name,
-                    course: s.program,
-                    year: s.year_level,
-                    gmail: s.email
+                    id: s.id, name: s.name, course: s.program, year: s.year_level, gmail: s.email
                 }));
 
+                const subjectCode = document.getElementById('cr-subject-select').value;
+                
+                // --- 1. Restore GRADES from localStorage ---
+                const gradeStorageKey = `aer_drafts_${subjectCode}_${sectionId}`;
+                const savedDrafts = localStorage.getItem(gradeStorageKey);
+                if (savedDrafts) scores = JSON.parse(savedDrafts); 
+                else scores = {}; 
+
+                // --- 2. Restore ATTENDANCE from localStorage ---
+                const attStorageKey = `aer_attendance_${subjectCode}_${sectionId}`;
+                const savedAtt = localStorage.getItem(attStorageKey);
+                if (savedAtt) {
+                    attendanceRecords = JSON.parse(savedAtt);
+                } else {
+                    attendanceRecords = {};
+                }
+
+                // Ensure all students (even newly enrolled ones) have a baseline attendance array
                 studentInfoData.forEach(student => {
                     if (!attendanceRecords[student.id]) {
                         attendanceRecords[student.id] = Array(TOTAL_SESSIONS).fill('P');
                     }
                 });
 
-                // --- NEW: Restore scores from localStorage ---
-                const subjectCode = document.getElementById('cr-subject-select').value;
-                const storageKey = `aer_drafts_${subjectCode}_${sectionId}`;
-                const savedDrafts = localStorage.getItem(storageKey);
-                
-                if (savedDrafts) {
-                    scores = JSON.parse(savedDrafts); // Load unfinished grades
-                } else {
-                    scores = {}; // Reset if no drafts exist
-                }
-                
+                // Render tables
                 const infoBody = document.getElementById('cr-table-body');
                 if (infoBody) renderInfoTable(infoBody);
 
@@ -267,14 +275,6 @@ const ClassRecords = (function() {
 
                 switchPeriod('p1');
                 renderApprovalQueue();
-                
-                // <--- ADD THIS BLOCK TO RE-EVALUATE BUTTON VISIBILITY
-                const activeTab = document.querySelector('.cr-sub-tabs .tab-item.active');
-                if(activeTab) {
-                    const tabName = activeTab.textContent.toLowerCase().includes('info') ? 'info' : 
-                                   (activeTab.textContent.toLowerCase().includes('attendance') ? 'attendance' : 'grades');
-                    switchSubTab(tabName, activeTab);
-                }
             })
             .catch(error => console.error('Error fetching students:', error));
     }
@@ -303,8 +303,18 @@ const ClassRecords = (function() {
         ['info', 'attendance', 'grades'].forEach(v => document.getElementById(`cr-view-${v}`).style.display = 'none');
         document.getElementById(`cr-view-${tabName}`).style.display = 'block';
 
-        evaluateButtonVisibility();
+        // --- UPDATED LOGIC: Respect the Program Head's real-time toggle ---
+        const btnSendApproval = document.getElementById('btn-send-approval');
+        if (btnSendApproval) {
+            // Only show if we are on the Grades tab AND the Program Head has opened the window
+            if (tabName === 'grades' && isSubmissionWindowOpen) {
+                btnSendApproval.style.display = 'flex'; 
+            } else {
+                btnSendApproval.style.display = 'none'; 
+            }
+        }
     }
+    
     function switchPeriod(period) {
         currentPeriod = period;
         document.querySelectorAll('.period-tabs-row .period-tab').forEach(btn => {
@@ -395,9 +405,23 @@ const ClassRecords = (function() {
         // Update the array
         attendanceRecords[studentId][dayIndex] = nextStatus;
         
-        // Instantly refresh the table to show the new color and updated absent count
+        // Instantly refresh the table
         const attBody = document.getElementById('cr-attendance-body');
         if (attBody) renderAttendanceTable(attBody);
+
+        // --- NEW: Instant Auto-Save ---
+        const subjectCode = document.getElementById('cr-subject-select').value;
+        const sectionId = document.getElementById('cr-section-select').value;
+        const attStorageKey = `aer_attendance_${subjectCode}_${sectionId}`;
+        
+        // 1. Save to browser memory immediately
+        localStorage.setItem(attStorageKey, JSON.stringify(attendanceRecords));
+
+        // 2. Trigger silent background save to the database
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            saveDraftToServer(subjectCode, sectionId, scores); 
+        }, doneTypingInterval);
     }
 
     function renderGradesTableStructure(period) {
@@ -463,6 +487,12 @@ const ClassRecords = (function() {
     function renderApprovalQueue() {
         const container = document.getElementById('approval-list-container');
         if (!container) return;
+        
+        if (approvalQueue.length === 0) {
+            container.innerHTML = `<div class="text-center" style="padding: 40px; color: #6b7280;">No pending grade approvals at this time.</div>`;
+            return;
+        }
+
         container.innerHTML = approvalQueue.map(item => {
             let actionButtons = '';
             if (item.status === 'Pending') {
@@ -470,7 +500,18 @@ const ClassRecords = (function() {
             } else {
                 actionButtons = `<span class="badge-approved"><i class='bx bx-check-circle'></i> Approved</span>`;
             }
-            return `<div class="approval-card"><div class="ac-details"><h4>${item.subject}</h4><div class="ac-info">${item.info}</div><div class="ac-submitted">Submitted: ${item.date}</div></div><div class="ac-actions">${actionButtons}</div></div>`;
+            
+            // Create a nice badge to show which period is being approved
+            let periodBadge = item.period ? `<span class="badge-draft" style="background:#f59e0b; color:white; margin-left: 10px; font-size: 0.75rem;">${item.period}</span>` : '';
+            
+            return `<div class="approval-card">
+                        <div class="ac-details">
+                            <h4 style="display: flex; align-items: center;">${item.subject} ${periodBadge}</h4>
+                            <div class="ac-info">${item.info}</div>
+                            <div class="ac-submitted">Submitted: ${item.date}</div>
+                        </div>
+                        <div class="ac-actions">${actionButtons}</div>
+                    </div>`;
         }).join('');
     }
 
@@ -573,7 +614,8 @@ const ClassRecords = (function() {
             body: JSON.stringify({ 
                 subject_code: subjectCode, 
                 section_id: sectionId, 
-                draft_scores: currentScores 
+                draft_scores: currentScores,
+                attendance_data: attendanceRecords
             })
         })
         .then(res => res.json())
@@ -886,6 +928,87 @@ const ClassRecords = (function() {
         );
     }
 
+    function saveGradesManual() {
+        const subjectCode = document.getElementById('cr-subject-select').value;
+        const sectionId = document.getElementById('cr-section-select').value;
+        
+        if (!subjectCode || !sectionId) return alert("Please select a subject and section first.");
+
+        // Change button text to show it's working
+        const btnSave = document.querySelector('.btn-grade-action.save');
+        const originalText = btnSave.innerHTML;
+        btnSave.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Saving...";
+        btnSave.disabled = true;
+
+        fetch('/api/faculty/save_grade_draft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                subject_code: subjectCode, 
+                section_id: sectionId, 
+                draft_scores: scores 
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // Update the badge to show it's a saved draft
+                const badge = document.querySelector('.badge-draft');
+                if(badge) { 
+                    badge.textContent = 'Draft Saved'; 
+                    badge.style.backgroundColor = '#10b981'; // Green
+                    badge.style.color = '#fff'; 
+                }
+                alert("Progress saved! You can safely close this page and continue grading later.");
+            } else {
+                alert("Error saving grades: " + data.message);
+            }
+        })
+        .catch(err => {
+            console.error("Save failed:", err);
+            alert("Failed to connect to the server.");
+        })
+        .finally(() => {
+            // Restore button state
+            btnSave.innerHTML = originalText;
+            btnSave.disabled = false;
+        });
+    }
+
+    function checkStatusNow(sectionId) {
+        fetch(`/api/faculty/sections/${sectionId}/status`)
+            .then(res => res.json())
+            .then(data => {
+                isSubmissionWindowOpen = data.is_open;
+                
+                const btnSendApproval = document.getElementById('btn-send-approval');
+                const gradesView = document.getElementById('cr-view-grades');
+                
+                if (btnSendApproval && gradesView) {
+                    if (isSubmissionWindowOpen && gradesView.style.display === 'block') {
+                        btnSendApproval.style.display = 'flex'; 
+                    } else {
+                        btnSendApproval.style.display = 'none'; 
+                    }
+                }
+            })
+            .catch(err => console.error("Polling error:", err));
+    }
+
+    // --- 2. The Timer logic ---
+    function startStatusPolling(sectionId) {
+        // Clear any old timers when switching sections
+        if (statusPollingInterval) clearInterval(statusPollingInterval);
+        
+        // 🔥 THE FIX: Check instantly so there is no 5-second ghosting delay!
+        checkStatusNow(sectionId);
+        
+        // Then start the loop to ping the server every 5 seconds
+        statusPollingInterval = setInterval(() => {
+            checkStatusNow(sectionId);
+        }, 5000); 
+    }
+
     function approveFromReview() {
         if (currentReviewId) approveItem(currentReviewId);
     }
@@ -894,7 +1017,7 @@ const ClassRecords = (function() {
         openConfigModal, closeConfigModal, saveConfiguration, switchConfigMode,
         addConfigItem, removeConfigItem, updateConfigItem, updateConfigCat, resetGrades,
         reviewItem, approveItem, closeReviewModal, approveFromReview, toggleAttendance,
-        sendForApproval, setGlobalGradingPeriod, forceSaveGrades
+        sendForApproval, setGlobalGradingPeriod, forceSaveGrades, saveGradesManual
     };
 })();
 

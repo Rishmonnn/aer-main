@@ -3,9 +3,14 @@
     <div id="journey-list-section">
         <div class="module-header">STUDENT JOURNEY</div>
 
-        <div class="search-container">
-            <i class='bx bx-search'></i>
-            <input type="text" id="journeySearch" placeholder="Search by Student Name or ID Number..." onkeyup="filterJourney()">
+        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 20px;">
+            <div class="search-container" style="flex: 1; margin-bottom: 0;">
+                <i class='bx bx-search'></i>
+                <input type="text" id="journeySearch" placeholder="Search by Student Name or ID Number..." onkeyup="filterJourney()">
+            </div>
+                <button class="btn-batch-eval" onclick="openBatchPromoteModal()">
+                <i class='bx bx-check-double' style="font-size: 1.3rem;"></i> End of Semester Evaluation
+            </button>
         </div>
 
         <div class="year-accordion">
@@ -277,4 +282,86 @@
             </div>
         </div>
     </div>
+
+   <div class="modal-overlay" id="batchPromoteModal" style="display: none;">
+    <div class="modal-content enhanced-modal" style="width: 850px; max-width: 95%; padding: 0; border-radius: 12px; overflow: hidden;">
+        
+        <div class="batch-modal-header">
+            <div>
+                <h2 class="batch-modal-title"><i class='bx bx-server'></i> Batch Evaluation & Promotion</h2>
+                <p class="batch-modal-subtitle">Evaluate currently enrolled students and send them to the enrollment queue for the next semester.</p>
+            </div>
+            <span class="batch-modal-close" onclick="closeBatchPromoteModal()">&times;</span>
+        </div>
+        
+        <div class="modal-body" style="padding: 0;">
+            <div class="eval-tabs-container">
+                <button class="eval-tab-btn ready active" onclick="switchEvalTab(event, 'ready')">
+                    <i class='bx bx-check-circle'></i> Ready to Promote (<span id="count-ready">0</span>)
+                </button>
+                <button class="eval-tab-btn waiting" onclick="switchEvalTab(event, 'waiting')">
+                    <i class='bx bx-time'></i> Waiting for Grades (<span id="count-waiting">0</span>)
+                </button>
+                <button class="eval-tab-btn review" onclick="switchEvalTab(event, 'review')">
+                    <i class='bx bx-error'></i> Needs Evaluation (<span id="count-review">0</span>)
+                </button>
+            </div>
+
+            <div class="eval-tab-content-area">
+                
+                <div id="tab-ready" class="eval-tab-content">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <span class="eval-tab-info-text ready"><i class='bx bxs-check-circle'></i> These students have passed all their subjects this semester.</span>
+                        <button class="btn-primary-maroon" id="btn-submit-promo" onclick="submitBatchPromotion()">
+                            <i class='bx bx-send'></i> Send to Enrollment Queue
+                        </button>
+                    </div>
+                    <table class="eval-table">
+                        <thead>
+                            <tr>
+                                <th class="col-cb"><input type="checkbox" id="cb-all-ready" onchange="toggleAllEvalCheckboxes(this)"></th>
+                                <th class="col-id">Student ID</th>
+                                <th class="col-name">Name</th>
+                                <th class="col-year">Current Year</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eval-tbody-ready"></tbody>
+                    </table>
+                </div>
+
+                <div id="tab-waiting" class="eval-tab-content" style="display: none;">
+                    <span class="eval-tab-info-text waiting"><i class='bx bxs-info-circle'></i> Instructors are still finalizing grades. Promotion is locked.</span>
+                    <table class="eval-table">
+                        <thead>
+                            <tr>
+                                <th class="col-id">Student ID</th>
+                                <th class="col-name">Name</th>
+                                <th class="col-year">Current Year</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eval-tbody-waiting"></tbody>
+                    </table>
+                </div>
+
+                <div id="tab-review" class="eval-tab-content" style="display: none;">
+                    <span class="eval-tab-info-text review"><i class='bx bxs-error-circle'></i> These students have failing grades and require manual review.</span>
+                    <table class="eval-table">
+                        <thead>
+                            <tr>
+                                <th class="col-id">Student ID</th>
+                                <th class="col-name">Name</th>
+                                <th class="col-year">Current Year</th>
+                                <th class="col-action">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eval-tbody-review"></tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
 </div>

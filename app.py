@@ -523,8 +523,8 @@ def get_retention_data():
         retention_rate = round(100 - dropout_rate, 1)
 
         # TREND CALCULATION
-        last_year_retention = 85.0
-        last_year_dropout = 15.0
+        last_year_retention = 0
+        last_year_dropout = 0
         
         retention_trend = round(retention_rate - last_year_retention, 1)
         dropout_trend = round(dropout_rate - last_year_dropout, 1)
@@ -1040,6 +1040,79 @@ def get_drop_history():
         return jsonify([])
     
 # ==================== STUDENT JOURNEY API ====================
+
+@app.route('/api/journey/batch-evaluate', methods=['GET'])
+@login_required
+def batch_evaluate():
+    """Scans all Enrolled students and categorizes them for the end of semester."""
+    if session.get('role') != 'head':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    # Only evaluate students who are currently marked as 'Enrolled'
+    enrolled_students = Student.query.filter_by(status='Enrolled').all()
+    
+    ready = []
+    waiting = []
+    review = []
+
+    for student in enrolled_students:
+        # Get their active enrollments
+        enrollments = Enrollment.query.filter_by(student_id=student.id).all()
+        
+        has_ungraded = False
+        has_failed = False
+        
+        for e in enrollments:
+            # If the student is still "Enrolled" in the subject and has no grade yet
+            if e.grade is None and e.status in ['Enrolled', 'Pending']:
+                has_ungraded = True
+            # Check for failures
+            elif (e.grade and e.grade > 3.0) or e.status == 'Failed':
+                has_failed = True
+
+        student_data = {
+            'id': student.id,
+            'name': student.name,
+            'program': student.program,
+            'year': student.year_level
+        }
+
+        # Categorize
+        if has_ungraded:
+            waiting.append(student_data)
+        elif has_failed:
+            review.append(student_data)
+        else:
+            ready.append(student_data)
+
+    return jsonify({
+        'ready': ready,
+        'waiting': waiting,
+        'review': review
+    })
+
+@app.route('/api/journey/batch-promote', methods=['POST'])
+@login_required
+def batch_promote():
+    """Takes a list of student IDs and sends them back to the Enrollment queue."""
+    if session.get('role') != 'head':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+    student_ids = data.get('student_ids', [])
+    
+    success_count = 0
+    for sid in student_ids:
+        student = Student.query.get(sid)
+        if student and student.status == 'Enrolled':
+            # Reset their status to Pending for the next semester!
+            student.status = 'Pending'
+            success_count += 1
+            
+    db.session.commit()
+    return jsonify({'success': True, 'count': success_count})
+
+
 @app.route('/api/student_journey/<string:student_id>', methods=['GET'])
 @login_required
 def get_student_journey_data(student_id):
@@ -1277,11 +1350,6 @@ def get_pending_enrollment():
                 # Flag if it's a bottleneck Major
                 if subject.category == 'Major':
                     has_major_failure = True
-
-        # --- THE NEW RETENTION & PROMOTION ALGORITHM ---
-        
-        # --- THE STRICT ENGINEERING RETENTION ALGORITHM ---
-        
         # Determine Academic Status
         academic_status = 'Irregular' if len(failed_subjects) > 0 else 'Regular'
         
@@ -2251,7 +2319,7 @@ def generate_action_plan(student_id):
         print(f"AI Generation Error (Groq): {e}")
         return jsonify({'success': False, 'message': f"System Error: {str(e)}"}), 500
 
-# --- NEW: Faculty Submits Grades for Approval ---
+# --- UPDATE: Save both Grades and Attendance silently ---
 @app.route('/api/faculty/save_grade_draft', methods=['POST'])
 @login_required
 def save_grade_draft():
@@ -2261,17 +2329,16 @@ def save_grade_draft():
     data = request.get_json()
     section_id = data.get('section_id')
     draft_scores = data.get('draft_scores') 
+    attendance_data = data.get('attendance_data') # <-- CATCH THE ATTENDANCE
     
     if not section_id:
         return jsonify({'success': False, 'message': 'Missing section ID'}), 400
         
     section = Section.query.get(section_id)
     if section:
-        # Prevent the background auto-save from corrupting submitted grades
         if section.grade_status in ['Pending', 'Approved']:
-            return jsonify({'success': False, 'message': 'Cannot modify submitted grades.'})
+            return jsonify({'success': False, 'message': 'Cannot modify submitted records.'})
             
-        # Safely pack the raw scores into a dictionary alongside the snapshot
         current_data = {}
         if section.draft_scores:
             try:
@@ -2280,7 +2347,12 @@ def save_grade_draft():
             except:
                 current_data = {}
                 
-        current_data['raw_scores'] = draft_scores
+        # Save both to the dictionary safely
+        if draft_scores is not None:
+            current_data['raw_scores'] = draft_scores
+        if attendance_data is not None:
+            current_data['attendance'] = attendance_data 
+            
         section.draft_scores = json.dumps(current_data)
         
         db.session.commit()
@@ -2322,20 +2394,25 @@ def submit_grades():
 @app.route('/api/head/class-records/approvals', methods=['GET'])
 @login_required
 def get_pending_approvals():
-    # Find all sections where the faculty clicked "Send for Approval"
-    pending_sections = Section.query.filter_by(grade_status='Pending').all()
+    # Find all sections where the faculty clicked "Send for Approval" for ANY period
+    pending_sections = Section.query.filter(Section.grade_status.like('Pending_%')).all()
     output = []
     
     for sec in pending_sections:
         subject = db.session.get(Subject, sec.subject_code)
         faculty = db.session.get(User, sec.faculty_id)
         
+        # Extract the exact period (p1, p2, p3, final) to show in the UI
+        status_parts = sec.grade_status.split('_')
+        period_label = status_parts[1].upper() if len(status_parts) > 1 else "FINAL"
+        
         output.append({
             'id': sec.id,
             'subject': f"{sec.subject_code} - {subject.description if subject else 'Unknown'}",
             'info': f"Section {sec.name} • Submitted by {faculty.name if faculty else 'Unknown'}",
             'date': datetime.now().strftime("%b %d, %Y"),
-            'status': 'Pending'
+            'status': 'Pending',
+            'period': period_label # <--- We send the period label to the frontend
         })
         
     return jsonify(output)
@@ -2481,6 +2558,18 @@ def set_grading_period():
         
     db.session.commit()
     return jsonify({'success': True, 'period': new_period})
+
+# --- NEW: Real-time Polling for Grading Status ---
+@app.route('/api/faculty/sections/<int:section_id>/status', methods=['GET'])
+@login_required
+def check_section_status(section_id):
+    section = Section.query.get(section_id)
+    if section:
+        # Assuming the Program Head changes the grade_status to 'Open For Submission'
+        # Change this string if your Program Head toggle uses a different word!
+        is_open = section.grade_status == 'Open For Submission' 
+        return jsonify({'is_open': is_open, 'current_status': section.grade_status})
+    return jsonify({'is_open': False})
 
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5001)
