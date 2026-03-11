@@ -284,7 +284,6 @@ function openEnrollmentModal(event, data) {
     document.getElementById('modalStudentName').innerText = data.name || '-';
     document.getElementById('modalStudentProgram').innerText = data.program || '-';
     document.getElementById('modalStudentYear').innerText = data.year || '-';
-    document.getElementById('modalStudentStanding').innerText = data.standing || '-';
     document.getElementById('modalStudentEmail').innerText = data.email || 'N/A';
     document.getElementById('modalStudentContact').innerText = data.contact || 'N/A';
 
