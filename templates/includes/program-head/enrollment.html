@@ -42,13 +42,8 @@
         </div>
     </div>
 
-<div class="controls-wrapper" style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
-    <div class="filter-pills-container" id="enrollmentFilters">
-        <button class="filter-pill active" data-filter="all">All Students</button>
-        <button class="filter-pill" data-filter="cleared">Ready to Promote</button>
-        <button class="filter-pill" data-filter="retained">Retained (Requires Review)</button>
-        <button class="filter-pill" data-filter="bscpe">BSCpE Only</button>
-    </div>
+<div class="controls-wrapper" style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 0;">
+    
 
     <div style="display: flex; gap: 15px; align-items: center;">
         <div class="search-container" style="flex: 1; margin-bottom: 0;">
@@ -409,5 +404,76 @@
                 <i class='bx bx-check-circle'></i> Save Student
             </button>
         </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="mappingWarningModal" style="z-index: 1200; backdrop-filter: blur(6px);">  
+    <div class="modal-content enhanced-modal" style="width: 600px; max-width: 95%; background: #f8fafc; height: auto !important; min-height: auto !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);">
+        
+        <div class="modal-header" style="background: white; padding: 25px 30px 20px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
+            <h2 style="color: #0f172a; font-size: 1.35rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 12px;">
+                <div style="background: #fef2f2; color: #ef4444; width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem;">
+                    <i class='bx bx-error'></i>
+                </div>
+                Mapping Warnings Detected
+            </h2>
+        </div>
+        
+        <div class="modal-body" style="padding: 25px 30px;">
+            <div class="alert-box danger" style="margin-bottom: 20px; background-color: #fff; border-left: 4px solid #ef4444; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); padding: 16px;">
+                <p style="margin: 0; color: #334155; font-size: 0.95rem; line-height: 1.5;">
+                    <strong style="color: #b91c1c;">Attention Required:</strong> We found potential issues with how your Excel columns are mapped to the system.
+                </p>
+            </div>
+            
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 20px; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
+                <ul id="mappingWarningList" style="margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                    </ul>
+            </div>
+            
+            <p style="color: #0f172a; font-size: 1rem; font-weight: 600; margin: 0; text-align: center;">Do you want to continue to the preview anyway?</p>
+        </div>
+        
+        <div class="modal-footer" style="padding: 20px 30px; background: white; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0;">
+            <button type="button" onclick="closeMappingWarningModal()" style="padding: 12px 24px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; color: #475569; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+                <i class='bx bx-edit-alt' style="font-size: 1.1rem;"></i> Edit Mapping
+            </button>
+            <button type="button" onclick="forceNextStep()" style="padding: 12px 24px; border-radius: 8px; border: none; background: #ef4444; color: white; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25); transition: all 0.2s; font-size: 0.95rem;">
+                Continue Anyway <i class='bx bx-right-arrow-alt' style="font-size: 1.2rem;"></i>
+            </button>
+        </div>
+        
+    </div>
+</div>
+
+<div class="modal-overlay" id="invalidFileModal" style="z-index: 1200; backdrop-filter: blur(6px);">
+    <div class="modal-content enhanced-modal" style="width: 500px; max-width: 95%; background: #f8fafc; height: auto !important; min-height: auto !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);">
+        
+        <div class="modal-header" style="background: white; padding: 25px 30px 20px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
+            <h2 style="color: #0f172a; font-size: 1.35rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 12px;">
+                <div style="background: #fef2f2; color: #ef4444; width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem;">
+                    <i class='bx bx-file-blank'></i>
+                </div>
+                Invalid File Format
+            </h2>
+        </div>
+        
+        <div class="modal-body" style="padding: 25px 30px;">
+            <p style="margin: 0 0 15px 0; color: #334155; font-size: 0.95rem; line-height: 1.6;">
+                The uploaded file does not appear to be a valid student list. We could not detect expected column headers such as <strong>First Name</strong>, <strong>Last Name</strong>, or <strong>Student ID</strong>.
+            </p>
+            <div style="background: #f1f5f9; border-left: 3px solid #64748b; padding: 12px 15px; border-radius: 6px;">
+                <p style="margin: 0; color: #475569; font-size: 0.85rem;">
+                    <i class='bx bx-info-circle'></i> Please verify you are uploading the correct Excel (.xlsx) or CSV file, then try again.
+                </p>
+            </div>
+        </div>
+        
+        <div class="modal-footer" style="padding: 20px 30px; background: white; display: flex; justify-content: flex-end; border-top: 1px solid #e2e8f0;">
+            <button type="button" onclick="closeInvalidFileModal()" style="padding: 10px 24px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                Close & Try Again
+            </button>
+        </div>
+        
     </div>
 </div>

@@ -32,6 +32,7 @@ class Student(db.Model):
     address = db.Column(db.String(255), nullable=True)
     birthdate = db.Column(db.String(50), nullable=True)
     gender = db.Column(db.String(20), nullable=True)
+    monitoring_status = db.Column(db.String(50), default='On Track')
     
     # --- ADD THIS LINE FOR DROPOUT TRACKING ---
     dropout_reason = db.Column(db.String(100), nullable=True) 

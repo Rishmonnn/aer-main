@@ -2,7 +2,7 @@
 .enrollment-container { 
     display: flex; 
     flex-direction: column; 
-    gap: 20px; /* Increased gap for better breathing room */
+    gap: 4px !important; /* Forces a very small gap between ALL items */
     animation: fadeIn 0.4s ease; 
     padding-bottom: 50px; 
     font-family: 'Inter', sans-serif; 
@@ -14,6 +14,7 @@
     padding: 16px; border-radius: 10px; font-weight: 700; 
     font-size: 1.25rem; letter-spacing: 1.5px; text-transform: uppercase; 
     box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+    margin-bottom: 0 !important;
 }
 
 /* --- Aligned Upload Banner --- */
@@ -24,6 +25,7 @@
     display: flex; justify-content: space-between; align-items: center; 
     border: 1px solid #e2e8f0;
     box-shadow: 0 4px 6px rgba(0,0,0,0.02); 
+    margin: 0 !important;
 }
 .upload-content { display: flex; align-items: center; gap: 20px; }
 .upload-icon-wrapper {
@@ -70,8 +72,12 @@
 /* --- Aligned Accordions & Fixed Chevrons --- */
 .year-accordion { 
     background: white; border-radius: 12px; overflow: hidden; 
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04); margin-bottom: 8px; 
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04); 
     border: 1px solid #f1f5f9;
+    margin-bottom: 0 !important; 
+}
+.year-accordion + .year-accordion {
+    margin-top: 0; 
 }
 .accordion-header { 
     padding: 16px 24px; 
@@ -361,7 +367,7 @@
     display: grid; 
     grid-template-columns: repeat(3, 1fr); 
     gap: 20px; 
-    margin-bottom: 20px; 
+    margin-bottom: 0; 
 }
 .summary-card { 
     background: white; border: 1px solid #e2e8f0; border-radius: 12px; 

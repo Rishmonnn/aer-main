@@ -1,19 +1,37 @@
 /* --- Base Container & Layout Alignments --- */
-.enlistment-container { display: flex; flex-direction: column; gap: 20px; animation: fadeIn 0.4s ease; padding-bottom: 50px; font-family: 'Inter', sans-serif; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.enlistment-container { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 4px !important; /* Forces 4px gap between header, search, and accordions */
+    animation: fadeIn 0.4s ease; 
+    padding-bottom: 50px; 
+    font-family: 'Inter', sans-serif; 
+}@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* --- Module Header --- */
-.module-header { background-color: #800020; color: white; text-align: center; padding: 16px; border-radius: 10px; font-weight: 700; font-size: 1.25rem; letter-spacing: 1.5px; text-transform: uppercase; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-
+.module-header { 
+    background-color: #800020; color: white; text-align: center; 
+    padding: 16px; border-radius: 10px; font-weight: 700; 
+    font-size: 1.25rem; letter-spacing: 1.5px; text-transform: uppercase; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+    margin-bottom: 0 !important;
+}
 /* --- Aligned Search Container --- */
-.search-container { position: relative; width: 100%; }
-.search-container i { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 1.3rem; }
+.search-container { 
+    position: relative; 
+    width: 100%; 
+    margin-bottom: 0 !important; /* Ensures it sits flush */
+}.search-container i { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 1.3rem; }
 .search-container input { width: 100%; padding: 16px 16px 16px 50px; border-radius: 12px; border: 1px solid #e2e8f0; background-color: #f8fafc; font-size: 1rem; color: #0f172a; outline: none; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
 .search-container input:focus { border-color: #90242d; background-color: #fff; box-shadow: 0 0 0 4px rgba(144, 36, 45, 0.1); }
 
 /* --- Accordions --- */
-.year-accordion { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.04); margin-bottom: 8px; border: 1px solid #f1f5f9; }
-.accordion-header { padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; font-size: 1.05rem; color: #1e293b; transition: all 0.2s; }
+.year-accordion { 
+    background: white; border-radius: 12px; overflow: hidden; 
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04); 
+    margin-bottom: 0 !important; /* Replaced the old 8px margin with 0 */
+    border: 1px solid #f1f5f9; 
+}.accordion-header { padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; font-size: 1.05rem; color: #1e293b; transition: all 0.2s; }
 .accordion-header:hover { filter: brightness(0.96); }
 .accordion-header i { font-size: 1.5rem; transition: transform 0.3s ease; color: #475569; }
 .year-accordion.collapsed .accordion-body { display: none; }

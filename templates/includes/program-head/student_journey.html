@@ -3,7 +3,7 @@
     <div id="journey-list-section">
         <div class="module-header">STUDENT JOURNEY</div>
 
-        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 35px;">
+        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 10px;">
             <div class="search-container" style="flex: 1; margin-bottom: 0;">
                 <i class='bx bx-search'></i>
                 <input type="text" id="journeySearch" placeholder="Search by Student Name or ID Number..." onkeyup="filterJourney()">
@@ -78,10 +78,19 @@
             <div style="width: 100px;"></div> 
         </div>
 
-        <div class="student-profile-header">
+        <div class="student-profile-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-top: 10px;">
             <div class="student-title-info">
                 <h3 id="detail-name">-</h3>
                 <p><i class='bx bx-id-card' style="color: #90242d;"></i> <span id="detail-id">-</span></p>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Academic Flag:</span>
+                <select id="monitoring-flag-select" onchange="updateMonitoringFlag()" style="padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size: 0.9rem; border: 1px solid #cbd5e1; outline: none; cursor: pointer; transition: all 0.2s;">
+                    <option value="On Track">🟢 On Track</option>
+                    <option value="Monitoring">🟠 Being Monitored</option>
+                    <option value="Critical">🔴 Critical Intervention</option>
+                </select>
             </div>
         </div>
 

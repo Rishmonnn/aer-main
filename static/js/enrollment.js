@@ -552,6 +552,16 @@ function resetDropZone() {
     }
 }
 
+function isValidStudentFile(headers) {
+    const studentKeywords = ['name', 'first', 'last', 'id', 'program', 'email'];
+    // Check if at least 2 headers match student keywords
+    const matchCount = headers.filter(h => 
+        studentKeywords.some(key => h.toLowerCase().includes(key))
+    ).length;
+    return matchCount >= 2;
+}
+
+// Update the processExcelFile function in enrollment.js:
 function processExcelFile(file) {
     if (typeof XLSX === 'undefined') {
         showToast("Error: Excel library failed to load.", "error");
@@ -568,11 +578,19 @@ function processExcelFile(file) {
             
             const sheetName = workbook.SheetNames[0];
             const sheet = workbook.Sheets[sheetName];
-            
             const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
             
             if (jsonData && jsonData.length > 0) {
-                fileHeaders = jsonData[0]; 
+                const headers = jsonData[0];
+                
+                // --- NEW: Header Validation ---
+                if (!isValidStudentFile(headers)) {
+                    document.getElementById('invalidFileModal').classList.add('active');
+                    resetDropZone();
+                    return; // Stop the upload process immediately
+                }
+
+                fileHeaders = headers; 
                 uploadedData = XLSX.utils.sheet_to_json(sheet);
                 
                 setTimeout(() => {
@@ -580,21 +598,15 @@ function processExcelFile(file) {
                     resetDropZone(); 
                 }, 500);
             } else {
-                showToast("The uploaded Excel file appears to be empty.", "error");
+                document.getElementById('invalidFileModal').classList.add('active');
                 resetDropZone();
             }
         } catch (error) {
             console.error("SheetJS Error:", error);
-            showToast("Error reading file. Please ensure it is a valid .xlsx or .xls file.", "error");
+            showToast("Error reading file.", "error");
             resetDropZone();
         }
     };
-
-    reader.onerror = function() {
-        showToast("Failed to read file from disk.", "error");
-        resetDropZone();
-    };
-
     reader.readAsArrayBuffer(file);
 }
 
@@ -615,16 +627,18 @@ function updateMappingUI() {
     });
 }
 
+// Update the updatePreviewTable function in enrollment.js:
 function updatePreviewTable() {
     const tbody = document.getElementById('preview-table-body');
     const countEl = document.getElementById('preview-count');
     tbody.innerHTML = '';
-    countEl.innerText = `${uploadedData.length} Records Found`;
     
     const mappings = {};
     document.querySelectorAll('.map-select').forEach(sel => {
         mappings[sel.getAttribute('data-key')] = sel.value;
     });
+
+    let validCount = 0;
 
     uploadedData.slice(0, 100).forEach((row, index) => {
         const tr = document.createElement('tr');
@@ -634,11 +648,25 @@ function updatePreviewTable() {
             return colName ? (row[colName] || '') : '';
         };
 
+        const fname = getVal('firstname');
+        const lname = getVal('lastname');
+        
+        // --- NEW: Simple Validation Logic ---
+        const isValid = fname.trim() !== '' && lname.trim() !== '';
+        if (isValid) validCount++;
+
+        const statusIcon = isValid 
+            ? `<i class='bx bxs-check-circle' style='color:#2e7d32; font-size:1.2rem;' title="Valid Record"></i>`
+            : `<i class='bx bxs-x-circle' style='color:#c62828; font-size:1.2rem;' title="Invalid: Missing Name"></i>`;
+
+        tr.style.opacity = isValid ? "1" : "0.6"; // Dim invalid rows
+        if (!isValid) tr.style.backgroundColor = "#fff5f5";
+
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td><i class='bx bxs-check-circle' style='color:#2e7d32; font-size:1.2rem;'></i></td>
-            <td contenteditable="true" data-index="${index}" data-key="lastname">${getVal('lastname')}</td>
-            <td contenteditable="true" data-index="${index}" data-key="firstname">${getVal('firstname')}</td>
+            <td style="text-align:center;">${statusIcon}</td>
+            <td contenteditable="true" data-index="${index}" data-key="lastname">${lname}</td>
+            <td contenteditable="true" data-index="${index}" data-key="firstname">${fname}</td>
             <td contenteditable="true" data-index="${index}" data-key="middlename">${getVal('middlename')}</td>
             <td contenteditable="true" data-index="${index}" data-key="program">${getVal('program') || 'BSCpE'}</td>
             <td contenteditable="true" data-index="${index}" data-key="email">${getVal('email')}</td>
@@ -650,32 +678,147 @@ function updatePreviewTable() {
         tbody.appendChild(tr);
     });
 
-    const editableCells = tbody.querySelectorAll('td[contenteditable="true"]');
-    editableCells.forEach(cell => {
-        cell.addEventListener('blur', function() {
-            const rowIndex = this.getAttribute('data-index');
-            const dataKey = this.getAttribute('data-key');
-            const newValue = this.innerText.trim();
-            
-            const excelColumnName = mappings[dataKey];
-            if (excelColumnName) {
-                uploadedData[rowIndex][excelColumnName] = newValue;
-            }
-        });
-    });
+    countEl.innerText = `${validCount} Valid / ${uploadedData.length} Total Records`;
 }
+
 
 function nextStep() {
     if (currentStep === 3) {
         submitEnrollment();
+    } else if (currentStep === 2) {
+        // 1. Run the validation check
+        const warnings = validateMappings();
+        
+        // 2. If errors are found, trigger the Custom Modal instead of the native confirm()
+        if (warnings.length > 0) {
+            const warningListEl = document.getElementById('mappingWarningList');
+            warningListEl.innerHTML = ''; // Clear old warnings
+            
+            // Inject new RICH warnings
+            warnings.forEach(w => {
+                const li = document.createElement('li');
+                li.style.display = 'flex';
+                li.style.alignItems = 'flex-start';
+                li.style.gap = '10px';
+                li.style.color = '#475569';
+                li.style.fontSize = '0.95rem';
+                li.style.lineHeight = '1.4';
+                
+                li.innerHTML = `
+                    <i class='bx bx-info-circle' style='color: #ef4444; font-size: 1.2rem; margin-top: 2px; flex-shrink: 0;'></i> 
+                    <span>${w}</span>
+                `;
+                warningListEl.appendChild(li);
+            });
+            
+            // Show the modal
+            document.getElementById('mappingWarningModal').classList.add('active');
+            return; // Stop here and wait for the user's choice
+        }
+
+        // 3. If no warnings, proceed to preview normally
+        executeStep3Transition();
+
     } else if (currentStep < 4) {
         currentStep++;
         if (currentStep === 2) updateMappingUI();
-        if (currentStep === 3) updatePreviewTable();
         updateStepUI();
     } else {
         closeUploadModal();
     }
+}
+
+// --- NEW HELPER FUNCTIONS FOR THE CUSTOM MODAL ---
+
+function closeMappingWarningModal() {
+    // User chose to "Edit Mapping"
+    document.getElementById('mappingWarningModal').classList.remove('active');
+}
+
+function closeInvalidFileModal() {
+    document.getElementById('invalidFileModal').classList.remove('active');
+}
+
+function forceNextStep() {
+    // User chose to "Continue Anyway"
+    document.getElementById('mappingWarningModal').classList.remove('active');
+    executeStep3Transition();
+}
+
+function executeStep3Transition() {
+    // The actual code to move from Step 2 -> Step 3
+    currentStep++;
+    updatePreviewTable();
+    updateStepUI();
+}
+
+function validateMappings() {
+    const mappings = {};
+    const reverseMappings = {}; 
+    let warnings = [];
+
+    // Gather all mappings
+    document.querySelectorAll('.map-select').forEach(sel => {
+        const sysKey = sel.getAttribute('data-key');
+        const excelCol = sel.value;
+        mappings[sysKey] = excelCol;
+
+        if (excelCol) {
+            if (!reverseMappings[excelCol]) reverseMappings[excelCol] = [];
+            reverseMappings[excelCol].push(sysKey);
+        }
+    });
+
+    // 1. Check for missing required fields
+    if (!mappings['firstname'] || !mappings['lastname']) {
+        warnings.push("Required fields (First Name, Last Name) are not mapped.");
+    }
+
+    // 2. Check for duplicate mappings
+    for (const [excelCol, sysKeys] of Object.entries(reverseMappings)) {
+        if (sysKeys.length > 1) {
+            const readableKeys = sysKeys.map(k => k.toUpperCase()).join(' & ');
+            warnings.push(`You mapped the Excel column "${excelCol}" to multiple fields (${readableKeys}).`);
+        }
+    }
+
+    // 3. Heuristic Data Checks (Look at the first row of uploaded data)
+    if (uploadedData.length > 0) {
+        const sampleRow = uploadedData[0];
+        
+        // Check Email
+        if (mappings['email'] && sampleRow[mappings['email']]) {
+            const sampleEmail = String(sampleRow[mappings['email']]);
+            if (!sampleEmail.includes('@') && sampleEmail.trim() !== '') {
+                warnings.push(`The column mapped to "Email" doesn't look like an email address (e.g., "${sampleEmail}").`);
+            }
+        }
+
+        // Check Contact Number
+        if (mappings['contact'] && sampleRow[mappings['contact']]) {
+            const sampleContact = String(sampleRow[mappings['contact']]);
+            if (/[a-zA-Z]/.test(sampleContact)) {
+                warnings.push(`The column mapped to "Contact Number" contains letters (e.g., "${sampleContact}").`);
+            }
+        }
+    }
+
+    // --- NEW: 4. Check for Swapped First/Last Names (Header Heuristic) ---
+    if (mappings['firstname'] && mappings['lastname']) {
+        const fnHeader = mappings['firstname'].toLowerCase();
+        const lnHeader = mappings['lastname'].toLowerCase();
+        
+        // If they mapped the "First Name" field to an Excel column named "Last Name" or "Surname"
+        if (fnHeader.includes('last') || fnHeader.includes('surname')) {
+            warnings.push(`You mapped "First Name" to the Excel column "${mappings['firstname']}". Did you accidentally swap the names?`);
+        }
+        // If they mapped the "Last Name" field to an Excel column named "First Name" or "Given Name"
+        else if (lnHeader.includes('first') || lnHeader.includes('given')) {
+            warnings.push(`You mapped "Last Name" to the Excel column "${mappings['lastname']}". Did you accidentally swap the names?`);
+        }
+    }
+
+    return warnings;
 }
 
 function submitEnrollment() {
@@ -689,19 +832,33 @@ function submitEnrollment() {
         if(sel.value) mappings[sel.getAttribute('data-key')] = sel.value;
     });
 
-    const payload = uploadedData.map(row => {
-        return {
-            student_id: row[mappings['student_id']] || null,
-            lastname: row[mappings['lastname']] || '',
-            firstname: row[mappings['firstname']] || '',
-            middlename: row[mappings['middlename']] || '',
-            program: row[mappings['program']] || 'BSCpE',
-            email: row[mappings['email']] || '',
-            contact: row[mappings['contact']] || '',
-            address: row[mappings['address']] || '',
-            gender: row[mappings['gender']] || ''
-        };
-    });
+    const payload = uploadedData
+        .filter(row => {
+            const fn = row[mappings['firstname']] || '';
+            const ln = row[mappings['lastname']] || '';
+            return fn.trim() !== '' && ln.trim() !== '';
+        })
+        .map(row => {
+            return {
+                student_id: row[mappings['student_id']] || null,
+                lastname: row[mappings['lastname']] || '',
+                firstname: row[mappings['firstname']] || '',
+                middlename: row[mappings['middlename']] || '',
+                program: row[mappings['program']] || 'BSCpE',
+                email: row[mappings['email']] || '',
+                contact: row[mappings['contact']] || '',
+                address: row[mappings['address']] || '',
+                gender: row[mappings['gender']] || ''
+            };
+        });
+
+    if (payload.length === 0) {
+        showToast("No valid student records found to import.", "error");
+        btn.innerText = originalText;
+        btn.disabled = false;
+        return;
+    };
+    };
 
     fetch('/api/enrollment', {
         method: 'POST',
@@ -730,7 +887,7 @@ function submitEnrollment() {
         btn.innerText = originalText;
         btn.disabled = false;
     });
-}
+
 
 function prevStep() {
     if (currentStep > 1) {

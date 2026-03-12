@@ -970,12 +970,14 @@ def update_student_info(student_id):
         return jsonify({'success': False, 'message': 'Student not found'}), 404
         
     try:
-
         if 'contact_number' in data:
             student.contact_number = str(data['contact_number'])
-            
         if 'email' in data:
             student.email = str(data['email'])
+            
+        # ADD THESE TWO LINES:
+        if 'monitoring_status' in data:
+            student.monitoring_status = str(data['monitoring_status'])
 
         db.session.commit()
         return jsonify({'success': True})
@@ -983,6 +985,7 @@ def update_student_info(student_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+    
 
 @app.errorhandler(404)
 def not_found(error): return redirect(url_for('index')), 404
@@ -1248,7 +1251,8 @@ def get_student_journey_data(student_id):
             'email': student.email if student.email else 'N/A',
             'contact_number': getattr(student, 'contact_number', 'N/A'),
             'address': getattr(student, 'address', 'N/A'),
-            'birthdate': getattr(student, 'birthdate', 'N/A')
+            'birthdate': getattr(student, 'birthdate', 'N/A'),
+            'monitoring_status': getattr(student, 'monitoring_status', 'On Track')
         },
         'summary': {
             'earned': total_earned_units,
@@ -2259,7 +2263,6 @@ def generate_action_plan(student_id):
                 if Subject.query.filter_by(prerequisite=sub.code).first() is not None:
                     failed_major_is_prereq = True
                     
-        # Apply the exact same logic for the AI Context
         if failed_major_is_prereq or major_fail_count >= 2 or fail_count >= 3:
             risk_level = "Critical Risk"
         else:
@@ -2267,31 +2270,58 @@ def generate_action_plan(student_id):
             
     failed_str = ", ".join(failed_subjects) if failed_subjects else "None"
 
-    # 4. Construct the Prompt
-    prompt = f"""
-    You are an empathetic and professional academic advisor for a university engineering department. 
-    A student needs an action plan based on the following context:
+    # --- NEW: 4. Fetch Past Advising History ---
+    # Get the 5 most recent advising records for context
+    past_records = AdvisingRecord.query.filter_by(student_id=student_id).order_by(AdvisingRecord.id.desc()).limit(5).all()
     
+    history_str = ""
+    if past_records:
+        history_str = "\n".join([f"- Date: {r.date} | Category: {r.category} | Status: {r.status}\n  Notes: {r.notes}" for r in past_records])
+    else:
+        history_str = "No prior advising records found. This is the first recorded session."
+
+    # 5. Construct the Enhanced Prompt with History Included
+    # 5. Construct the Enhanced Prompt with a Conditional Bypass
+    prompt = f"""
+    You are an expert, empathetic Academic Advisor for an Engineering department. 
+    Your task is to analyze the student context and provide the appropriate response.
+
+    STUDENT PROFILE:
     - Program: {student.program}
     - Year Level: {student.year_level}
     - Academic Risk Level: {risk_level}
     - Failed Subjects: {failed_str}
-    - Current Issue Category: {category}
-    - Advisor's Observation Notes: {notes}
 
-    Generate a brief, empathetic, 3-step actionable recovery plan for this student. 
-    Make the steps concrete and achievable. Do not include any introductory or concluding text.
-    Format the response exactly like this:
-    𝟏: [Actionable advice]
+    PAST ADVISING HISTORY:
+    {history_str}
+
+    CURRENT SESSION DETAILS:
+    - Primary Issue Category: {category}
+    - Advisor's Current Notes: {notes}
+
+    INSTRUCTIONS:
+    Read the session details carefully. 
     
-    𝟐: [Actionable advice]
+    CONDITION A (RESOLVED): 
+    If the Advisor's Current Notes explicitly state that the issue is resolved, cleared, or that no action plan is needed, DO NOT generate the 3 steps. Instead, output a brief, supportive confirmation message (e.g., "✅ Status Resolved: No further action is required at this time. Keep up the great work!").
+
+    CONDITION B (NEEDS ACTION):
+    If the issue requires intervention, generate exactly three actionable, concrete steps tailored to the problem.
+    - Step 1: IMMEDIATE ACTION (A specific task for the next 48 hours).
+    - Step 2: STRATEGIC ADJUSTMENT (A behavioral change or campus resource).
+    - Step 3: ACCOUNTABILITY (A clear milestone or follow-up requirement).
     
-    𝟑: [Actionable advice]
+    Tone: Firm but highly supportive. Directly address the root cause mentioned in the notes.
+
+    FORMATTING (If Condition B applies, strictly use this format):
+    𝟏. Immediate Action: [Your specific advice]
+    
+    𝟐. Strategic Adjustment: [Your specific advice]
+    
+    𝟑. Accountability: [Your specific advice]
     """
-
     try:
-        # 5. Call the Groq API
-        # Using LLaMA 3 8B - it is completely free and insanely fast
+        # 6. Call the Groq API
         chat_completion = groq_client.chat.completions.create(
             messages=[
                 {
@@ -2305,10 +2335,9 @@ def generate_action_plan(student_id):
             ],
             model="llama-3.3-70b-versatile", 
             temperature=0.7,
-            max_tokens=250
+            max_tokens=300 # Slightly increased to accommodate deeper context
         )
         
-        # Extract the text from the Groq response
         action_plan_text = chat_completion.choices[0].message.content.strip()
         
         return jsonify({
