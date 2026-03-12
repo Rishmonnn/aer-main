@@ -32,8 +32,13 @@
                 <span>Please enter your details to log in</span>
 
                 {% if error %}
-                <div style="color: #d32f2f; margin: 15px 0; padding: 10px; background: #ffebee; border-radius: 8px;">
-                    {{ error }}
+                <div class="error-alert">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span>{{ error }}</span>
                 </div>
                 {% endif %}
 
@@ -56,6 +61,14 @@
             <div class="login-card" id="register-container" style="display: none;">
                 <h2>Create Account</h2>
                 <span>Please fill in the details to register</span>
+                <div id="js-error-alert" class="error-alert" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span id="js-error-text"></span>
+                </div>
 
                 <form id="registerForm" action="/register" method="POST" onsubmit="submitRegisterForm(event)">
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -205,109 +218,112 @@
         document.getElementById('terms').checked = false;
     }
 
+    // --- ERROR HANDLING LOGIC ---
+    function showError(message) {
+        const errorBox = document.getElementById('js-error-alert');
+        const errorText = document.getElementById('js-error-text');
+        errorText.innerText = message;
+        errorBox.style.display = 'flex';
+    }
+
+    function hideError() {
+        document.getElementById('js-error-alert').style.display = 'none';
+    }
+
     async function submitRegisterForm(event) {
-    // 1. Stop the form from reloading the page immediately
-    event.preventDefault(); 
+        event.preventDefault(); 
+        hideError(); // Clear previous errors
 
-    const role = document.getElementById('role').value;
-    if (!role) {
-        alert('Please select a role (AS HEAD or AS FACULTY)');
-        return;
-    }
+        const role = document.getElementById('role').value;
+        if (!role) {
+            showError('Please select a role (AS HEAD or AS FACULTY)');
+            return;
+        }
 
-    const password = document.getElementById('reg-password').value;
-    const confirmPassword = document.getElementById('reg-confirm-password').value;
+        const password = document.getElementById('reg-password').value;
+        const confirmPassword = document.getElementById('reg-confirm-password').value;
 
-    if (password !== confirmPassword) {
-        alert('Passwords do not match. Please try again.');
-        return; 
-    }
-
-    // 2. Prepare to verify OTP
-    const emailInput = document.getElementById('reg-email').value;
-    const otpInput = document.getElementById('reg-otp').value;
-    const errorMsg = document.getElementById('otp-error-msg');
-    const signupBtn = document.getElementById('signup-btn');
-
-    // Change button to show it's loading
-    signupBtn.innerText = "Verifying...";
-    signupBtn.disabled = true;
-
-    try {
-        // 3. Send OTP to the backend securely
-        const response = await fetch('/api/verify-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: emailInput, otp: otpInput })
-        });
-        
-        const result = await response.json();
-
-        if (!result.success) {
-            // IF WRONG: Show the red inline error message and stop!
-            errorMsg.innerText = result.message;
-            errorMsg.style.display = 'block';
-            
-            // Reset the sign-up button
-            signupBtn.innerText = "Sign Up";
-            signupBtn.disabled = false;
+        if (password !== confirmPassword) {
+            showError('Passwords do not match. Please try again.');
             return; 
         }
 
-        // IF CORRECT: Hide the error and submit the form for real
-        errorMsg.style.display = 'none';
-        document.getElementById('registerForm').submit();
+        const emailInput = document.getElementById('reg-email').value;
+        const otpInput = document.getElementById('reg-otp').value;
+        const signupBtn = document.getElementById('signup-btn');
 
-    } catch (error) {
-        alert("Connection error. Please check your internet and try again.");
-        signupBtn.innerText = "Sign Up";
-        signupBtn.disabled = false;
+        signupBtn.innerText = "Verifying...";
+        signupBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: emailInput, otp: otpInput })
+            });
+            
+            const result = await response.json();
+
+            if (!result.success) {
+                showError(result.message);
+                signupBtn.innerText = "Sign Up";
+                signupBtn.disabled = false;
+                return; 
+            }
+
+            document.getElementById('registerForm').submit();
+
+        } catch (error) {
+            showError("Connection error. Please check your internet and try again.");
+            signupBtn.innerText = "Sign Up";
+            signupBtn.disabled = false;
+        }
     }
-}
 
     async function sendOTP() {
-    const emailInput = document.getElementById('reg-email').value;
-    if (!emailInput) {
-        alert("Please enter your Phinmaed email first.");
-        return;
-    }
-    
-    // Change button state
-    const btn = document.getElementById('send-otp-btn');
-    btn.innerText = "Sending...";
-    btn.disabled = true;
-    btn.style.background = "#999";
+        hideError(); // Clear previous errors
+        const emailInput = document.getElementById('reg-email').value;
+        
+        if (!emailInput) {
+            showError("Please enter your Phinmaed email first.");
+            return;
+        }
+        
+        const btn = document.getElementById('send-otp-btn');
+        btn.innerText = "Sending...";
+        btn.disabled = true;
+        btn.style.background = "#999";
 
-    try {
-        const response = await fetch('/api/send-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: emailInput })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            btn.innerText = "Sent!";
-            // Optional: Re-enable the button after 60 seconds
-            setTimeout(() => {
-                btn.innerText = "Resend OTP";
+        try {
+            const response = await fetch('/api/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: emailInput })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                btn.innerText = "Sent!";
+                setTimeout(() => {
+                    btn.innerText = "Resend OTP";
+                    btn.disabled = false;
+                    btn.style.background = "#333";
+                }, 60000);
+            } else {
+                // Displays the "Only Phinmaed emails allowed" error nicely
+                showError(result.message || "Failed to send OTP.");
+                btn.innerText = "Send OTP";
                 btn.disabled = false;
                 btn.style.background = "#333";
-            }, 60000);
-        } else {
-            // Revert on server error
+            }
+        } catch (error) {
+            showError("An error occurred. Please check your connection and try again.");
             btn.innerText = "Send OTP";
             btn.disabled = false;
             btn.style.background = "#333";
         }
-    } catch (error) {
-        alert("An error occurred. Please check your connection and try again.");
-        btn.innerText = "Send OTP";
-        btn.disabled = false;
-        btn.style.background = "#333";
     }
-}
 </script>
 </body>
 </html>

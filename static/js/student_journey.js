@@ -26,29 +26,11 @@ function loadStudentJourney() {
 
                 const tbody = document.getElementById(`journey-tbody-${yearIndex}`);
                 if (tbody) {
-                    // --- NEW: Generate the color-coded flag pill ---
-                    const monitoringStatus = student.monitoring_status || 'On Track';
-                    let flagHtml = '';
-                    
-                    if (monitoringStatus === 'On Track') {
-                        flagHtml = `<span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟢 On Track</span>`;
-                    } else if (monitoringStatus === 'Monitoring') {
-                        flagHtml = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟠 Monitored</span>`;
-                    } else if (monitoringStatus === 'Critical') {
-                        flagHtml = `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🔴 Critical</span>`;
-                    }
-
-                    // Status Pill Fallback (Uses existing CSS)
-                    const statusClass = student.status.toLowerCase() === 'irregular' ? 'irregular' : 'regular';
-                    const statusHtml = `<span class="status-pill ${statusClass}">${student.status}</span>`;
-
                     const row = `
                         <tr>
                             <td>${student.id}</td>
                             <td class="student-name">${student.name}</td>
                             <td>${student.program}</td>
-                            <td>${statusHtml}</td>
-                            <td>${flagHtml}</td>
                             <td>
                                 <button class="btn-view-action" onclick="viewStudentJourney('${student.id}', '${student.name}')">
                                     View Journey
@@ -109,12 +91,6 @@ function viewStudentJourney(id, name) {
                 document.getElementById('detail-address').innerText = data.student_info.address || 'N/A';
                 const birthdateStr = data.student_info.birthdate || 'N/A';
                 document.getElementById('detail-birthdate').innerText = birthdateStr;
-
-                const flagSelect = document.getElementById('monitoring-flag-select');
-                if (flagSelect) {
-                    flagSelect.value = data.student_info.monitoring_status || 'On Track';
-                    updateFlagColor(flagSelect);
-                }
 
                 // NEW: Calculate Age Dynamically
                 let ageText = 'N/A';
@@ -715,54 +691,5 @@ function submitBatchPromotion() {
     .finally(() => {
         btn.innerHTML = originalText;
         btn.disabled = false;
-    });
-}
-
-// =========================================
-// ACADEMIC FLAG LOGIC
-// =========================================
-
-function updateFlagColor(selectElement) {
-    if (selectElement.value === 'On Track') {
-        selectElement.style.borderColor = '#bbf7d0';
-        selectElement.style.color = '#15803d';
-        selectElement.style.backgroundColor = '#f0fdf4';
-    } else if (selectElement.value === 'Monitoring') {
-        selectElement.style.borderColor = '#fde68a';
-        selectElement.style.color = '#b45309';
-        selectElement.style.backgroundColor = '#fffbeb';
-    } else if (selectElement.value === 'Critical') {
-        selectElement.style.borderColor = '#fecaca';
-        selectElement.style.color = '#b91c1c';
-        selectElement.style.backgroundColor = '#fef2f2';
-    }
-}
-
-window.updateMonitoringFlag = function() {
-    const select = document.getElementById('monitoring-flag-select');
-    const newStatus = select.value;
-    const studentId = currentViewedStudent.id;
-
-    // Instantly update the color locally
-    updateFlagColor(select);
-    select.disabled = true;
-
-    // Save to database silently
-    fetch(`/api/students/update/${studentId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ monitoring_status: newStatus })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            currentViewedStudent.monitoring_status = newStatus;
-        } else {
-            alert('Failed to update status.');
-        }
-    })
-    .catch(err => console.error(err))
-    .finally(() => {
-        select.disabled = false;
     });
 }

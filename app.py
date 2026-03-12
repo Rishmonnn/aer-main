@@ -59,9 +59,12 @@ def login():
     email = request.form.get('email', '').lower()
     password = request.form.get('password', '')
     
-    
     if not email or not password:
         return render_template('index.html', error="Email and password are required.")
+    
+    # --- NEW: Domain Restriction Check ---
+    if not email.endswith('@phinmaed.com'):
+        return render_template('index.html', error="Access denied. Only PHINMA Education accounts (@phinmaed.com) are allowed to log in.")
     
     # 1. Query the actual database for the user
     user = User.query.filter_by(email=email).first()
@@ -870,6 +873,7 @@ def get_all_students():
                 'program': s.program,
                 'year_level': s.year_level,
                 'status': s.status,
+                'monitoring_status': getattr(s, 'monitoring_status', 'On Track')
             })
             
         return jsonify(student_list)
@@ -1595,6 +1599,10 @@ def send_otp():
     if not email_addr:
         return jsonify({'success': False, 'message': 'Email is required'}), 400
 
+    # --- NEW: Domain Restriction Check for OTP ---
+    if not email_addr.lower().endswith('@phinmaed.com'):
+        return jsonify({'success': False, 'message': 'Use Phinmaed Account'}), 403
+
     # 1. Generate a 6-digit random OTP
     otp = str(random.randint(100000, 999999))
     
@@ -1697,8 +1705,12 @@ def register():
 
     if email:
         email = email.lower()
+        
+        # --- NEW: Domain Restriction Check for Registration ---
+        if not email.endswith('@phinmaed.com'):
+            return render_template('index.html', error="Registration denied. Only PHINMA Education accounts (@phinmaed.com) are allowed.")
 
-    # --- NEW: VERIFY OTP LOGIC REMAINS HERE ---
+    # --- VERIFY OTP LOGIC REMAINS HERE ---
     stored_otp = session.get('reg_otp')
     stored_email = session.get('reg_email')
 
