@@ -199,16 +199,15 @@
 }
 .retention-table tbody tr:hover { background: #f9f9f9; }
 
-/* --- Specific Widths: Main Retention Table (7 Columns) --- */
-.retention-table-container .retention-table th:nth-child(1), .retention-table-container .retention-table td:nth-child(1) { width: 12%; } /* ID */
-.retention-table-container .retention-table th:nth-child(2), .retention-table-container .retention-table td:nth-child(2) { width: 22%; } /* NAME */
-.retention-table-container .retention-table th:nth-child(3), .retention-table-container .retention-table td:nth-child(3) { width: 12%; } /* PROGRAM */
-.retention-table-container .retention-table th:nth-child(4), .retention-table-container .retention-table td:nth-child(4) { width: 12%; } /* YEAR LEVEL */
-/* NEW: Explicitly center the STATUS column */
-.retention-table-container .retention-table th:nth-child(5), .retention-table-container .retention-table td:nth-child(5) { width: 12%; text-align: center; } 
-.retention-table-container .retention-table th:nth-child(6), .retention-table-container .retention-table td:nth-child(6) { width: 18%; } /* REASON */
-/* Explicitly center the ACTION column */
-.retention-table-container .retention-table th:nth-child(7), .retention-table-container .retention-table td:nth-child(7) { width: 12%; text-align: center; } 
+/* --- Specific Widths: Main Retention Table (8 Columns - Maximum Left Shift) --- */
+.retention-table-container .retention-table th:nth-child(1), .retention-table-container .retention-table td:nth-child(1) { width: 12%; } /* ID (Shrunk further) */
+.retention-table-container .retention-table th:nth-child(2), .retention-table-container .retention-table td:nth-child(2) { width: 16%; } /* NAME (Shrunk to pull everything left) */
+.retention-table-container .retention-table th:nth-child(3), .retention-table-container .retention-table td:nth-child(3) { width: 8%; }  /* PROGRAM */
+.retention-table-container .retention-table th:nth-child(4), .retention-table-container .retention-table td:nth-child(4) { width: 8%; }  /* YEAR LEVEL (Slightly reduced) */
+.retention-table-container .retention-table th:nth-child(5), .retention-table-container .retention-table td:nth-child(5) { width: 11%; text-align: center; } /* RISK LEVEL (Slightly reduced) */
+.retention-table-container .retention-table th:nth-child(6), .retention-table-container .retention-table td:nth-child(6) { width: 11%; text-align: center; } /* FLAG */
+.retention-table-container .retention-table th:nth-child(7), .retention-table-container .retention-table td:nth-child(7) { width: 24%; } /* REASON (Massively expanded with the saved space!) */
+.retention-table-container .retention-table th:nth-child(8), .retention-table-container .retention-table td:nth-child(8) { width: 10%; text-align: center; } /* ACTION (ADVISE BTN) */
 
 /* --- Specific Widths: Drop History Table (5 Columns) --- */
 .history-table-wrapper .retention-table th:nth-child(1), .history-table-wrapper .retention-table td:nth-child(1) { width: 18%; } /* Student ID */

@@ -56,26 +56,33 @@ function fetchRetentionData() {
             document.getElementById('pop-count-4').innerText = y4;
             if(document.getElementById('pop-bar-4')) document.getElementById('pop-bar-4').style.width = `${(y4 / activeTotal) * 100}%`;
             
+            // Populate At-Risk Table
             const tbody = document.getElementById('retention-table-body');
             if(tbody) {
                 tbody.innerHTML = ''; 
                 if (data.at_risk_students.length === 0) {
-                    // Updated colspan to 8 to match the new column count
+                    // Colspan updated to 8 for the new column
                     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 20px; color: #64748b;">No students are currently at risk.</td></tr>`;
                 } else {
                     data.at_risk_students.forEach(student => {
                         
-                        // --- NEW: Generate the color-coded flag pill ---
-                        let flagHtml = '';
+                        // --- INTERACTIVE COLOR-CODED DROPDOWN ---
                         const status = student.monitoring_status || 'On Track';
                         
-                        if (status === 'On Track') {
-                            flagHtml = `<span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟢 On Track</span>`;
-                        } else if (status === 'Monitoring') {
-                            flagHtml = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟠 Monitored</span>`;
-                        } else if (status === 'Critical') {
-                            flagHtml = `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🔴 Critical</span>`;
-                        }
+                        let bg = '#f0fdf4', color = '#15803d', border = '#bbf7d0'; // Defaults to On Track
+                        if (status === 'Monitoring') { bg = '#fffbeb'; color = '#b45309'; border = '#fde68a'; }
+                        else if (status === 'Critical') { bg = '#fef2f2'; color = '#b91c1c'; border = '#fecaca'; }
+
+                        let flagHtml = `
+                            <select onchange="updateRetentionFlag('${student.id}', this)" 
+                                    style="background: ${bg}; color: ${color}; border: 1px solid ${border}; 
+                                           padding: 4px 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; 
+                                           outline: none; cursor: pointer; transition: all 0.2s; width: 100%;">
+                                <option value="On Track" ${status === 'On Track' ? 'selected' : ''}>🟢 On Track</option>
+                                <option value="Monitoring" ${status === 'Monitoring' ? 'selected' : ''}>🟠 Monitored</option>
+                                <option value="Critical" ${status === 'Critical' ? 'selected' : ''}>🔴 Critical</option>
+                            </select>
+                        `;
 
                         tbody.innerHTML += `
                             <tr>
@@ -653,3 +660,50 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ==========================================
+// 6. INTERACTIVE TABLE FLAG LOGIC
+// ==========================================
+
+window.updateRetentionFlag = function(studentId, selectElement) {
+    const newStatus = selectElement.value;
+    
+    // 1. Instantly update the colors locally so the UI feels fast
+    if (newStatus === 'On Track') {
+        selectElement.style.background = '#f0fdf4';
+        selectElement.style.color = '#15803d';
+        selectElement.style.borderColor = '#bbf7d0';
+    } else if (newStatus === 'Monitoring') {
+        selectElement.style.background = '#fffbeb';
+        selectElement.style.color = '#b45309';
+        selectElement.style.borderColor = '#fde68a';
+    } else if (newStatus === 'Critical') {
+        selectElement.style.background = '#fef2f2';
+        selectElement.style.color = '#b91c1c';
+        selectElement.style.borderColor = '#fecaca';
+    }
+
+    // 2. Disable briefly to prevent spam clicking
+    selectElement.disabled = true;
+
+    // 3. Silently save to the database using your existing update route
+    fetch(`/api/students/update/${studentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ monitoring_status: newStatus })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) {
+            alert('Failed to update status in the database.');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Network error while saving the flag.');
+    })
+    .finally(() => {
+        // Re-enable the dropdown
+        selectElement.disabled = false;
+    });
+}
