@@ -26,11 +26,29 @@ function loadStudentJourney() {
 
                 const tbody = document.getElementById(`journey-tbody-${yearIndex}`);
                 if (tbody) {
+                    // --- NEW: Generate the color-coded flag pill ---
+                    const monitoringStatus = student.monitoring_status || 'On Track';
+                    let flagHtml = '';
+                    
+                    if (monitoringStatus === 'On Track') {
+                        flagHtml = `<span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟢 On Track</span>`;
+                    } else if (monitoringStatus === 'Monitoring') {
+                        flagHtml = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟠 Monitored</span>`;
+                    } else if (monitoringStatus === 'Critical') {
+                        flagHtml = `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🔴 Critical</span>`;
+                    }
+
+                    // Status Pill Fallback (Uses existing CSS)
+                    const statusClass = student.status.toLowerCase() === 'irregular' ? 'irregular' : 'regular';
+                    const statusHtml = `<span class="status-pill ${statusClass}">${student.status}</span>`;
+
                     const row = `
                         <tr>
                             <td>${student.id}</td>
                             <td class="student-name">${student.name}</td>
                             <td>${student.program}</td>
+                            <td>${statusHtml}</td>
+                            <td>${flagHtml}</td>
                             <td>
                                 <button class="btn-view-action" onclick="viewStudentJourney('${student.id}', '${student.name}')">
                                     View Journey
