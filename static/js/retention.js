@@ -56,14 +56,27 @@ function fetchRetentionData() {
             document.getElementById('pop-count-4').innerText = y4;
             if(document.getElementById('pop-bar-4')) document.getElementById('pop-bar-4').style.width = `${(y4 / activeTotal) * 100}%`;
             
-            // Populate At-Risk Table
             const tbody = document.getElementById('retention-table-body');
             if(tbody) {
                 tbody.innerHTML = ''; 
                 if (data.at_risk_students.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color: #64748b;">No students are currently at risk.</td></tr>`;
+                    // Updated colspan to 8 to match the new column count
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 20px; color: #64748b;">No students are currently at risk.</td></tr>`;
                 } else {
                     data.at_risk_students.forEach(student => {
+                        
+                        // --- NEW: Generate the color-coded flag pill ---
+                        let flagHtml = '';
+                        const status = student.monitoring_status || 'On Track';
+                        
+                        if (status === 'On Track') {
+                            flagHtml = `<span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟢 On Track</span>`;
+                        } else if (status === 'Monitoring') {
+                            flagHtml = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟠 Monitored</span>`;
+                        } else if (status === 'Critical') {
+                            flagHtml = `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🔴 Critical</span>`;
+                        }
+
                         tbody.innerHTML += `
                             <tr>
                                 <td>${student.id}</td>
@@ -71,6 +84,9 @@ function fetchRetentionData() {
                                 <td>${student.program}</td>
                                 <td>${student.year_level}</td>
                                 <td><span class="risk-pill ${student.risk_class}">${student.risk_level}</span></td>
+                                
+                                <td>${flagHtml}</td>
+                                
                                 <td style="color: #ef4444; font-size: 0.85rem; font-weight: 500;">${student.risk_reason}</td>
                                 <td><button class="btn-advise" onclick="openAdvisingModal('${student.id}', \`${student.name}\`, \`${student.risk_reason}\`)">ADVISE</button></td>
                             </tr>

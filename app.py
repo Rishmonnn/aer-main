@@ -615,7 +615,9 @@ def get_retention_data():
                     'year_level': s.year_level,
                     'risk_level': risk_level,
                     'risk_class': risk_class,
-                    'risk_reason': risk_reason
+                    'risk_reason': risk_reason,
+                    # --- ADD THIS NEW LINE ---
+                    'monitoring_status': getattr(s, 'monitoring_status', 'On Track')
                 })
             else:
                 regular_count += 1
