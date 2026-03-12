@@ -817,14 +817,71 @@ def save_bulk_schedules():
 @app.route('/api/schedules', methods=['POST'])
 @login_required
 def save_schedule():
-    """Saves a new class or updates an existing one in the database."""
+    """Saves a new class or updates an existing one in the database, with Conflict Detection."""
     data = request.get_json()
     
     try:
-        # If an ID is provided, update the existing event
         event_id = data.get('id')
+        new_start = data['start']
+        new_end = data['end']
+        
+        # .strip() removes hidden spaces that cause false conflicts!
+        new_faculty = str(data['extendedProps'].get('faculty', 'TBA')).strip()
+        new_room = str(data['extendedProps'].get('room', 'TBA')).strip()
+
+        # ==========================================
+        # 1. STRICT ROOM CONFLICT CHECK
+        # ==========================================
+        # This ONLY checks the exact room you are trying to book.
+        # It completely ignores what subject it is. Different room = No conflict.
+        if new_room and new_room.upper() != 'TBA':
+            room_query = ScheduleEvent.query.filter(
+                ScheduleEvent.room == new_room,
+                ScheduleEvent.start_time < new_end,
+                ScheduleEvent.end_time > new_start
+            )
+            
+            # Exclude the event itself if we are editing an existing schedule
+            if event_id:
+                room_query = room_query.filter(ScheduleEvent.id != event_id)
+                
+            conflicting_room = room_query.first()
+            if conflicting_room:
+                return jsonify({
+                    'success': False, 
+                    'message': f"Room Conflict: The room {new_room} is currently occupied by {conflicting_room.subject_code}."
+                }), 400
+
+        # ==========================================
+        # 2. INSTRUCTOR CONFLICT CHECK
+        # ==========================================
+        # This prevents the same instructor from being in two different rooms at the same time.
+        if new_faculty and new_faculty.upper() != 'TBA':
+            faculty_query = ScheduleEvent.query.filter(
+                ScheduleEvent.faculty_name == new_faculty,
+                ScheduleEvent.start_time < new_end,
+                ScheduleEvent.end_time > new_start
+            )
+            
+            # Exclude the event itself if we are editing an existing schedule
+            if event_id:
+                faculty_query = faculty_query.filter(ScheduleEvent.id != event_id)
+                
+            conflicting_faculty = faculty_query.first()
+            if conflicting_faculty:
+                return jsonify({
+                    'success': False, 
+                    'message': f"Instructor Conflict: {new_faculty} is already teaching {conflicting_faculty.subject_code} during this time slot."
+                }), 400
+
+        # ==========================================
+        # 3. SAVE TO DATABASE (NO CONFLICTS)
+        # ==========================================
         if event_id:
             event = ScheduleEvent.query.get(event_id)
+            if not event:
+                event = ScheduleEvent()
+                db.session.add(event)
         else:
             event = ScheduleEvent()
             db.session.add(event)
@@ -832,16 +889,17 @@ def save_schedule():
         event.title = data['title']
         event.subject_code = data['extendedProps']['code']
         event.section_code = data['extendedProps']['sectionCode']
-        event.faculty_name = data['extendedProps']['faculty']
-        event.room = data['extendedProps']['room']
+        event.faculty_name = new_faculty
+        event.room = new_room
         event.type = data['extendedProps']['type']
         event.year_level = str(data['extendedProps']['year'])
-        event.start_time = data['start']
-        event.end_time = data['end']
+        event.start_time = new_start
+        event.end_time = new_end
         event.color = data['backgroundColor']
         
         db.session.commit()
         return jsonify({'success': True, 'id': event.id})
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500

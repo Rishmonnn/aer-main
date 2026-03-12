@@ -445,35 +445,3 @@
         
     </div>
 </div>
-
-<div class="modal-overlay" id="invalidFileModal" style="z-index: 1200; backdrop-filter: blur(6px);">
-    <div class="modal-content enhanced-modal" style="width: 500px; max-width: 95%; background: #f8fafc; height: auto !important; min-height: auto !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);">
-        
-        <div class="modal-header" style="background: white; padding: 25px 30px 20px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
-            <h2 style="color: #0f172a; font-size: 1.35rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 12px;">
-                <div style="background: #fef2f2; color: #ef4444; width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem;">
-                    <i class='bx bx-file-blank'></i>
-                </div>
-                Invalid File Format
-            </h2>
-        </div>
-        
-        <div class="modal-body" style="padding: 25px 30px;">
-            <p style="margin: 0 0 15px 0; color: #334155; font-size: 0.95rem; line-height: 1.6;">
-                The uploaded file does not appear to be a valid student list. We could not detect expected column headers such as <strong>First Name</strong>, <strong>Last Name</strong>, or <strong>Student ID</strong>.
-            </p>
-            <div style="background: #f1f5f9; border-left: 3px solid #64748b; padding: 12px 15px; border-radius: 6px;">
-                <p style="margin: 0; color: #475569; font-size: 0.85rem;">
-                    <i class='bx bx-info-circle'></i> Please verify you are uploading the correct Excel (.xlsx) or CSV file, then try again.
-                </p>
-            </div>
-        </div>
-        
-        <div class="modal-footer" style="padding: 20px 30px; background: white; display: flex; justify-content: flex-end; border-top: 1px solid #e2e8f0;">
-            <button type="button" onclick="closeInvalidFileModal()" style="padding: 10px 24px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                Close & Try Again
-            </button>
-        </div>
-        
-    </div>
-</div>

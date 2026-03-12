@@ -857,8 +857,7 @@ function submitEnrollment() {
         btn.innerText = originalText;
         btn.disabled = false;
         return;
-    };
-    };
+    } // Remove the semicolon and the extra brace below
 
     fetch('/api/enrollment', {
         method: 'POST',
@@ -873,7 +872,6 @@ function submitEnrollment() {
             
             currentStep++;
             updateStepUI();
-            
             loadEnrollmentData(); 
         } else {
             showToast("Import Failed: " + (data.message || "Unknown error"), "error");
@@ -887,6 +885,7 @@ function submitEnrollment() {
         btn.innerText = originalText;
         btn.disabled = false;
     });
+} // This is where the function should actually end
 
 
 function prevStep() {

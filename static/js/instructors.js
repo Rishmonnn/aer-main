@@ -427,6 +427,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         }
 
+        // --- ADD THIS LINE HERE ---
+        window.refreshInstructors = fetchFromAPI;
+
         loadInitialData();
 
     } catch (criticalError) {

@@ -40,9 +40,7 @@
         // Send BOTH the term AND the events to Python
         fetch('/api/schedules/bulk', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 term: activeTerm,
                 events: allEvents
@@ -50,7 +48,10 @@
         })
         .then(response => response.json())
         .then(data => {
-            if (!data.success) {
+            if (data.success) {
+                // THE FIX: Immediately grab the official Database IDs so it doesn't conflict with itself later!
+                fetchFromAPI(); 
+            } else {
                 console.error("Database save failed:", data.message);
             }
         })
@@ -60,7 +61,6 @@
             window.updateInstructorsFromImport(allEvents);
         }
     }
-
     function loadInitialSchedules() {
     // Force the app to ALWAYS fetch from the MySQL database first
     // instead of relying on the local browser storage.
@@ -376,30 +376,49 @@
         
         for (let year in mockDatabase) {
             eventsToCheck = eventsToCheck.concat(mockDatabase[year].events.map(e => ({
+                id: e.id, // Grab the Database ID
                 start: new Date(e.start),
                 end: new Date(e.end),
                 title: e.title,
-                room: e.extendedProps.room,
-                faculty: e.extendedProps.faculty,
-                year: e.extendedProps.year
+                room: e.extendedProps.room ? e.extendedProps.room.trim() : 'TBA',
+                faculty: e.extendedProps.faculty ? e.extendedProps.faculty.trim() : 'TBA',
+                year: e.extendedProps.year,
+                code: e.extendedProps.code ? e.extendedProps.code.trim() : '',
+                sectionCode: e.extendedProps.sectionCode ? e.extendedProps.sectionCode.trim() : '',
+                type: e.extendedProps.type ? e.extendedProps.type.trim() : ''
             })));
         }
 
+        const excludeId = excludeEvent?.id;
+        const cleanExcludeCode = excludeEvent?.extendedProps?.code?.trim();
+        const cleanExcludeSection = excludeEvent?.extendedProps?.sectionCode?.trim();
+        const cleanExcludeType = excludeEvent?.extendedProps?.type?.trim();
+
         for (let ev of eventsToCheck) {
-            if (excludeEvent && 
-                ev.extendedProps?.code === excludeEvent.extendedProps?.code && 
-                ev.extendedProps?.sectionCode === excludeEvent.extendedProps?.sectionCode) {
+            // 1. If it has the exact same Database ID, it is itself. Ignore it!
+            if (excludeId && ev.id && String(ev.id) === String(excludeId)) {
                 continue;
             }
+            
+            // 2. Fallback for events that haven't refreshed their ID yet
+            if (excludeEvent && (!excludeId || !ev.id)) {
+                if (ev.code === cleanExcludeCode && 
+                    ev.sectionCode === cleanExcludeSection &&
+                    ev.type === cleanExcludeType) {
+                    continue;
+                }
+            }
+
+            // The Golden Rule of Time Overlaps
             if (newStart < ev.end && newEnd > ev.start) {
-                if (checkRoom && checkRoom !== 'TBA' && checkRoom.toUpperCase() === ev.room?.toUpperCase()) {
+                // STRICT ROOM CHECK
+                if (checkRoom && checkRoom.toUpperCase() !== 'TBA' && checkRoom.toUpperCase() === ev.room.toUpperCase()) {
                     return `Room Conflict: ${ev.room} is already booked for ${ev.title}.`;
                 }
-                if (checkFaculty && checkFaculty !== 'TBA' && checkFaculty.toUpperCase() === ev.faculty?.toUpperCase()) {
+                
+                // STRICT INSTRUCTOR CHECK
+                if (checkFaculty && checkFaculty.toUpperCase() !== 'TBA' && checkFaculty.toUpperCase() === ev.faculty.toUpperCase()) {
                     return `Instructor Conflict: ${ev.faculty} is already teaching ${ev.title}.`;
-                }
-                if (targetYear === ev.year) {
-                    return `Student Conflict: Time overlaps with ${ev.title} for Year ${targetYear}.`;
                 }
             }
         }
@@ -495,16 +514,23 @@
         }
     }
 
-    function saveClass() {
+    async function saveClass() {
         hideError(); 
 
         const subjectSelect = document.getElementById('subjectSelect');
-        if (!subjectSelect.value) { 
+        if (!subjectSelect || !subjectSelect.value) { 
             showError("Please select a subject.");
             return; 
         }
 
-        const subData = JSON.parse(subjectSelect.options[subjectSelect.selectedIndex].dataset.json);
+        // Safely parse the subject data
+        let subData = { title: subjectSelect.value, code: subjectSelect.value };
+        try {
+            if (subjectSelect.options[subjectSelect.selectedIndex].dataset.json) {
+                subData = JSON.parse(subjectSelect.options[subjectSelect.selectedIndex].dataset.json);
+            }
+        } catch(e) {}
+
         const modalYear = document.getElementById('modalYear').value;
         const day = parseInt(document.getElementById('daySelect').value);
         const start = document.getElementById('startTime').value;
@@ -523,15 +549,23 @@
             return;
         }
 
+        // 1. Check Frontend Rules
         const conflict = isOverlapping(startDt, endDt, modalYear, room, faculty, editingEvent);
         if (conflict) {
             showError(conflict);
             return;
         }
+
         const yearColor = mockDatabase[modalYear] ? mockDatabase[modalYear].color : '#3b82f6'; 
+        
+        // 2. Safely grab the ID if we are editing an existing class
+        let eventId = null;
+        if (editingEvent && editingEvent.id) {
+            eventId = editingEvent.id; 
+        }
 
         const newEvent = {
-            id: editingEvent ? editingEvent.id : null, 
+            id: eventId, 
             title: subData.title,
             start: `${date}T${start}:00`,
             end: `${date}T${end}:00`,
@@ -547,34 +581,47 @@
             }
         };
 
-        if (editingEvent) {
-            const oldYear = editingEvent.extendedProps.year;
-            if (mockDatabase[oldYear]) { 
-                mockDatabase[oldYear].events = mockDatabase[oldYear].events.filter(e => 
-                    !(e.title === editingEvent.title && 
-                      e.extendedProps.code === editingEvent.extendedProps.code &&
-                      e.extendedProps.type === editingEvent.extendedProps.type)
-                );
-            }
-            editingEvent.remove();
+        const saveBtn = document.querySelector('#addClassModal .btn-primary');
+        let originalText = "Save Changes";
+        if (saveBtn) {
+            originalText = saveBtn.innerText;
+            saveBtn.innerText = "Saving...";
+            saveBtn.disabled = true;
         }
-        
-        if (!mockDatabase[modalYear]) mockDatabase[modalYear] = { color: yearColor, events: [] };
-        mockDatabase[modalYear].events.push(newEvent);
 
-        syncMemoryToStorage();
+        try {
+            // 3. POST to the backend API to save
+            const response = await fetch('/api/schedules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newEvent)
+            });
+            const result = await response.json();
 
-        if (modalYear === currentActiveYear) {
-            loadYearData(currentActiveYear);
-        } else {
-            if (typeof showToast === 'function') {
-                showToast(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
+            if (result.success) {
+                // Displays the correct Save message
+                if (typeof showToast === 'function') showToast(`Class saved successfully.`);
+                Schedules.closeModal();
+                
+                // Refresh the calendar directly from the database
+                fetchFromAPI(); 
+                
+                // Refresh the Instructors tab!
+                if (typeof window.refreshInstructors === 'function') {
+                    window.refreshInstructors();
+                }
             } else {
-                alert(`Class saved to ${modalYear}${getOrdinal(modalYear)} Year schedule.`);
+                showError(result.message || "Failed to save schedule.");
+            }
+        } catch (error) {
+            showError("Network error. Please try again.");
+            console.error(error);
+        } finally {
+            if (saveBtn) {
+                saveBtn.innerText = originalText;
+                saveBtn.disabled = false;
             }
         }
-
-        Schedules.closeModal();
     }
 
     function exportToExcel() {
@@ -1206,24 +1253,38 @@
             `Are you sure you want to permanently delete ${editingEvent.title}?`,
             "Delete",
             "Cancel",
-            () => { 
-                const yearKey = editingEvent.extendedProps.year;
-                
-                if (mockDatabase[yearKey]) {
-                    mockDatabase[yearKey].events = mockDatabase[yearKey].events.filter(e => 
-                        !(e.title === editingEvent.title && 
-                          e.extendedProps.code === editingEvent.extendedProps.code &&
-                          e.extendedProps.type === editingEvent.extendedProps.type)
-                    );
+            async () => { 
+                if (editingEvent.id) {
+                    try {
+                        // Send a DELETE request to the server
+                        const response = await fetch(`/api/schedules/${editingEvent.id}`, {
+                            method: 'DELETE'
+                        });
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Displays the Delete message ONLY here
+                            if (typeof showToast === 'function') showToast("Class deleted successfully.");
+                            closeModal();
+                            
+                            // Refresh the calendar
+                            fetchFromAPI(); 
+                            
+                            // Refresh the Instructors tab!
+                            if (typeof window.refreshInstructors === 'function') {
+                                window.refreshInstructors();
+                            }
+                        } else {
+                            alert(result.message || "Failed to delete from database.");
+                        }
+                    } catch (err) {
+                        alert("Network error while deleting.");
+                    }
+                } else {
+                    // If the event hasn't been saved to the DB yet, just remove it from the screen
+                    editingEvent.remove();
+                    closeModal();
                 }
-                
-                syncMemoryToStorage();
-
-                editingEvent.remove();
-                updateKPIs(calendarInstance.getEvents());
-                
-                if (typeof showToast === 'function') showToast("Class deleted successfully.");
-                closeModal();
             },
             null 
         );
